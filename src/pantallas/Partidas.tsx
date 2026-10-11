@@ -3,6 +3,7 @@ import { juegoPorId } from "../datos/catalogo";
 import {
   cancelar,
   definirEquipos,
+  enlaceJuego,
   jugadoresAceptados,
   lanzar,
   marcarListo,
@@ -97,6 +98,7 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
                 {jugadoresAceptados(p)
                   .map(([, i]) => i.nombre)
                   .join(", ")}
+                {resumenResultado(p) && <strong> · {resumenResultado(p)}</strong>}
                 {p.terminada && (
                   <span className="suave">
                     {" "}
@@ -113,6 +115,17 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
 }
 
 const NOMBRE_EQUIPO = ["Equipo A", "Equipo B"] as const;
+
+/** "Ganó Ana" / "Ganaron Ana y Bea" / "Empate", a partir de los asientos ganadores. */
+function resumenResultado(p: Partida): string | null {
+  if (!p.resultado) return null;
+  const porAsiento = new Map(Object.values(p.invitados).filter((i) => i.asiento !== null).map((i) => [i.asiento!, i.nombre]));
+  const nombres = p.resultado.ganadores.map((a) => porAsiento.get(a)).filter(Boolean) as string[];
+  if (!nombres.length) return "sin ganador";
+  const jugadores = jugadoresAceptados(p).length;
+  if (nombres.length === jugadores && jugadores > 1) return "empate";
+  return nombres.length === 1 ? `ganó ${nombres[0]}` : `ganaron ${nombres.slice(0, -1).join(", ")} y ${nombres.at(-1)}`;
+}
 
 function estadoInvitado(i: Invitado, jugando: boolean, enLinea: boolean): { texto: string; clase: string } {
   if (i.respuesta === "acepta" && !enLinea) return { texto: "desconectado", clase: "no-conectado" };
@@ -143,6 +156,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
   const conEquipos = Boolean(juego && usaEquipos(p, juego));
   const creador = p.invitados[p.anfitrion]?.nombre ?? "Quien creó la partida";
   const puedoTomarControl = !soyCreador && yo?.respuesta === "acepta" && !conectado(p.anfitrion);
+  const enlace = juego ? enlaceJuego(juego, sala, p, uid) : null;
 
   const lista = Object.entries(p.invitados)
     .filter(([, i]) => !jugando || i.respuesta === "acepta")
@@ -227,16 +241,35 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
       {jugando && (
         <div className="lanzar">
           {yo?.respuesta === "acepta" && (
-            <p>
-              {yo.rol === "jugador"
-                ? `Juegas en el asiento ${(yo.asiento ?? 0) + 1}` +
-                  (yo.equipo !== undefined ? `, en el ${NOMBRE_EQUIPO[yo.equipo]}.` : ".")
-                : "Entras como espectador."}{" "}
-              <span className="suave">
-                Por ahora abran el juego por su cuenta; la apertura automática desde el lobby llega en el
-                próximo paso.
-              </span>
-            </p>
+            <>
+              <p>
+                {yo.rol === "jugador"
+                  ? `Juegas en el asiento ${(yo.asiento ?? 0) + 1}` +
+                    (yo.equipo !== undefined ? `, en el ${NOMBRE_EQUIPO[yo.equipo]}.` : ".")
+                  : "Entras como espectador."}{" "}
+                {!enlace && (
+                  <span className="suave">
+                    Este juego aún no está conectado al lobby: ábranlo por su cuenta y, al acabar, quien
+                    organiza marca "Terminar partida".
+                  </span>
+                )}
+              </p>
+              {enlace && juego && (
+                <div className="botones">
+                  <button
+                    className="primario"
+                    onClick={() => {
+                      // Pestaña nueva: el lobby sigue abierto y recibe el resultado al terminar.
+                      const w = window.open(enlace, `juego-${p.id}`);
+                      if (!w) window.location.href = enlace; // si el navegador bloqueó la pestaña
+                    }}
+                  >
+                    Abrir {juego.nombre}
+                  </button>
+                  <span className="suave chico-texto">Se abre en otra pestaña. El resultado llega solo al terminar.</span>
+                </div>
+              )}
+            </>
           )}
           {soyCreador && (
             <button className="secundario" onClick={() => terminar(sala, p.id)}>

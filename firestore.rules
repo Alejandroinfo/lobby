@@ -128,6 +128,18 @@ service cloud.firestore {
                 || miembros[creador].ultimaVez < request.time - duration.value(100, 's'));
         }
 
+        // Un jugador que recibió el resultado del juego da la partida por terminada (solo si
+        // ya guardó su resultado). Solo cambia estado, hora de término y resumen.
+        function terminoConResultado() {
+          let yo = request.auth.uid;
+          return resource.data.estado == 'jugando'
+            && yo in resource.data.invitados
+            && resource.data.invitados[yo].respuesta == 'acepta'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'terminada', 'resultado'])
+            && request.resource.data.estado == 'terminada'
+            && exists(/databases/$(database)/documents/salas/$(codigo)/partidas/$(id)/resultados/$(yo));
+        }
+
         allow read: if autenticado() && esMiembro();
 
         allow create: if autenticado() && esMiembro()
@@ -141,8 +153,23 @@ service cloud.firestore {
           && request.resource.data.creada == request.time;
 
         allow update: if autenticado() && esMiembro()
-          && (cambioDelCreador() || miRespuesta() || tomoElControl());
+          && (cambioDelCreador() || miRespuesta() || tomoElControl() || terminoConResultado());
         allow delete: if false;
+
+        // Resultado que informó el juego a cada jugador. Se escribe una vez y no se cambia.
+        match /resultados/{quien} {
+          allow read: if autenticado() && esMiembro();
+          allow create: if autenticado() && esMiembro()
+            && quien == request.auth.uid
+            && get(/databases/$(database)/documents/salas/$(codigo)/partidas/$(id)).data.invitados[quien].respuesta == 'acepta'
+            && request.resource.data.keys().hasOnly(['asiento', 'ganadores', 'puntajes', 'duracionSeg', 'version',
+                                                     'detalleJson', 'recibido'])
+            && request.resource.data.ganadores is list
+            && request.resource.data.detalleJson is string
+            && request.resource.data.detalleJson.size() <= 200000
+            && request.resource.data.recibido == request.time;
+          allow update, delete: if false;
+        }
       }
     }
   }

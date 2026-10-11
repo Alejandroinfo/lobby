@@ -16,6 +16,10 @@ export interface Juego {
   variantes: { id: string; nombre: string }[];
   /** Con cuántos jugadores se juega en dos equipos (asientos pares contra impares). */
   equiposCon?: number[];
+  /**
+   * Página del juego que entiende los parámetros del lobby (?lobby=1&codigo=…).
+   * Vacío = el juego aún no está conectado: cada uno lo abre por su cuenta.
+   */
   url: string;
 }
 
@@ -24,17 +28,20 @@ export const CATEGORIAS: Record<Categoria, { titulo: string; nota: string }> = {
   prueba: { titulo: "En prueba", nota: "Las reglas pueden cambiar entre partidas" },
 };
 
+/** Dirección de cada juego; se puede cambiar con variables de entorno (en Vercel o en .env.local). */
+const env = import.meta.env;
+
 export const JUEGOS: Juego[] = [
   {
     id: "split-loyalty",
     nombre: "Split Loyalty",
     descripcion: "Recluta agentes y decide si cada uno sirve a su nación o a su rango.",
     categoria: "listo",
-    jugadores: { min: 1, max: 4 },
+    jugadores: { min: 2, max: 4 },
     duracion: "20–35 min",
     espectadores: true,
-    variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "especiales", nombre: "Mapas especiales" }],
-    url: "",
+    variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "special", nombre: "Mapas especiales" }],
+    url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
   },
   {
     id: "astrolabe",
@@ -46,7 +53,7 @@ export const JUEGOS: Juego[] = [
     espectadores: true,
     variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
     equiposCon: [4],
-    url: "https://astrolabebg.vercel.app",
+    url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
   },
   {
     id: "blindspot",
@@ -75,3 +82,8 @@ export const JUEGOS: Juego[] = [
 export function juegoPorId(id: string): Juego | undefined {
   return JUEGOS.find((j) => j.id === id);
 }
+
+/** Orígenes de los juegos conectados: solo de ellos se aceptan resultados. */
+export const ORIGENES_JUEGOS = new Set(
+  JUEGOS.filter((j) => j.url).map((j) => new URL(j.url).origin),
+);

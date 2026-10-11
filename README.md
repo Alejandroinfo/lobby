@@ -5,8 +5,9 @@ Diseño completo: documento "Lobby central: diseño técnico (fase 1)".
 
 **Estado:** pasos 1 y 2 del plan — entrar con nombre, crear sala, unirse por enlace (`/s/CODIGO`),
 ver quién está conectado, chatear, y crear partidas: elegir juego y modo, invitar a toda la sala
-o a algunas personas como jugador o espectador, marcar "listo" y lanzar. Abrir el juego
-automáticamente llega en los pasos 4 y 5.
+o a algunas personas como jugador o espectador, marcar "listo" y lanzar. Con los juegos
+conectados (Astrolabe y Split Loyalty), "Abrir juego" entra directo a la partida en su asiento y
+el resultado vuelve solo al lobby.
 
 ## Stack
 
@@ -23,6 +24,20 @@ automáticamente llega en los pasos 4 y 5.
 3. **Firebase → Firestore Database → Reglas:** pegar el contenido de `firestore.rules` y **Publicar**.
    Repetir cada vez que cambie ese archivo.
 
+## Juegos conectados
+
+La dirección de cada juego está en `src/datos/catalogo.ts` y se puede cambiar sin tocar código con
+variables de entorno (Vercel → Settings → Environment Variables, o `.env.local`):
+
+| Variable | Juego |
+| --- | --- |
+| `VITE_URL_ASTROLABE` | Astrolabe (por defecto `https://astrolabebg.vercel.app/`) |
+| `VITE_URL_SPLIT_LOYALTY` | Split Loyalty (por defecto `https://split-loyalty.vercel.app/app/online.html`) |
+
+Cada juego conectado incluye un "puente" (`src/lobby/puente.ts` en Astrolabe, `app/lobby-puente.js`
+en Split Loyalty) que lee los parámetros `?lobby=1&codigo=…&asiento=…&rol=…` y, al terminar, avisa el
+resultado a la pestaña del lobby o vuelve a la sala con `?resultado=…`.
+
 ## Datos en Firestore
 
 | Ruta | Qué guarda |
@@ -30,6 +45,7 @@ automáticamente llega en los pasos 4 y 5.
 | `jugadores/{uid}` | `nombre`, `ultimaVez` |
 | `salas/{codigo}` | `nombre`, `anfitrion`, `miembros: {uid: {nombre, entrada, ultimaVez}}`, `creada` |
 | `salas/{codigo}/mensajes/{id}` | `uid`, `nombre`, `texto`, `hora` |
+| `salas/{codigo}/partidas/{id}/resultados/{uid}` | `asiento`, `ganadores`, `puntajes`, `duracionSeg`, `version`, `detalleJson`, `recibido` |
 | `salas/{codigo}/partidas/{id}` | `juego`, `variante`, `anfitrion`, `estado` (invitando → jugando → terminada / cancelada), `invitados: {uid: {nombre, rol, respuesta, listo, respondio, asiento}}`, `codigoJuego`, `creada`, `iniciada`, `terminada` |
 
 Cada miembro solo puede modificar su propia entrada en `miembros`; el chat y las partidas solo

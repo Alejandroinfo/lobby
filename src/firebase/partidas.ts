@@ -1,9 +1,9 @@
 /** Partidas dentro de una sala: invitar, responder, prepararse, lanzar y terminar. */
-import { addDoc, collection, deleteField, doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteField, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
 import { generarCodigo } from "./salas";
-import type { Invitado, Partida, Rol } from "./tipos";
+import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
 
 const refPartida = (sala: string, id: string) => doc(db, "salas", sala, "partidas", id);
 
@@ -175,4 +175,60 @@ export async function terminar(sala: string, id: string) {
 
 export async function cancelar(sala: string, id: string) {
   await updateDoc(refPartida(sala, id), { estado: "cancelada", terminada: serverTimestamp() });
+}
+
+/**
+ * Enlace con el que cada persona abre el juego (parámetros que entiende el lobby-puente del juego).
+ * `volver` es la sala del lobby: el juego regresa ahí al terminar.
+ */
+export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string): string | null {
+  const yo = p.invitados[uid];
+  if (!juego.url || !p.codigoJuego || !yo || yo.respuesta !== "acepta") return null;
+  const jugadores = Object.values(p.invitados)
+    .filter((i) => i.respuesta === "acepta" && i.rol === "jugador" && i.asiento !== null)
+    .sort((a, b) => (a.asiento ?? 0) - (b.asiento ?? 0));
+  const q = new URLSearchParams({
+    lobby: "1",
+    codigo: p.codigoJuego,
+    asiento: String(yo.rol === "jugador" ? (yo.asiento ?? 0) : 0),
+    jugadores: String(jugadores.length),
+    rol: yo.rol,
+    nombre: yo.nombre,
+    nombres: jugadores.map((i) => i.nombre.replace(/\|/g, "/")).join("|"),
+    idioma: navigator.language?.toLowerCase().startsWith("en") ? "en" : "es",
+    variante: p.variante ?? "",
+    lsala: sala,
+    lpartida: p.id,
+    volver: `${window.location.origin}/s/${sala}`,
+  });
+  return `${juego.url}${juego.url.includes("?") ? "&" : "?"}${q}`;
+}
+
+/**
+ * Guarda el resultado que informó el juego (uno por persona) y, si la partida seguía en juego,
+ * la da por terminada con ese resultado.
+ */
+export async function guardarResultado(sala: string, id: string, uid: string, asiento: number, r: ResultadoJuego) {
+  const ganadores = Array.isArray(r.ganadores) ? r.ganadores.filter((n) => Number.isInteger(n)).slice(0, 8) : [];
+  const puntajes: Record<string, number> = {};
+  for (const [k, v] of Object.entries(r.puntajes ?? {})) if (typeof v === "number" && Number.isFinite(v)) puntajes[k] = v;
+  const refRes = doc(db, "salas", sala, "partidas", id, "resultados", uid);
+  if ((await getDoc(refRes)).exists()) return; // ya guardado (p. ej. llegó por mensaje y por enlace)
+  await setDoc(refRes, {
+    asiento,
+    ganadores,
+    puntajes,
+    duracionSeg: typeof r.duracionSeg === "number" ? r.duracionSeg : null,
+    version: typeof r.version === "string" ? r.version.slice(0, 40) : null,
+    detalleJson: JSON.stringify(r.detalle ?? null).slice(0, 200_000),
+    recibido: serverTimestamp(),
+  });
+  const partida = await getDoc(refPartida(sala, id));
+  if (partida.exists() && partida.data().estado === "jugando") {
+    await updateDoc(refPartida(sala, id), {
+      estado: "terminada",
+      terminada: serverTimestamp(),
+      resultado: { ganadores, puntajes },
+    });
+  }
 }

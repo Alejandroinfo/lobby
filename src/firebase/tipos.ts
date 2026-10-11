@@ -46,6 +46,8 @@ export interface Partida {
   invitados: Record<string, Invitado>;
   /** Solo en juegos por equipos: al azar, o elegidos por quien creó la partida (uid → equipo 0 o 1). */
   equipos?: { modo: "azar" | "manual"; de?: Record<string, 0 | 1> };
+  /** Resumen del resultado (lo escribe el primer jugador que lo recibe del juego). */
+  resultado?: { ganadores: number[]; puntajes?: Record<string, number> };
   /** Código de sala dentro del juego; se genera al lanzar. */
   codigoJuego: string | null;
   creada: Timestamp | null;
@@ -60,4 +62,13 @@ export interface Mensaje {
   nombre: string;
   texto: string;
   hora: Timestamp | null;
+}
+
+/** Lo que un juego conectado informa al terminar (ver lobby-puente en cada juego). */
+export interface ResultadoJuego {
+  ganadores: number[];
+  puntajes?: Record<string, number>;
+  duracionSeg?: number;
+  version?: string;
+  detalle?: unknown;
 }
