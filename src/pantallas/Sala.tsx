@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CATEGORIAS, JUEGOS, type Categoria } from "../datos/catalogo";
+import { CATEGORIAS, JUEGOS, type Categoria, type Juego } from "../datos/catalogo";
 import { enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
 import type { Mensaje, Sala as TSala } from "../firebase/tipos";
+import { usePartidas } from "../hooks/usePartidas";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
 import { enlaceSala, irA } from "../navegacion";
+import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
+import { Invitaciones, ListaPartidas } from "./Partidas";
 
 interface Props {
   codigo: string;
@@ -80,6 +83,7 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
 function VistaSala({ sala, uid, nombre }: { sala: TSala; uid: string; nombre: string }) {
   const [copiado, setCopiado] = useState(false);
   const mensajes = useMensajes(sala.codigo, true);
+  const partidas = usePartidas(sala.codigo);
 
   const copiar = async () => {
     const enlace = enlaceSala(sala.codigo);
@@ -122,9 +126,14 @@ function VistaSala({ sala, uid, nombre }: { sala: TSala; uid: string; nombre: st
         </div>
       </header>
 
+      <Invitaciones sala={sala.codigo} uid={uid} partidas={partidas} />
+
       <div className="rejilla">
         <Miembros sala={sala} uid={uid} />
-        <Catalogo />
+        <div className="centro-sala">
+          <ListaPartidas sala={sala.codigo} uid={uid} partidas={partidas} />
+          <Catalogo sala={sala} uid={uid} />
+        </div>
         <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} />
       </div>
     </main>
@@ -161,8 +170,18 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
   );
 }
 
-function Catalogo() {
+function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   const grupos: Categoria[] = ["listo", "prueba"];
+  const [elegido, setElegido] = useState<Juego | null>(null);
+
+  if (elegido) {
+    return (
+      <section className="panel catalogo" aria-label={`Nueva partida de ${elegido.nombre}`}>
+        <CrearPartida juego={elegido} sala={sala} uid={uid} alCerrar={() => setElegido(null)} />
+      </section>
+    );
+  }
+
   return (
     <section className="panel catalogo" aria-labelledby="t-juegos">
       <h2 id="t-juegos">Juegos</h2>
@@ -186,8 +205,8 @@ function Catalogo() {
                   · {j.duracion}
                   {j.espectadores ? " · con espectadores" : ""}
                 </p>
-                <button className="secundario" disabled title="Llega en el próximo paso">
-                  Crear partida · pronto
+                <button className="secundario" onClick={() => setElegido(j)}>
+                  Crear partida
                 </button>
               </li>
             ))}

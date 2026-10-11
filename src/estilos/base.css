@@ -156,3 +156,53 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 .hora { display: block; font-size: 0.7rem; color: var(--tinta-suave); text-align: right; }
 .escribir { display: flex; gap: 0.5rem; }
 .escribir input { flex: 1; }
+
+/* Paso 2: partidas e invitaciones */
+select {
+  font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--linea); border-radius: 8px;
+  background: var(--fondo); color: var(--tinta);
+}
+select:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+.chico { font-size: 0.8rem; padding: 0.3rem 0.65rem; }
+.rotulo { font-weight: 600; font-size: 0.9rem; margin: 0; }
+.mono { font-family: ui-monospace, monospace; letter-spacing: 0.15em; }
+.botones { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.centro-sala { display: grid; gap: 1rem; min-width: 0; }
+
+.invitaciones { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+.invitacion {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;
+  background: var(--acento-suave); border: 1px solid var(--acento); border-radius: var(--radio);
+  padding: 0.8rem 1rem;
+}
+.invitacion p { margin: 0; }
+
+.partida { border: 1px solid var(--linea); border-radius: 10px; padding: 0.9rem; background: var(--fondo); }
+.partida + .partida { margin-top: 0.75rem; }
+.partida.en-juego { border-color: var(--acento); }
+.partida > header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.estado-partida { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--prueba-suave); color: var(--prueba); }
+.estado-partida.jugando { background: var(--acento-suave); color: var(--acento); }
+.invitados { list-style: none; margin: 0 0 0.6rem; padding: 0; }
+.invitados li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; flex-wrap: wrap; }
+.invitados li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.chip { font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--linea); color: var(--tinta-suave); }
+.chip.ok { background: var(--acento-suave); color: var(--acento); border-color: transparent; }
+.chip.espera { background: var(--prueba-suave); color: var(--prueba); border-color: transparent; }
+.chip.no { text-decoration: line-through; }
+.lanzar { border-top: 1px dashed var(--linea); padding-top: 0.6rem; margin-top: 0.4rem; }
+.lanzar p { font-size: 0.9rem; }
+.listo-texto { color: var(--acento); font-weight: 600; }
+.recientes { margin-top: 1rem; font-size: 0.85rem; }
+.recientes ul { margin: 0.3rem 0 0; padding-left: 1.1rem; color: var(--tinta-suave); }
+
+.crear-partida { display: flex; flex-direction: column; }
+.crear-cabeza, .invitar-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.invitar-cabeza { margin: 1rem 0 0.4rem; }
+.crear-partida select#variante { align-self: flex-start; }
+.lista-invitar { list-style: none; margin: 0 0 0.5rem; padding: 0; }
+.lista-invitar li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid var(--linea); flex-wrap: wrap; }
+.lista-invitar li.ausente { opacity: 0.7; }
+.check { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 400; font-size: 1rem; cursor: pointer; }
+.check input { width: auto; accent-color: var(--acento); }
+.crear-partida > button[type="submit"] { margin-top: 0.75rem; align-self: flex-start; }

@@ -17,6 +17,38 @@ export interface Sala {
   creada: Timestamp | null;
 }
 
+export type Rol = "jugador" | "espectador";
+export type Respuesta = "pendiente" | "acepta" | "rechaza";
+export type EstadoPartida = "invitando" | "jugando" | "terminada" | "cancelada";
+
+/** Una persona invitada a una partida. La clave del mapa `invitados` es su uid. */
+export interface Invitado {
+  nombre: string;
+  rol: Rol;
+  respuesta: Respuesta;
+  listo: boolean;
+  /** Cuándo respondió; ordena los asientos al lanzar. */
+  respondio: Timestamp | null;
+  /** Se asigna al lanzar; `null` para espectadores. */
+  asiento: number | null;
+}
+
+/** Documento `salas/{codigo}/partidas/{id}`. */
+export interface Partida {
+  id: string;
+  juego: string;
+  variante: string | null;
+  /** Quien creó la partida (puede ser cualquier miembro de la sala). */
+  anfitrion: string;
+  estado: EstadoPartida;
+  invitados: Record<string, Invitado>;
+  /** Código de sala dentro del juego; se genera al lanzar. */
+  codigoJuego: string | null;
+  creada: Timestamp | null;
+  iniciada: Timestamp | null;
+  terminada: Timestamp | null;
+}
+
 /** Documento `salas/{codigo}/mensajes/{id}`. */
 export interface Mensaje {
   id: string;

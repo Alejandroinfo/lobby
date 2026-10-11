@@ -12,6 +12,8 @@ export interface Juego {
   jugadores: { min: number; max: number };
   duracion: string;
   espectadores: boolean;
+  /** Opciones de partida; la primera es la predeterminada. */
+  variantes: { id: string; nombre: string }[];
   url: string;
 }
 
@@ -29,6 +31,7 @@ export const JUEGOS: Juego[] = [
     jugadores: { min: 1, max: 4 },
     duracion: "20–35 min",
     espectadores: true,
+    variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "especiales", nombre: "Mapas especiales" }],
     url: "",
   },
   {
@@ -39,6 +42,7 @@ export const JUEGOS: Juego[] = [
     jugadores: { min: 2, max: 2 },
     duracion: "Por medir",
     espectadores: true,
+    variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
     url: "https://astrolabebg.vercel.app",
   },
   {
@@ -49,6 +53,7 @@ export const JUEGOS: Juego[] = [
     jugadores: { min: 3, max: 6 },
     duracion: "45–75 min",
     espectadores: false,
+    variantes: [],
     url: "",
   },
   {
@@ -59,6 +64,11 @@ export const JUEGOS: Juego[] = [
     jugadores: { min: 2, max: 5 },
     duracion: "45–75 min",
     espectadores: false,
+    variantes: [{ id: "A", nombre: "Escenario A: Información mixta" }, { id: "B", nombre: "Escenario B: Revelación tardía" }],
     url: "",
   },
 ];
+
+export function juegoPorId(id: string): Juego | undefined {
+  return JUEGOS.find((j) => j.id === id);
+}
