@@ -1,0 +1,84 @@
+rules_version = '2';
+
+// Reglas de seguridad del lobby.
+// Se publican copiándolas en la consola de Firebase (Firestore Database → Reglas → Publicar)
+// o con: npx firebase-tools deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function nombreValido(n) {
+      return n is string && n.size() >= 1 && n.size() <= 24;
+    }
+
+    // Perfil de cada jugador: solo lo lee y lo cambia su dueño.
+    match /jugadores/{uid} {
+      allow read, delete: if autenticado() && request.auth.uid == uid;
+      allow create, update: if autenticado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nombre', 'ultimaVez'])
+        && nombreValido(request.resource.data.nombre);
+    }
+
+    // Una sala por grupo. Cualquiera con sesión puede leerla (el código hace de invitación),
+    // pero cada miembro solo toca su propia entrada; el anfitrión puede cambiar el resto.
+    match /salas/{codigo} {
+
+      function miembroValido(m) {
+        return m.keys().hasOnly(['nombre', 'entrada', 'ultimaVez']) && nombreValido(m.nombre);
+      }
+
+      function soloMiEntrada() {
+        let yo = request.auth.uid;
+        let cambios = request.resource.data.diff(resource.data).affectedKeys();
+        let entradas = request.resource.data.miembros.diff(resource.data.miembros).affectedKeys();
+        return cambios.hasOnly(['miembros'])
+          && entradas.hasOnly([yo])
+          && (!(yo in request.resource.data.miembros) || miembroValido(request.resource.data.miembros[yo]));
+      }
+
+      function soyAnfitrion() {
+        return request.auth.uid == resource.data.anfitrion
+          && request.resource.data.anfitrion == resource.data.anfitrion
+          && request.resource.data.codigo == resource.data.codigo
+          && request.resource.data.creada == resource.data.creada;
+      }
+
+      function esMiembro() {
+        return request.auth.uid in get(/databases/$(database)/documents/salas/$(codigo)).data.miembros;
+      }
+
+      allow read: if autenticado();
+
+      allow create: if autenticado()
+        && codigo.matches('^[A-HJ-NP-Z2-9]{5}$')
+        && request.resource.data.keys().hasOnly(['codigo', 'nombre', 'anfitrion', 'miembros', 'creada'])
+        && request.resource.data.codigo == codigo
+        && request.resource.data.anfitrion == request.auth.uid
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 1
+        && request.resource.data.nombre.size() <= 40
+        && request.resource.data.miembros.keys().hasOnly([request.auth.uid])
+        && miembroValido(request.resource.data.miembros[request.auth.uid]);
+
+      allow update: if autenticado() && (soloMiEntrada() || soyAnfitrion());
+      allow delete: if false;
+
+      // Chat de la sala: solo los miembros leen y escriben; nadie edita ni borra.
+      match /mensajes/{id} {
+        allow read: if autenticado() && esMiembro();
+        allow create: if autenticado() && esMiembro()
+          && request.resource.data.keys().hasOnly(['uid', 'nombre', 'texto', 'hora'])
+          && request.resource.data.uid == request.auth.uid
+          && nombreValido(request.resource.data.nombre)
+          && request.resource.data.texto is string
+          && request.resource.data.texto.size() >= 1
+          && request.resource.data.texto.size() <= 500
+          && request.resource.data.hora == request.time;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
