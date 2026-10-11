@@ -1,16 +1,22 @@
 /**
- * Retos de la sala: el reto del día (misma operación en todas las salas, ranking propio) y
- * retos directos que crea alguien de la sala. Se juegan en solitario; solo cuenta el primer intento.
+ * Retos de la sala:
+ *  - Reto del día: el mismo para todos. Ranking de esta sala (sus miembros) o global.
+ *  - Historial: liga de los últimos 7 días, tu racha, tu mejor marca y tus días anteriores.
+ *  - Retos directos que crea alguien de la sala (ranking de la sala).
+ * Se juegan en solitario; solo cuenta el primer intento.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { JUEGOS, type Juego } from "../datos/catalogo";
-import { enlaceReto, fechaHoy, guardarReto, nuevoReto, retoDiario } from "../firebase/retos";
-import type { Reto } from "../firebase/tipos";
-import { useMarcas, useRetos } from "../hooks/useRetos";
+import { diasAntes, enlaceReto, fechaHoy, guardarReto, migrarMarcaDiaria, nuevoReto, retoDiario } from "../firebase/retos";
+import type { Marca, Reto } from "../firebase/tipos";
+import { useHistorialRetos, useMarcas, useMarcasDelDia, useRetos, type DiaHistorial } from "../hooks/useRetos";
 import { useIdioma } from "../i18n";
 
 const MOSTRAR = 5;
 const DIAS_DIRECTO = 7;
+const DIAS_LIGA = 7;
+
+type Ambito = "sala" | "global";
 
 function abrir(url: string) {
   // Pestaña nueva: la sala sigue abierta y recibe el puntaje al terminar.
@@ -18,14 +24,28 @@ function abrir(url: string) {
   if (!w) window.location.href = url;
 }
 
-export function Retos({ sala, uid, nombre, confirmado }: { sala: string; uid: string; nombre: string; confirmado: boolean }) {
+interface Props {
+  sala: string;
+  uid: string;
+  nombre: string;
+  miembros: string[];
+  confirmado: boolean;
+}
+
+export function Retos({ sala, uid, nombre, miembros, confirmado }: Props) {
   const { t, idioma } = useIdioma();
   const juego = JUEGOS.find((j) => j.retos && j.url);
   const retos = useRetos(sala, confirmado && Boolean(juego));
   const [error, setError] = useState("");
-  if (!juego) return null;
-
+  const [ambito, setAmbito] = useState<Ambito>("sala");
   const fecha = fechaHoy();
+
+  // Marca de hoy guardada con la versión anterior (dentro de la sala): pasa al ranking global.
+  useEffect(() => {
+    if (confirmado) migrarMarcaDiaria(sala, fecha, uid).catch(() => {});
+  }, [confirmado, sala, fecha, uid]);
+
+  if (!juego) return null;
   const diario = retoDiario(juego, fecha);
   const limite = Date.now() - DIAS_DIRECTO * 86_400_000;
   const directos = retos.filter((r) => r.juego === juego.id && (r.creado?.toMillis() ?? Date.now()) > limite);
@@ -51,7 +71,7 @@ export function Retos({ sala, uid, nombre, confirmado }: { sala: string; uid: st
       <p className="suave chico-texto">{t.retosTexto}</p>
       {error && <p className="error">{error}</p>}
       <ul className="lista-retos">
-        <TarjetaReto sala={sala} uid={uid} nombre={nombre} juego={juego} reto={diario} confirmado={confirmado} titulo={t.retoDelDia} />
+        <TarjetaDiaria sala={sala} uid={uid} nombre={nombre} juego={juego} reto={diario} miembros={miembros} confirmado={confirmado} ambito={ambito} setAmbito={setAmbito} />
         {directos.map((r) => (
           <TarjetaReto
             key={r.id}
@@ -65,7 +85,85 @@ export function Retos({ sala, uid, nombre, confirmado }: { sala: string; uid: st
           />
         ))}
       </ul>
+      <Historial hoy={fecha} uid={uid} miembros={miembros} ambito={ambito} setAmbito={setAmbito} confirmado={confirmado} />
     </section>
+  );
+}
+
+function SelectorAmbito({ ambito, setAmbito }: { ambito: Ambito; setAmbito: (a: Ambito) => void }) {
+  const { t } = useIdioma();
+  return (
+    <div className="segmentado chico" role="radiogroup" aria-label={t.rankingDe}>
+      {(["sala", "global"] as Ambito[]).map((a) => (
+        <button key={a} role="radio" aria-checked={ambito === a} onClick={() => setAmbito(a)}>
+          {a === "sala" ? t.estaSala : t.global}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Ranking({ marcas, uid, limite = MOSTRAR }: { marcas: Marca[]; uid: string; limite?: number }) {
+  const { t } = useIdioma();
+  const [verTodo, setVerTodo] = useState(false);
+  if (!marcas.length) return null;
+  const yo = marcas.findIndex((m) => m.uid === uid);
+  let lista = verTodo ? marcas.map((m, i) => ({ m, i })) : marcas.slice(0, limite).map((m, i) => ({ m, i }));
+  // Si estás fuera del top, se te muestra igual al final.
+  if (!verTodo && yo >= limite) lista = [...lista, { m: marcas[yo], i: yo }];
+  return (
+    <>
+      <ol className="ranking">
+        {lista.map(({ m, i }) => (
+          <li key={m.uid} className={m.uid === uid ? "mio" : ""}>
+            <span className="pos">{i + 1}</span>
+            <span className="quien">{m.uid === uid ? t.tuMayus : m.nombre}</span>
+            <span className="pts">{m.puntaje}</span>
+          </li>
+        ))}
+      </ol>
+      {marcas.length > limite && (
+        <button className="enlace chico-texto" onClick={() => setVerTodo((v) => !v)}>
+          {verTodo ? t.verMenos : t.verTodos(marcas.length)}
+        </button>
+      )}
+    </>
+  );
+}
+
+function TarjetaDiaria(props: Props & { juego: Juego; reto: Reto; ambito: Ambito; setAmbito: (a: Ambito) => void }) {
+  const { sala, uid, nombre, juego, reto, miembros, confirmado, ambito, setAmbito } = props;
+  const { t, idioma } = useIdioma();
+  const todas = useMarcasDelDia(reto.id.slice(7), confirmado);
+  const enSala = todas.filter((m) => miembros.includes(m.uid));
+  const marcas = ambito === "sala" ? enSala : todas;
+  const mia = todas.find((m) => m.uid === uid);
+  const url = enlaceReto(juego, sala, reto, nombre, idioma);
+
+  return (
+    <li className="reto diario">
+      <div className="reto-cabeza">
+        <div>
+          <strong>{t.retoDelDia}</strong>
+          <span className="mono suave chico-texto"> · {t.operacion} {reto.semilla}</span>
+        </div>
+        {url && (
+          <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url)}>
+            {mia ? t.jugarDeNuevo : t.jugarReto}
+          </button>
+        )}
+      </div>
+      <SelectorAmbito ambito={ambito} setAmbito={setAmbito} />
+      {mia ? (
+        <p className="chico-texto">
+          {t.tuMarcaDoble(mia.puntaje, enSala.indexOf(mia) + 1, enSala.length, todas.indexOf(mia) + 1, todas.length)}
+        </p>
+      ) : (
+        <p className="suave chico-texto">{todas.length ? t.soloPrimerIntento : t.nadieAun}</p>
+      )}
+      <Ranking marcas={marcas} uid={uid} />
+      {ambito === "sala" && !enSala.length && todas.length > 0 && <p className="suave chico-texto">{t.nadieEnSala(todas.length)}</p>}
+    </li>
   );
 }
 
@@ -73,12 +171,10 @@ function TarjetaReto(props: { sala: string; uid: string; nombre: string; juego: 
   const { sala, uid, nombre, juego, reto, confirmado, titulo } = props;
   const { t, idioma } = useIdioma();
   const marcas = useMarcas(sala, reto.id, confirmado);
-  const [verTodo, setVerTodo] = useState(false);
   const mia = marcas.find((m) => m.uid === uid);
   const puesto = mia ? marcas.indexOf(mia) + 1 : null;
   const url = enlaceReto(juego, sala, reto, nombre, idioma);
   const lider = marcas[0];
-  const lista = verTodo ? marcas : marcas.slice(0, MOSTRAR);
 
   return (
     <li className={`reto ${reto.tipo}`}>
@@ -89,7 +185,7 @@ function TarjetaReto(props: { sala: string; uid: string; nombre: string; juego: 
         </div>
         {url && (
           <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url)}>
-            {mia ? t.jugarDeNuevo : lider && reto.tipo === "directo" ? t.superarlo(lider.puntaje) : t.jugarReto}
+            {mia ? t.jugarDeNuevo : lider ? t.superarlo(lider.puntaje) : t.jugarReto}
           </button>
         )}
       </div>
@@ -98,22 +194,134 @@ function TarjetaReto(props: { sala: string; uid: string; nombre: string; juego: 
       ) : (
         <p className="suave chico-texto">{marcas.length ? t.soloPrimerIntento : t.nadieAun}</p>
       )}
-      {marcas.length > 0 && (
-        <ol className="ranking">
-          {lista.map((m, i) => (
-            <li key={m.uid} className={m.uid === uid ? "mio" : ""}>
-              <span className="pos">{i + 1}</span>
-              <span className="quien">{m.uid === uid ? t.tuMayus : m.nombre}</span>
-              <span className="pts">{m.puntaje}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-      {marcas.length > MOSTRAR && (
-        <button className="enlace chico-texto" onClick={() => setVerTodo((v) => !v)}>
-          {verTodo ? t.verMenos : t.verTodos(marcas.length)}
-        </button>
-      )}
+      <Ranking marcas={marcas} uid={uid} />
     </li>
+  );
+}
+
+// ── Historial: liga de 7 días, racha y tus días anteriores ─────────────────────
+
+interface FilaLiga {
+  uid: string;
+  nombre: string;
+  total: number;
+  dias: number;
+  mejor: number;
+}
+
+function liga(dias: DiaHistorial[], filtro: (uid: string) => boolean): FilaLiga[] {
+  const filas = new Map<string, FilaLiga>();
+  for (const d of dias) {
+    for (const m of d.marcas) {
+      if (!filtro(m.uid)) continue;
+      const f = filas.get(m.uid) ?? { uid: m.uid, nombre: m.nombre, total: 0, dias: 0, mejor: 0 };
+      f.total += m.puntaje;
+      f.dias++;
+      f.mejor = Math.max(f.mejor, m.puntaje);
+      filas.set(m.uid, f);
+    }
+  }
+  return [...filas.values()].sort((a, b) => b.total - a.total || b.mejor - a.mejor);
+}
+
+/** Días seguidos con reto jugado, terminando hoy (o ayer, si hoy aún no lo juegas). */
+function racha(propias: Record<string, number>, hoy: string, jugadoHoy: boolean): number {
+  let n = jugadoHoy ? 1 : 0;
+  let i = 1;
+  while (propias[diasAntes(hoy, i)] !== undefined) {
+    n++;
+    i++;
+  }
+  return n;
+}
+
+function Historial({ hoy, uid, miembros, ambito, setAmbito, confirmado }: { hoy: string; uid: string; miembros: string[]; ambito: Ambito; setAmbito: (a: Ambito) => void; confirmado: boolean }) {
+  const { t, idioma } = useIdioma();
+  const [abierto, setAbierto] = useState(false);
+  const deHoy = useMarcasDelDia(hoy, confirmado && abierto);
+  const datos = useHistorialRetos(hoy, uid, confirmado && abierto);
+
+  const formato = (f: string) => {
+    const [a, m, d] = f.split("-").map(Number);
+    return new Date(a, m - 1, d).toLocaleDateString(idioma, { weekday: "short", day: "numeric", month: "short" });
+  };
+
+  let cuerpo = <p className="suave chico-texto">{t.cargando}</p>;
+  if (datos) {
+    const dias: DiaHistorial[] = [{ fecha: hoy, marcas: deHoy }, ...datos.dias];
+    const filtro = ambito === "sala" ? (u: string) => miembros.includes(u) : () => true;
+    const tabla = liga(dias.slice(0, DIAS_LIGA), filtro);
+    const mioHoy = deHoy.find((m) => m.uid === uid);
+    const propias = { ...datos.propias, ...(mioHoy ? { [hoy]: mioHoy.puntaje } : {}) };
+    const valores = Object.values(propias);
+    const mejor = valores.length ? Math.max(...valores) : null;
+    const media = valores.length ? Math.round(valores.reduce((a, b) => a + b, 0) / valores.length) : null;
+    const yo = tabla.findIndex((f) => f.uid === uid);
+    const filasLiga = tabla.slice(0, 10);
+    if (yo >= 10) filasLiga.push(tabla[yo]);
+
+    cuerpo = (
+      <>
+        <div className="historial-cifras">
+          <div><strong>{racha(propias, hoy, Boolean(mioHoy))}</strong><span>{t.racha}</span></div>
+          <div><strong>{mejor ?? "—"}</strong><span>{t.mejorMarca}</span></div>
+          <div><strong>{media ?? "—"}</strong><span>{t.promedio}</span></div>
+          <div><strong>{valores.length}</strong><span>{t.retosJugados}</span></div>
+        </div>
+
+        <div className="historial-liga">
+          <div className="retos-cabeza">
+            <h3>{t.ligaTitulo(DIAS_LIGA)}</h3>
+            <SelectorAmbito ambito={ambito} setAmbito={setAmbito} />
+          </div>
+          <p className="suave chico-texto">{t.ligaTexto}</p>
+          {filasLiga.length ? (
+            <div className="tabla"><table>
+              <thead><tr><th>#</th><th>{t.jugador}</th><th>{t.puntosTotales}</th><th>{t.diasJugados}</th><th>{t.mejorCol}</th></tr></thead>
+              <tbody>
+                {filasLiga.map((f) => (
+                  <tr key={f.uid} className={f.uid === uid ? "mio" : ""}>
+                    <td>{tabla.indexOf(f) + 1}</td><td>{f.uid === uid ? t.tuMayus : f.nombre}</td><td>{f.total}</td><td>{f.dias}/{DIAS_LIGA}</td><td>{f.mejor}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          ) : (
+            <p className="suave chico-texto">{t.ligaVacia}</p>
+          )}
+        </div>
+
+        <h3>{t.tusDias}</h3>
+        <ul className="tus-dias">
+          {dias.slice(0, Math.max(1, ...dias.map((d, i) => (d.marcas.some((m) => filtro(m.uid)) ? i + 1 : 0)))).map((d) => {
+            const enAmbito = d.marcas.filter((m) => filtro(m.uid));
+            const mia = enAmbito.find((m) => m.uid === uid);
+            const primero = enAmbito[0];
+            return (
+              <li key={d.fecha}>
+                <span className="fecha">{formato(d.fecha)}</span>
+                <span>
+                  {mia ? (
+                    <><strong>{mia.puntaje}</strong> <span className="suave">· {enAmbito.indexOf(mia) + 1}.º {t.de} {enAmbito.length}</span></>
+                  ) : (
+                    <span className="suave">{t.noJugaste}</span>
+                  )}
+                </span>
+                <span className="suave chico-texto">
+                  {primero ? t.ganoDia(primero.uid === uid ? t.tuMayus : primero.nombre, primero.puntaje) : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </>
+    );
+  }
+
+  return (
+    <details className="historial-retos" onToggle={(e) => setAbierto((e.target as HTMLDetailsElement).open)}>
+      <summary>{t.historialRetos}</summary>
+      {abierto && cuerpo}
+    </details>
   );
 }

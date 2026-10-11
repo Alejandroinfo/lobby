@@ -158,7 +158,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
         <Miembros sala={sala} uid={uid} />
         <div className="centro-sala">
           <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
-          <Retos sala={sala.codigo} uid={uid} nombre={nombre} confirmado={confirmado} />
+          <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} />
           <Catalogo sala={sala} uid={uid} />
         </div>
         <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} />

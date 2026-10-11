@@ -136,4 +136,6 @@ export interface Marca {
   version: string | null;
   detalleJson: string;
   hora: Timestamp | null;
+  /** Reto del día: sala desde la que se jugó. */
+  sala?: string;
 }

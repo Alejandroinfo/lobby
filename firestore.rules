@@ -53,6 +53,24 @@ service cloud.firestore {
       allow create, update: if autenticado() && request.auth.uid == uid && perfilValido(request.resource.data);
     }
 
+    // Reto del día: una marca por persona y por día, igual para todas las salas. Cualquiera con
+    // sesión las lee (ranking global; cada sala filtra a sus miembros). Se escribe una vez y no se cambia.
+    match /retosDiarios/{fecha}/marcas/{quien} {
+      allow read: if autenticado();
+      allow create: if autenticado()
+        && quien == request.auth.uid
+        && fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.keys().hasOnly(['nombre', 'puntaje', 'version', 'detalleJson', 'hora', 'sala'])
+        && nombreValido(request.resource.data.nombre)
+        && request.resource.data.puntaje is number
+        && request.resource.data.puntaje >= 0 && request.resource.data.puntaje <= 1000
+        && request.resource.data.detalleJson is string
+        && request.resource.data.detalleJson.size() <= 200000
+        && (!('sala' in request.resource.data) || (request.resource.data.sala is string && request.resource.data.sala.size() <= 8))
+        && request.resource.data.hora == request.time;
+      allow update, delete: if false;
+    }
+
     // Una sala por grupo. Cualquiera con sesión puede leerla (el código hace de invitación),
     // pero cada miembro solo toca su propia entrada; el anfitrión puede cambiar el resto.
     match /salas/{codigo} {
@@ -133,8 +151,7 @@ service cloud.firestore {
           allow read: if autenticado() && esMiembro();
           allow create: if autenticado() && esMiembro()
             && quien == request.auth.uid
-            && (reto.matches('^diario-[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                || exists(/databases/$(database)/documents/salas/$(codigo)/retos/$(reto)))
+            && exists(/databases/$(database)/documents/salas/$(codigo)/retos/$(reto))
             && request.resource.data.keys().hasOnly(['nombre', 'puntaje', 'version', 'detalleJson', 'hora'])
             && nombreValido(request.resource.data.nombre)
             && request.resource.data.puntaje is number

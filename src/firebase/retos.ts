@@ -1,15 +1,18 @@
 /**
  * Retos en solitario con semilla: todos juegan exactamente la misma operación y comparan puntaje.
- *  - Reto del día: no tiene documento; su id y su semilla salen de la fecha, así es el mismo en
- *    todas las salas, y cada sala tiene su propio ranking.
+ *  - Reto del día: el mismo para todos. Las marcas se guardan una sola vez por persona y por día
+ *    en `retosDiarios/{fecha}/marcas/{uid}`: el ranking global las muestra todas y cada sala
+ *    muestra las de sus miembros. Así nadie juega el reto "en serio" dos veces.
  *  - Reto directo: alguien de la sala lo crea con una semilla al azar y lo juega primero.
  * Solo cuenta el primer intento de cada persona (la marca se escribe una vez y no se cambia).
  */
-import { collection, doc, getDoc, increment, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, increment, serverTimestamp, setDoc } from "firebase/firestore";
 import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
 import { enviarMensaje, generarCodigo } from "./salas";
-import type { ResultadoJuego, Reto } from "./tipos";
+import type { Marca, ResultadoJuego, Reto } from "./tipos";
+
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /** Fecha local "AAAA-MM-DD" (el reto del día cambia a medianoche de cada quien, como Wordle). */
 export function fechaHoy(ahora = new Date()): string {
@@ -17,12 +20,34 @@ export function fechaHoy(ahora = new Date()): string {
   return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
 }
 
+/** La fecha de `n` días antes de `fecha` ("AAAA-MM-DD"). */
+export function diasAntes(fecha: string, n: number): string {
+  const [a, m, d] = fecha.split("-").map(Number);
+  return fechaHoy(new Date(a, m - 1, d - n));
+}
+
+/**
+ * Semilla del reto del día. Desde el 12 de octubre de 2026 no es la fecha a la vista, para que
+ * no se pueda practicar el reto de mañana escribiendo su código en el modo Solo.
+ */
+export function semillaDiaria(fecha: string): string {
+  if (fecha <= "2026-10-11") return "D" + fecha.replace(/-/g, "");
+  let h = 0x811c9dc5;
+  for (const c of `split-loyalty|${fecha}|operacion-del-dia`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  let s = "";
+  for (let i = 0; i < 6; i++) {
+    s += LETRAS[h % LETRAS.length];
+    h = Math.imul(h ^ (h >>> 13), 0x5bd1e995) >>> 0;
+  }
+  return "D" + s;
+}
+
 export function retoDiario(juego: Juego, fecha = fechaHoy()): Reto {
   return {
     id: `diario-${fecha}`,
     juego: juego.id,
     tipo: "diario",
-    semilla: "D" + fecha.replace(/-/g, ""),
+    semilla: semillaDiaria(fecha),
     variante: juego.retos?.variante ?? "",
     dificultad: juego.retos?.dificultad ?? "hard",
     creador: null,
@@ -31,7 +56,6 @@ export function retoDiario(juego: Juego, fecha = fechaHoy()): Reto {
   };
 }
 
-const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function semillaAlAzar(): string {
   const azar = crypto.getRandomValues(new Uint32Array(6));
   return Array.from(azar, (n) => LETRAS[n % LETRAS.length]).join("");
@@ -103,7 +127,8 @@ export async function guardarMarca(
 ): Promise<boolean> {
   const puntaje = Number(r.puntajes?.["0"]);
   if (!Number.isFinite(puntaje)) return false;
-  const ref = doc(db, "salas", sala, "retos", retoId, "marcas", uid);
+  const fecha = retoId.startsWith("diario-") ? retoId.slice(7) : null;
+  const ref = fecha ? refMarcaDiaria(fecha, uid) : doc(db, "salas", sala, "retos", retoId, "marcas", uid);
   if ((await getDoc(ref)).exists()) return false;
   await setDoc(ref, {
     nombre,
@@ -111,6 +136,7 @@ export async function guardarMarca(
     version: typeof r.version === "string" ? r.version.slice(0, 40) : null,
     detalleJson: JSON.stringify(r.detalle ?? null).slice(0, 200_000),
     hora: serverTimestamp(),
+    ...(fecha ? { sala } : {}),
   });
   await enviarMensaje(sala, uid, nombre, aviso).catch(() => {});
   return true;
@@ -141,4 +167,32 @@ export async function sumarACarrera(uid: string, juego: string, opciones: { gano
     },
     { merge: true },
   );
+}
+
+// ── Reto del día: marcas globales e historial ──────────────────────────────────
+
+export const refMarcaDiaria = (fecha: string, uid: string) => doc(db, "retosDiarios", fecha, "marcas", uid);
+export const coleccionMarcasDiarias = (fecha: string) => collection(db, "retosDiarios", fecha, "marcas");
+
+export function ordenarMarcas(lista: Marca[]): Marca[] {
+  return [...lista].sort((a, b) => b.puntaje - a.puntaje || (a.hora?.toMillis() ?? Infinity) - (b.hora?.toMillis() ?? Infinity));
+}
+
+/** Todas las marcas del reto de un día (global), de mayor a menor. */
+export async function marcasDelDia(fecha: string): Promise<Marca[]> {
+  const snap = await getDocs(coleccionMarcasDiarias(fecha));
+  return ordenarMarcas(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as Omit<Marca, "uid">) })));
+}
+
+/**
+ * Antes las marcas del reto del día se guardaban dentro de cada sala. Si esta persona tiene una
+ * así y aún no tiene la global, se copia (una vez) para que cuente en el ranking global.
+ */
+export async function migrarMarcaDiaria(sala: string, fecha: string, uid: string) {
+  const vieja = await getDoc(doc(db, "salas", sala, "retos", `diario-${fecha}`, "marcas", uid));
+  if (!vieja.exists()) return;
+  const global = refMarcaDiaria(fecha, uid);
+  if ((await getDoc(global)).exists()) return;
+  const d = vieja.data() as Omit<Marca, "uid">;
+  await setDoc(global, { nombre: d.nombre, puntaje: d.puntaje, version: d.version ?? null, detalleJson: d.detalleJson ?? "null", hora: serverTimestamp(), sala });
 }

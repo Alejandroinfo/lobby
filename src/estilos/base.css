@@ -304,3 +304,24 @@ textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; border-c
 .logros { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .logros li { font-size: 0.82rem; padding: 0.2rem 0.6rem; border-radius: 999px; background: var(--fondo); border: 1px solid var(--linea); }
 .logros .veces { margin-left: 0.3rem; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+
+/* Reto del día: ámbito del ranking e historial */
+.segmentado.chico { margin: 0.5rem 0 0.25rem; }
+.segmentado.chico button { padding: 0.2rem 0.65rem; font-size: 0.78rem; }
+.historial-retos { margin-top: 1rem; border-top: 1px solid var(--linea); padding-top: 0.75rem; }
+.historial-retos summary { cursor: pointer; font-weight: 600; }
+.historial-retos h3 { font-size: 1rem; margin: 1rem 0 0.25rem; }
+.historial-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+.historial-cifras > div { background: var(--fondo); border: 1px solid var(--linea); border-radius: var(--radio); padding: 0.5rem 0.75rem; display: flex; flex-direction: column; }
+.historial-cifras strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.historial-cifras span { font-size: 0.78rem; color: var(--tinta-suave); }
+.historial-liga .retos-cabeza h3 { margin: 0; }
+.historial-liga { margin-top: 1rem; }
+.historial-liga table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.historial-liga th, .historial-liga td { text-align: left; padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
+.historial-liga th { font-weight: 600; color: var(--tinta-suave); font-size: 0.78rem; }
+.historial-liga tr.mio td { font-weight: 700; }
+.tus-dias { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.88rem; }
+.tus-dias li { display: grid; grid-template-columns: 7.5rem 1fr auto; gap: 0.5rem; align-items: baseline; padding: 0.2rem 0; border-bottom: 1px dashed var(--linea); }
+.tus-dias .fecha { color: var(--tinta-suave); text-transform: capitalize; }
+@media (max-width: 520px) { .tus-dias li { grid-template-columns: 6rem 1fr; } .tus-dias li > :last-child { grid-column: 1 / -1; } }
