@@ -7,6 +7,7 @@ type Consulta = { coleccion: string; orden?: string; ultimos?: number };
 const CLAVE = "lobby_local_db";
 const SERVER = { __servidor: true };
 const BORRAR = { __borrar: true };
+type Incremento = { __incremento: number };
 
 class Timestamp {
   constructor(private ms: number) {}
@@ -47,7 +48,15 @@ export const getFirestore = (..._: unknown[]) => ({});
 export const connectFirestoreEmulator = (..._: unknown[]) => {};
 export const serverTimestamp = () => SERVER;
 export const deleteField = () => BORRAR;
-export const doc = (_db: unknown, ...partes: string[]): Ref => ({ ruta: partes.join("/"), id: partes[partes.length - 1] });
+export const increment = (n: number): Incremento => ({ __incremento: n });
+export const doc = (base: any, ...partes: string[]): Ref => {
+  // doc(coleccion) sin id: Firestore genera uno nuevo.
+  if (base && typeof base === "object" && "coleccion" in base) {
+    const id = partes[0] ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return { ruta: `${base.coleccion}/${id}`, id };
+  }
+  return { ruta: partes.join("/"), id: partes[partes.length - 1] };
+};
 export const collection = (_db: unknown, ...partes: string[]): Coleccion => ({ coleccion: partes.join("/") });
 export const orderBy = (campo: string) => ({ orden: campo });
 export const limitToLast = (n: number) => ({ ultimos: n });
@@ -64,9 +73,20 @@ function snap(r: Ref) {
 }
 export const getDoc = async (r: Ref) => snap(r);
 
+// Mezcla profunda como `setDoc(..., { merge: true })`, con soporte de increment().
+function mezclar(actual: any, nuevo: any): any {
+  if (nuevo && typeof nuevo === "object" && "__incremento" in nuevo) return (typeof actual === "number" ? actual : 0) + nuevo.__incremento;
+  if (nuevo === SERVER || nuevo?.__servidor || nuevo === BORRAR || nuevo?.__borrar || Array.isArray(nuevo)) return nuevo;
+  if (nuevo && typeof nuevo === "object") {
+    const o: any = actual && typeof actual === "object" && !Array.isArray(actual) && !("__ms" in actual) ? { ...actual } : {};
+    for (const k of Object.keys(nuevo)) o[k] = mezclar(o[k], nuevo[k]);
+    return o;
+  }
+  return nuevo;
+}
 function escribir(r: Ref, datos: Datos, merge: boolean) {
   const db = leerDB();
-  db[r.ruta] = resolver(merge ? { ...(db[r.ruta] ?? {}), ...datos } : datos);
+  db[r.ruta] = resolver(merge ? mezclar(db[r.ruta] ?? {}, datos) : mezclar({}, datos));
   guardarDB(db);
 }
 export const setDoc = async (r: Ref, d: Datos, o?: { merge?: boolean }) => escribir(r, d, Boolean(o?.merge));
@@ -115,6 +135,13 @@ export function onSnapshot(r: Ref | Consulta, ...args: any[]) {
   return () => { oyentes.delete(emitir); };
 }
 
+// Referencia con la cadena de padres (documento → colección → documento …), como en Firestore.
+function refDe(partes: string[]): any {
+  if (!partes.length) return null;
+  const coleccion = (p: string[]): any => ({ id: p[p.length - 1], parent: p.length > 1 ? refDe(p.slice(0, -1)) : null });
+  return { id: partes[partes.length - 1], parent: coleccion(partes.slice(0, -1)) };
+}
+
 // Consultas de grupo y lecturas puntuales (panel de playtest).
 export const collectionGroup = (_db: unknown, nombre: string) => ({ grupo: nombre });
 export async function getDocs(q: Consulta | { grupo: string }) {
@@ -127,7 +154,7 @@ export async function getDocs(q: Consulta | { grupo: string }) {
       const ruta = partes.join("/");
       return {
         id: partes[partes.length - 1],
-        ref: { parent: { parent: partes.length >= 4 ? { id: partes[partes.length - 3] } : null } },
+        ref: refDe(partes),
         data: () => revivir(db[ruta]),
       };
     });

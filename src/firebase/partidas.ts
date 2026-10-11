@@ -215,12 +215,12 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string,
  * Guarda el resultado que informó el juego (uno por persona) y, si la partida seguía en juego,
  * la da por terminada con ese resultado.
  */
-export async function guardarResultado(sala: string, id: string, uid: string, asiento: number, r: ResultadoJuego) {
+export async function guardarResultado(sala: string, id: string, uid: string, asiento: number, r: ResultadoJuego): Promise<boolean> {
   const ganadores = Array.isArray(r.ganadores) ? r.ganadores.filter((n) => Number.isInteger(n)).slice(0, 8) : [];
   const puntajes: Record<string, number> = {};
   for (const [k, v] of Object.entries(r.puntajes ?? {})) if (typeof v === "number" && Number.isFinite(v)) puntajes[k] = v;
   const refRes = doc(db, "salas", sala, "partidas", id, "resultados", uid);
-  if ((await getDoc(refRes)).exists()) return; // ya guardado (p. ej. llegó por mensaje y por enlace)
+  if ((await getDoc(refRes)).exists()) return false; // ya guardado (p. ej. llegó por mensaje y por enlace)
   await setDoc(refRes, {
     asiento,
     ganadores,
@@ -238,4 +238,5 @@ export async function guardarResultado(sala: string, id: string, uid: string, as
       resultado: { ganadores, puntajes },
     });
   }
+  return true;
 }

@@ -4,8 +4,10 @@
  *  - por la URL (?resultado=…) si el juego volvió a la sala en esta misma pestaña.
  */
 import { useEffect, useRef } from "react";
-import { ORIGENES_JUEGOS } from "../datos/catalogo";
+import { ORIGENES_JUEGOS, juegoPorId } from "../datos/catalogo";
 import { guardarResultado } from "../firebase/partidas";
+import { guardarMarca, logrosDe, sumarACarrera } from "../firebase/retos";
+import { useIdioma } from "../i18n";
 import type { Partida, ResultadoJuego } from "../firebase/tipos";
 
 interface Aviso {
@@ -23,12 +25,30 @@ function decodificar(texto: string): Aviso | null {
   }
 }
 
-export function useResultados(sala: string, uid: string, partidas: Partida[], activo: boolean) {
+export function useResultados(sala: string, uid: string, nombre: string, partidas: Partida[], activo: boolean) {
+  const { t } = useIdioma();
+  const textos = useRef(t);
+  textos.current = t;
   const actuales = useRef(partidas);
   actuales.current = partidas;
   const pendientes = useRef<Aviso[]>([]);
 
   const procesar = (aviso: Aviso) => {
+    if (!aviso.resultado || typeof aviso.partida !== "string") return;
+    // Reto en solitario: se guarda la marca (solo el primer intento) en vez de un resultado de partida.
+    if (aviso.partida.startsWith("reto:")) {
+      const retoId = aviso.partida.slice(5);
+      if (!/^[A-Za-z0-9-]{1,40}$/.test(retoId)) return;
+      const puntaje = Number(aviso.resultado.puntajes?.["0"]);
+      const juego = juegoPorId("split-loyalty");
+      const texto = retoId.startsWith("diario-") ? textos.current.avisoRetoDiario(puntaje) : textos.current.avisoReto(puntaje);
+      guardarMarca(sala, retoId, uid, nombre, aviso.resultado, texto)
+        .then((nueva) => {
+          if (nueva && juego) return sumarACarrera(uid, juego.id, { gano: false, reto: true, logros: logrosDe(aviso.resultado, 0) });
+        })
+        .catch((e) => console.warn("No se pudo guardar la marca del reto", e));
+      return;
+    }
     const p = actuales.current.find((x) => x.id === aviso.partida);
     if (!p) {
       pendientes.current.push(aviso); // las partidas aún no cargaron: se reintenta al llegar
@@ -37,9 +57,17 @@ export function useResultados(sala: string, uid: string, partidas: Partida[], ac
     const yo = p.invitados[uid];
     if (!yo || yo.respuesta !== "acepta" || yo.rol !== "jugador") return;
     if (!aviso.resultado || !Array.isArray(aviso.resultado.ganadores)) return;
-    guardarResultado(sala, p.id, uid, yo.asiento ?? aviso.asiento, aviso.resultado).catch((e) =>
-      console.warn("No se pudo guardar el resultado", e),
-    );
+    const asiento = yo.asiento ?? aviso.asiento;
+    guardarResultado(sala, p.id, uid, asiento, aviso.resultado)
+      .then((nuevo) => {
+        if (!nuevo) return;
+        const ganadores = aviso.resultado.ganadores;
+        const jugadores = Object.values(p.invitados).filter((i) => i.respuesta === "acepta" && i.rol === "jugador").length;
+        // Un empate de todos no cuenta como victoria.
+        const gano = ganadores.includes(asiento) && ganadores.length < jugadores;
+        return sumarACarrera(uid, p.juego, { gano, reto: false, logros: logrosDe(aviso.resultado, asiento) });
+      })
+      .catch((e) => console.warn("No se pudo guardar el resultado", e));
   };
 
   // Mensajes desde la pestaña del juego.
@@ -54,7 +82,7 @@ export function useResultados(sala: string, uid: string, partidas: Partida[], ac
     window.addEventListener("message", alRecibir);
     return () => window.removeEventListener("message", alRecibir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sala, uid, activo]);
+  }, [sala, uid, nombre, activo]);
 
   // Resultado en la URL al volver a la sala en la misma pestaña.
   useEffect(() => {
@@ -75,6 +103,7 @@ export function useResultados(sala: string, uid: string, partidas: Partida[], ac
     const lista = pendientes.current;
     pendientes.current = [];
     lista.filter((a) => partidas.some((p) => p.id === a.partida)).forEach(procesar);
+    // (las marcas de retos no esperan a las partidas: se procesan al llegar)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partidas]);
 }

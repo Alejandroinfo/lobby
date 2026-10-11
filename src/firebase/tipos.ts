@@ -71,6 +71,8 @@ export interface ResultadoJuego {
   duracionSeg?: number;
   version?: string;
   detalle?: unknown;
+  /** Condecoraciones ganadas en la partida, por asiento (ids del catálogo del juego). */
+  logros?: Record<string, string[]>;
 }
 
 export type Duracion = "corta" | "justa" | "larga";
@@ -98,4 +100,40 @@ export interface Perfil {
   comoLlego?: ComoLlego;
   experiencia?: Experiencia;
   salaOrigen?: string;
+  carrera?: Carrera;
+}
+
+/** Trayectoria de la persona en el lobby (todas las partidas y retos que terminó). */
+export interface Carrera {
+  partidas?: number;
+  victorias?: number;
+  retos?: number;
+  /** id de condecoración → cuántas veces la ganó. */
+  logros?: Record<string, number>;
+}
+
+/**
+ * Documento `salas/{codigo}/retos/{id}`: una misma operación (semilla) que todos juegan en
+ * solitario. El reto del día no tiene documento: su id y su semilla salen de la fecha.
+ */
+export interface Reto {
+  id: string;
+  juego: string;
+  tipo: "diario" | "directo";
+  semilla: string;
+  variante: string;
+  dificultad: "hard" | "easy";
+  creador: string | null;
+  creadorNombre: string;
+  creado: Timestamp | null;
+}
+
+/** Documento `salas/{codigo}/retos/{id}/marcas/{uid}`: el primer intento de cada persona. */
+export interface Marca {
+  uid: string;
+  nombre: string;
+  puntaje: number;
+  version: string | null;
+  detalleJson: string;
+  hora: Timestamp | null;
 }

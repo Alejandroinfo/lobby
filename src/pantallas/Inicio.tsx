@@ -11,6 +11,7 @@ import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
 import { Perfil } from "./Perfil";
+import { Carrera } from "./Carrera";
 import { SelectorIdioma, useIdioma } from "../i18n";
 import type { Usuario } from "../hooks/useUsuario";
 
@@ -82,6 +83,7 @@ export function Inicio({ uid, usuario, nombre, setNombre }: Props) {
         </button>
       </p>
       <Perfil usuario={usuario} />
+      <Carrera uid={usuario.uid} />
       {recientes.length > 0 && (
         <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
           <h2 id="t-recientes">{t.salasRecientes}</h2>

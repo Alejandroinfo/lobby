@@ -278,3 +278,29 @@ textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; border-c
 .idioma-portada { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
 .selector-idioma button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .acciones { align-items: center; flex-wrap: wrap; }
+
+/* Retos */
+.retos-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.retos-cabeza h2 { margin: 0; }
+.lista-retos { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.reto { border: 1px solid var(--linea); border-radius: var(--radio); padding: 0.75rem; background: var(--fondo); min-width: 0; }
+.reto.diario { border-color: var(--acento); background: var(--acento-suave); }
+.reto-cabeza { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+.reto-cabeza button { padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+.ranking { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.15rem; font-size: 0.88rem; }
+.ranking li { display: grid; grid-template-columns: 1.5rem 1fr auto; gap: 0.4rem; padding: 0.15rem 0.3rem; border-radius: 6px; }
+.ranking li.mio { background: var(--superficie); font-weight: 600; }
+.ranking .pos { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.ranking .quien { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking .pts { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Carrera de agente */
+.carrera { max-width: 760px; margin: 0 auto 1rem; }
+.carrera-cabeza { display: flex; align-items: center; gap: 0.75rem; }
+.carrera-cabeza h2 { margin: 0; }
+.carrera-icono { font-size: 2rem; line-height: 1; }
+.progreso { height: 8px; background: var(--fondo); border: 1px solid var(--linea); border-radius: 999px; overflow: hidden; margin: 0.5rem 0; }
+.progreso span { display: block; height: 100%; background: var(--acento); border-radius: 999px; }
+.logros { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.logros li { font-size: 0.82rem; padding: 0.2rem 0.6rem; border-radius: 999px; background: var(--fondo); border: 1px solid var(--linea); }
+.logros .veces { margin-left: 0.3rem; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }

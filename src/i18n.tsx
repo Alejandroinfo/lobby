@@ -200,6 +200,36 @@ const es = {
   experiencia: ["De vez en cuando", "Seguido", "Muchísimo", "Prefiero no decir"],
   errorDiversion: "Marca al menos qué tan divertida fue (del 1 al 5).",
   gracias: "¡Gracias! Tu opinión ya está guardada.",
+
+  // Retos
+  retosTitulo: (juego: string) => `Retos de ${juego}`,
+  crearReto: "Crear un reto",
+  retosTexto: "Todos juegan la misma operación en solitario y comparan puntaje. Solo cuenta tu primer intento.",
+  errorCrearReto: "No se pudo guardar el reto. Revisa tu conexión e intenta de nuevo.",
+  retoDelDia: "Reto del día",
+  tuReto: "Tu reto",
+  retoDe: (n: string) => `Reto de ${n}`,
+  operacion: "Operación",
+  jugarReto: "Jugar",
+  jugarDeNuevo: "Jugar otra vez (no cuenta)",
+  superarlo: (p: number) => `Superar ${p}`,
+  tuMarca: (p: number, puesto: number, total: number) => `Hiciste ${p} puntos · ${puesto}.º de ${total}`,
+  soloPrimerIntento: "Aún no lo juegas. Solo cuenta tu primer intento.",
+  nadieAun: "Nadie lo jugó todavía. ¡Sé el primero!",
+  verTodos: (n: number) => `Ver los ${n}`,
+  verMenos: "Ver menos",
+  avisoRetoDiario: (p: number) => `🕵️ Jugué el reto del día de Split Loyalty: ${p} puntos.`,
+  avisoReto: (p: number) => `🕵️ Hice ${p} puntos en un reto de Split Loyalty. ¿Me superas?`,
+
+  // Carrera
+  tuRango: "Tu rango",
+  rangos: ["Recluta", "Agente de campo", "Agente especial", "Jefe de estación", "Director"],
+  carreraResumen: (p: number, v: number, r: number) =>
+    `${p} ${p === 1 ? "partida" : "partidas"} · ${v} ${v === 1 ? "victoria" : "victorias"} · ${r} ${r === 1 ? "reto" : "retos"}`,
+  proximoRango: (faltan: number, rango: string) => `${rango} en ${faltan} ${faltan === 1 ? "partida" : "partidas"} más`,
+  progresoRango: "Avance hacia el siguiente rango",
+  condecoraciones: "Condecoraciones",
+  sinCondecoraciones: "Aún sin condecoraciones: se ganan al terminar partidas y retos.",
 };
 
 export type Textos = typeof es;
@@ -390,6 +420,36 @@ const en: Textos = {
   experiencia: ["Now and then", "Often", "A lot", "Prefer not to say"],
   errorDiversion: "At least mark how fun it was (1 to 5).",
   gracias: "Thanks! Your feedback is saved.",
+
+  // Challenges
+  retosTitulo: (juego: string) => `${juego} challenges`,
+  crearReto: "Create a challenge",
+  retosTexto: "Everyone plays the same operation solo and compares scores. Only your first try counts.",
+  errorCrearReto: "Couldn't save the challenge. Check your connection and try again.",
+  retoDelDia: "Daily challenge",
+  tuReto: "Your challenge",
+  retoDe: (n: string) => `${n}'s challenge`,
+  operacion: "Operation",
+  jugarReto: "Play",
+  jugarDeNuevo: "Play again (won't count)",
+  superarlo: (p: number) => `Beat ${p}`,
+  tuMarca: (p: number, puesto: number, total: number) => `You scored ${p} · #${puesto} of ${total}`,
+  soloPrimerIntento: "You haven't played it yet. Only your first try counts.",
+  nadieAun: "Nobody has played it yet. Be the first!",
+  verTodos: (n: number) => `See all ${n}`,
+  verMenos: "See less",
+  avisoRetoDiario: (p: number) => `🕵️ I played today's Split Loyalty challenge: ${p} points.`,
+  avisoReto: (p: number) => `🕵️ I scored ${p} on a Split Loyalty challenge. Can you beat me?`,
+
+  // Career
+  tuRango: "Your rank",
+  rangos: ["Recruit", "Field agent", "Special agent", "Station chief", "Director"],
+  carreraResumen: (p: number, v: number, r: number) =>
+    `${p} ${p === 1 ? "game" : "games"} · ${v} ${v === 1 ? "win" : "wins"} · ${r} ${r === 1 ? "challenge" : "challenges"}`,
+  proximoRango: (faltan: number, rango: string) => `${rango} in ${faltan} more ${faltan === 1 ? "game" : "games"}`,
+  progresoRango: "Progress to the next rank",
+  condecoraciones: "Decorations",
+  sinCondecoraciones: "No decorations yet: you earn them by finishing games and challenges.",
 };
 
 const TEXTOS: Record<Idioma, Textos> = { es, en };

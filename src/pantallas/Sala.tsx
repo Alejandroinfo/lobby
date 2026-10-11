@@ -11,6 +11,7 @@ import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
 import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
+import { Retos } from "./Retos";
 import { olvidarSala, recordarSala } from "../datos/recientes";
 import { guardarAudiencia, leerPerfil, registrarPais } from "../firebase/encuestas";
 
@@ -92,7 +93,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
   // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
   const mensajes = useMensajes(sala.codigo, confirmado);
   const partidas = usePartidas(sala.codigo, confirmado);
-  useResultados(sala.codigo, uid, partidas, confirmado);
+  useResultados(sala.codigo, uid, nombre, partidas, confirmado);
 
   // Recordar esta sala en "Tus salas recientes" y, una vez confirmada la entrada, anotar el país
   // (solo el código de 2 letras) y la sala por la que llegó la primera vez.
@@ -157,6 +158,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
         <Miembros sala={sala} uid={uid} />
         <div className="centro-sala">
           <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
+          <Retos sala={sala.codigo} uid={uid} nombre={nombre} confirmado={confirmado} />
           <Catalogo sala={sala} uid={uid} />
         </div>
         <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} />

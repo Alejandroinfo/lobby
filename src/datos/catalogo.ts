@@ -32,6 +32,16 @@ export interface Juego {
   url: string;
   /** false si el juego no avisa el resultado solo (quien organiza marca "Terminar partida"). */
   informaResultado?: boolean;
+  /** Si el juego tiene retos en solitario con semilla (reto del día y retos entre amigos). */
+  retos?: { variante: string; dificultad: "hard" | "easy" };
+  /** Condecoraciones que el juego puede otorgar (id → icono y nombre). */
+  logros?: Record<string, Logro>;
+}
+
+export interface Logro {
+  icono: string;
+  es: string;
+  en: string;
 }
 
 export interface Pregunta {
@@ -67,6 +77,18 @@ export const JUEGOS: Juego[] = [
       preguntas: { "habilidad-fuerte": "Did any ability or mission feel too strong or too weak? Which one?" },
     },
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
+    retos: { variante: "special", dificultad: "hard" },
+    logros: {
+      "dossier-completo": { icono: "🗂️", es: "Dossier completo", en: "Full dossier" },
+      "primero-en-llegar": { icono: "🥇", es: "Primero en llegar", en: "First on the scene" },
+      "mano-limpia": { icono: "🧤", es: "Mano limpia", en: "Clean hands" },
+      "gran-red": { icono: "🌐", es: "Gran red", en: "Grand network" },
+      "cadena-larga": { icono: "⛓️", es: "Cadena larga", en: "Long chain" },
+      "doble-agente": { icono: "🎭", es: "Doble agente", en: "Double agent" },
+      "sin-ayuda": { icono: "🧠", es: "Sin ayuda", en: "No help needed" },
+      "cuatro-agencias": { icono: "🏛️", es: "Cuatro agencias", en: "Four agencies" },
+      leyenda: { icono: "👑", es: "Leyenda", en: "Legend" },
+    },
   },
   {
     id: "astrolabe",
@@ -143,6 +165,12 @@ export const JUEGOS: Juego[] = [
 
 export function juegoPorId(id: string): Juego | undefined {
   return JUEGOS.find((j) => j.id === id);
+}
+
+/** Busca una condecoración en todos los juegos (los ids se guardan como "juego:id"). */
+export function logroPorClave(clave: string): Logro | null {
+  const [juego, id] = clave.split(":");
+  return juegoPorId(juego)?.logros?.[id] ?? null;
 }
 
 /** Orígenes de los juegos conectados: solo de ellos se aceptan resultados. */

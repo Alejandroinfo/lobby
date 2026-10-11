@@ -11,11 +11,14 @@ import {
   csvEncuestas,
   csvPartidas,
   descargar,
+  habilidades,
   porVersion,
+  resumenRetos,
   resumen,
   victoriasPorAsiento,
   type DatosPanel,
   type EncuestaPanel,
+  type MarcaPanel,
   type PartidaPanel,
   type ResultadoPanel,
 } from "../datos/estadisticas";
@@ -26,17 +29,29 @@ import { irA } from "../navegacion";
 type Periodo = "7" | "30" | "todo";
 
 async function cargar(): Promise<DatosPanel> {
-  const [ps, rs, es, js] = await Promise.all([
+  const [ps, rs, es, js, ms] = await Promise.all([
     getDocs(collectionGroup(db, "partidas")),
     getDocs(collectionGroup(db, "resultados")),
     getDocs(collectionGroup(db, "encuestas")),
     getDocs(collection(db, "jugadores")),
+    // Las marcas de retos se agregaron después: si las reglas aún no lo permiten, el panel sigue funcionando.
+    getDocs(collectionGroup(db, "marcas")).catch((e) => {
+      console.warn("Marcas de retos no disponibles", e);
+      return null;
+    }),
   ]);
   return {
     partidas: ps.docs.map((d) => ({ id: d.id, sala: d.ref.parent.parent?.id ?? "", ...(d.data() as Omit<PartidaPanel, "id" | "sala">) })),
     resultados: rs.docs.map((d) => ({ partida: d.ref.parent.parent?.id ?? "", uid: d.id, ...(d.data() as Omit<ResultadoPanel, "partida" | "uid">) })),
     encuestas: es.docs.map((d) => ({ partida: d.ref.parent.parent?.id ?? "", uid: d.id, ...(d.data() as Omit<EncuestaPanel, "partida" | "uid">) })),
     perfiles: Object.fromEntries(js.docs.map((d) => [d.id, d.data() as Perfil])),
+    marcas: (ms?.docs ?? []).map((d) => ({
+      // salas/{sala}/retos/{reto}/marcas/{uid}
+      sala: d.ref.parent.parent?.parent.parent?.id ?? "",
+      reto: d.ref.parent.parent?.id ?? "",
+      uid: d.id,
+      ...(d.data() as Omit<MarcaPanel, "sala" | "reto" | "uid">),
+    })),
   };
 }
 
@@ -51,6 +66,8 @@ function filtrar(d: DatosPanel, juego: string, periodo: Periodo): DatosPanel {
     resultados: d.resultados.filter((r) => ids.has(r.partida)),
     encuestas: d.encuestas.filter((e) => ids.has(e.partida)),
     perfiles: d.perfiles,
+    // Hoy solo Split Loyalty tiene retos.
+    marcas: d.marcas.filter((m) => (juego === "todos" || juego === "split-loyalty") && (m.hora?.toMillis() ?? Date.now()) >= desde),
   };
 }
 
@@ -119,6 +136,9 @@ export function Panel({ usuario }: { usuario: Usuario }) {
   if (!datos || !vista) return <main className="centro"><p className="suave">Cargando datos de playtest…</p></main>;
 
   const r = resumen(vista);
+  const habs = habilidades(vista);
+  const rr = resumenRetos(vista);
+  const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
   const versiones = porVersion(vista);
   const asientos = victoriasPorAsiento(vista);
   const personas = new Set(vista.partidas.flatMap((p) => Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta").map(([u]) => u)));
@@ -165,6 +185,40 @@ export function Panel({ usuario }: { usuario: Usuario }) {
         <Tile valor={String(r.personas)} rotulo={`personas · ${r.paises} ${r.paises === 1 ? "país" : "países"}`} />
         <Tile valor={String(r.encuestas)} rotulo="encuestas respondidas" />
       </section>
+
+      {(habs.length > 0 || rr.intentos > 0) && (
+        <div className="rejilla-panel">
+          {habs.length > 0 && (
+            <section className="panel ancho">
+              <h2>Habilidades</h2>
+              <p className="suave chico-texto">
+                Qué habilidad se elige y cómo le va a quien la tiene. «Esperado» es el % de victorias que tocaría por azar
+                (1 entre el número de jugadores): muy por encima o por debajo sugiere que está desbalanceada. Con pocas partidas, tómalo como pista.
+              </p>
+              <div className="tabla"><table>
+                <thead><tr><th>Habilidad</th><th>Elegida</th><th>Partidas</th><th>Victorias</th><th>Esperado</th><th>Puntaje medio</th><th>En retos</th><th>Usos por partida</th></tr></thead>
+                <tbody>
+                  {habs.map((h) => (
+                    <tr key={h.clave}>
+                      <td>{h.nombre}</td><td>{h.elegida}</td><td>{h.partidas}</td>
+                      <td>{h.partidas ? `${h.victorias} (${pct(h.victorias / h.partidas)})` : "—"}</td>
+                      <td className="suave">{pct(h.esperado)}</td>
+                      <td>{n1(h.puntajePartidas)}</td><td>{n1(h.puntajeRetos)}</td><td>{n1(h.usosMedios)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </section>
+          )}
+          {rr.intentos > 0 && (
+            <section className="panel">
+              <h2>Retos en solitario</h2>
+              <p>{rr.intentos} {rr.intentos === 1 ? "intento" : "intentos"} de {rr.personas} {rr.personas === 1 ? "persona" : "personas"} en {rr.retos} {rr.retos === 1 ? "reto" : "retos"}.</p>
+              <p className="suave">Puntaje medio {n1(rr.media)} · mejor {rr.mejor ?? "—"}</p>
+            </section>
+          )}
+        </div>
+      )}
 
       {r.partidas === 0 ? (
         <p className="suave vacio-panel">Todavía no hay partidas terminadas con estos filtros. Aparecerán aquí al jugar desde el lobby.</p>

@@ -31,18 +31,22 @@ service cloud.firestore {
     match /{ruta=**}/encuestas/{quien} {
       allow read: if esAdmin();
     }
+    match /{ruta=**}/marcas/{quien} {
+      allow read: if esAdmin();
+    }
 
     // Perfil de cada jugador: solo lo lee y lo cambia su dueño. Además del nombre, guarda de forma
     // opcional y por rangos datos de audiencia (país de 2 letras, edad, cómo llegó, experiencia).
     match /jugadores/{uid} {
       function perfilValido(d) {
-        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen'])
+        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera'])
           && (!('nombre' in d) || nombreValido(d.nombre))
           && (!('pais' in d) || (d.pais is string && d.pais.matches('^[A-Z]{2}$')))
           && (!('rangoEdad' in d) || d.rangoEdad in ['menos-13', '13-17', '18-24', '25-34', '35-44', '45-mas', 'no-dice'])
           && (!('comoLlego' in d) || d.comoLlego in ['amigo', 'convencion', 'redes', 'otro', 'no-dice'])
           && (!('experiencia' in d) || d.experiencia in ['casual', 'frecuente', 'muy-frecuente', 'no-dice'])
-          && (!('salaOrigen' in d) || (d.salaOrigen is string && d.salaOrigen.size() <= 8));
+          && (!('salaOrigen' in d) || (d.salaOrigen is string && d.salaOrigen.size() <= 8))
+          && (!('carrera' in d) || (d.carrera is map && d.carrera.keys().hasOnly(['partidas', 'victorias', 'retos', 'logros'])));
       }
       allow read: if (autenticado() && request.auth.uid == uid) || esAdmin();
       allow delete: if autenticado() && request.auth.uid == uid;
@@ -105,6 +109,41 @@ service cloud.firestore {
           && request.resource.data.texto.size() <= 500
           && request.resource.data.hora == request.time;
         allow update, delete: if false;
+      }
+
+      // Retos en solitario con semilla. Cualquier miembro puede crear uno; nadie lo cambia ni lo borra.
+      // (El reto del día no tiene documento: solo existen sus marcas, en retos/diario-AAAA-MM-DD/marcas.)
+      match /retos/{reto} {
+        allow read: if autenticado() && esMiembro();
+        allow create: if autenticado() && esMiembro()
+          && request.resource.data.keys().hasOnly(['juego', 'tipo', 'semilla', 'variante', 'dificultad', 'creador', 'creadorNombre', 'creado'])
+          && request.resource.data.tipo == 'directo'
+          && request.resource.data.juego in ['split-loyalty']
+          && request.resource.data.semilla is string
+          && request.resource.data.semilla.matches('^[A-Z0-9]{4,12}$')
+          && request.resource.data.variante is string && request.resource.data.variante.size() <= 20
+          && request.resource.data.dificultad in ['hard', 'easy']
+          && request.resource.data.creador == request.auth.uid
+          && nombreValido(request.resource.data.creadorNombre)
+          && request.resource.data.creado == request.time;
+        allow update, delete: if false;
+
+        // Primer intento de cada persona. Se escribe una vez y no se cambia.
+        match /marcas/{quien} {
+          allow read: if autenticado() && esMiembro();
+          allow create: if autenticado() && esMiembro()
+            && quien == request.auth.uid
+            && (reto.matches('^diario-[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                || exists(/databases/$(database)/documents/salas/$(codigo)/retos/$(reto)))
+            && request.resource.data.keys().hasOnly(['nombre', 'puntaje', 'version', 'detalleJson', 'hora'])
+            && nombreValido(request.resource.data.nombre)
+            && request.resource.data.puntaje is number
+            && request.resource.data.puntaje >= 0 && request.resource.data.puntaje <= 1000
+            && request.resource.data.detalleJson is string
+            && request.resource.data.detalleJson.size() <= 200000
+            && request.resource.data.hora == request.time;
+          allow update, delete: if false;
+        }
       }
 
       // Partidas de la sala. Cualquier miembro puede crear una; quien la crea la controla
