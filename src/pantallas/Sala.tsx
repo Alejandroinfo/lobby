@@ -3,6 +3,7 @@ import { CATEGORIAS, JUEGOS, type Categoria, type Juego } from "../datos/catalog
 import { enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
 import type { Mensaje, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
+import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
 import { enlaceSala, irA } from "../navegacion";
 import { CrearPartida } from "./CrearPartida";
@@ -85,6 +86,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
   // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
   const mensajes = useMensajes(sala.codigo, confirmado);
   const partidas = usePartidas(sala.codigo, confirmado);
+  useResultados(sala.codigo, uid, partidas, confirmado);
 
   const copiar = async () => {
     const enlace = enlaceSala(sala.codigo);

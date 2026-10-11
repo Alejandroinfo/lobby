@@ -93,8 +93,30 @@ export function useReintento() {
   const [n, setN] = useState(0);
   const espera = useRef(1000);
   const timer = useRef<number | undefined>(undefined);
+  const ultima = useRef(0);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  // Una escucha de Firestore puede quedarse "dormida" sin dar error (pestaña en segundo plano,
+  // computadora suspendida, red que cambia). Al volver a la pestaña, recuperar la red o enfocar
+  // la ventana se reabre, como mucho una vez cada 3 s (igual que en Astrolabe).
+  useEffect(() => {
+    const reabrir = () => {
+      if (document.visibilityState !== "visible") return;
+      const ahora = Date.now();
+      if (ahora - ultima.current < 3000) return;
+      ultima.current = ahora;
+      setN((x) => x + 1);
+    };
+    document.addEventListener("visibilitychange", reabrir);
+    window.addEventListener("online", reabrir);
+    window.addEventListener("focus", reabrir);
+    return () => {
+      document.removeEventListener("visibilitychange", reabrir);
+      window.removeEventListener("online", reabrir);
+      window.removeEventListener("focus", reabrir);
+    };
+  }, []);
 
   return {
     n,
