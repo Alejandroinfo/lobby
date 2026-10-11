@@ -37,9 +37,9 @@ export const JUEGOS: Juego[] = [
   {
     id: "astrolabe",
     nombre: "Astrolabe",
-    descripcion: "Deduce la órbita secreta de tu casa entre las estrellas antes que tu rival.",
+    descripcion: "Deduce la órbita secreta de tu casa entre las estrellas. Con 4, en equipos de dos.",
     categoria: "listo",
-    jugadores: { min: 2, max: 2 },
+    jugadores: { min: 2, max: 4 },
     duracion: "Por medir",
     espectadores: true,
     variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
