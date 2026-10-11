@@ -113,7 +113,7 @@ export const JUEGOS: Juego[] = [
         "rol-equilibrado": "Did any role feel unfair or too easy?",
       },
     },
-    url: env.VITE_URL_BLINDSPOT ?? "",
+    url: env.VITE_URL_BLINDSPOT ?? "https://matchmaking-one-gamma.vercel.app/",
   },
   {
     id: "bst-animals",
@@ -136,7 +136,7 @@ export const JUEGOS: Juego[] = [
         silencio: "Did the silence feel like a fun challenge or a frustration?",
       },
     },
-    url: env.VITE_URL_BST_ANIMALS ?? "",
+    url: env.VITE_URL_BST_ANIMALS ?? "https://bst-firebase.vercel.app/",
     informaResultado: false,
   },
 ];
