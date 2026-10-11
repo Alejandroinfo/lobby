@@ -55,7 +55,12 @@ export const query = (c: Coleccion, ...mods: any[]): Consulta => Object.assign({
 
 function snap(r: Ref) {
   const d = leerDB()[r.ruta];
-  return { id: r.id, exists: () => d !== undefined, data: () => (d === undefined ? undefined : revivir(d)) };
+  return {
+    id: r.id,
+    metadata: { hasPendingWrites: false, fromCache: false },
+    exists: () => d !== undefined,
+    data: () => (d === undefined ? undefined : revivir(d)),
+  };
 }
 export const getDoc = async (r: Ref) => snap(r);
 
@@ -102,7 +107,8 @@ function resultado(q: Consulta) {
   return { docs: docs.map((x) => ({ id: x.id, data: () => revivir(x.d) })) };
 }
 
-export function onSnapshot(r: Ref | Consulta, cb: (s: any) => void) {
+export function onSnapshot(r: Ref | Consulta, ...args: any[]) {
+  const cb: (s: any) => void = args.find((a) => typeof a === "function");
   const emitir = () => cb("ruta" in r ? snap(r) : resultado(r));
   oyentes.add(emitir);
   queueMicrotask(emitir);

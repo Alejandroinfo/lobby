@@ -14,6 +14,8 @@ export interface Juego {
   espectadores: boolean;
   /** Opciones de partida; la primera es la predeterminada. */
   variantes: { id: string; nombre: string }[];
+  /** Con cuántos jugadores se juega en dos equipos (asientos pares contra impares). */
+  equiposCon?: number[];
   url: string;
 }
 
@@ -43,6 +45,7 @@ export const JUEGOS: Juego[] = [
     duracion: "Por medir",
     espectadores: true,
     variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
+    equiposCon: [4],
     url: "https://astrolabebg.vercel.app",
   },
   {
