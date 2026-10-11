@@ -16,6 +16,13 @@ export interface Juego {
   variantes: { id: string; nombre: string }[];
   /** Con cuántos jugadores se juega en dos equipos (asientos pares contra impares). */
   equiposCon?: number[];
+  /** Textos en inglés (el resto del catálogo está en español). */
+  en?: {
+    descripcion: string;
+    duracion?: string;
+    variantes?: Record<string, string>;
+    preguntas?: Record<string, string>;
+  };
   /** Hasta dos preguntas propias del juego en la encuesta de playtest. */
   preguntas?: Pregunta[];
   /**
@@ -52,6 +59,11 @@ export const JUEGOS: Juego[] = [
     preguntas: [
       { id: "habilidad-fuerte", texto: "¿Alguna habilidad o misión se sintió demasiado fuerte o débil? ¿Cuál?", tipo: "texto" },
     ],
+    en: {
+      descripcion: "Recruit agents and decide whether each one serves their nation or their rank.",
+      variantes: { simple: "Simple maps", special: "Special maps" },
+      preguntas: { "habilidad-fuerte": "Did any ability or mission feel too strong or too weak? Which one?" },
+    },
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
   },
   {
@@ -68,6 +80,15 @@ export const JUEGOS: Juego[] = [
       { id: "bitacora-clara", texto: "¿Se entendió bien la bitácora por paradas?", tipo: "si-no" },
       { id: "momento-deduccion", texto: "¿Hubo un momento de «¡ya lo vi!»? ¿Cuál?", tipo: "texto" },
     ],
+    en: {
+      descripcion: "Deduce your home's secret orbit among the stars. With 4, in teams of two.",
+      duracion: "Not measured yet",
+      variantes: { normal: "Normal (4 stars)", corto: "Short (3 stars)", extendido: "Extended (5 stars)", tutorial: "Tutorial" },
+      preguntas: {
+        "bitacora-clara": "Was the logbook by stops easy to understand?",
+        "momento-deduccion": "Was there an \"I see it!\" moment? Which one?",
+      },
+    },
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
   },
   {
@@ -83,6 +104,13 @@ export const JUEGOS: Juego[] = [
       { id: "adivino-rivals", texto: "¿Adivinaste quiénes eran los Rivals?", tipo: "si-no" },
       { id: "rol-equilibrado", texto: "¿Algún rol se sintió injusto o demasiado fácil?", tipo: "texto" },
     ],
+    en: {
+      descripcion: "Everyone sees your personality except you. Figure it out before the Soulmate.",
+      preguntas: {
+        "adivino-rivals": "Did you guess who the Rivals were?",
+        "rol-equilibrado": "Did any role feel unfair or too easy?",
+      },
+    },
     url: "",
   },
   {
@@ -98,6 +126,14 @@ export const JUEGOS: Juego[] = [
       { id: "zona-comun-senales", texto: "En el Escenario B, ¿la zona común reemplazó a las señales?", tipo: "si-no" },
       { id: "silencio", texto: "¿El silencio se sintió como un reto divertido o como una frustración?", tipo: "texto" },
     ],
+    en: {
+      descripcion: "Build trees in silence, without saying which cards you hold.",
+      variantes: { A: "Scenario A: Mixed information", B: "Scenario B: Late reveal" },
+      preguntas: {
+        "zona-comun-senales": "In Scenario B, did the common zone replace the signals?",
+        silencio: "Did the silence feel like a fun challenge or a frustration?",
+      },
+    },
     url: "",
   },
 ];

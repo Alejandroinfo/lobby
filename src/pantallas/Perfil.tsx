@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { cerrarSesion, guardarConGoogle, type Usuario } from "../hooks/useUsuario";
 import { irA } from "../navegacion";
+import { useIdioma } from "../i18n";
 
 export function Perfil({ usuario }: { usuario: Usuario }) {
+  const { t } = useIdioma();
   const [error, setError] = useState("");
   const [trabajando, setTrabajando] = useState(false);
 
@@ -15,7 +17,7 @@ export function Perfil({ usuario }: { usuario: Usuario }) {
     } catch (e) {
       const codigo = (e as { code?: string }).code ?? "";
       if (!codigo.includes("popup-closed") && !codigo.includes("cancelled-popup")) {
-        setError("No se pudo conectar con Google. Intenta de nuevo.");
+        setError(t.errorGoogle);
       }
     } finally {
       setTrabajando(false);
@@ -25,24 +27,24 @@ export function Perfil({ usuario }: { usuario: Usuario }) {
   if (usuario.anonimo) {
     return (
       <p className="perfil suave">
-        Entraste sin cuenta: tu perfil vive solo en este navegador.{" "}
+        {t.perfilAnonimo}{" "}
         <button className="enlace" onClick={vincular} disabled={trabajando}>
-          {trabajando ? "Conectando…" : "Guardarlo con Google"}
+          {trabajando ? t.conectando : t.guardarGoogle}
         </button>{" "}
-        para usarlo también en otros dispositivos.
+        {t.perfilAnonimoFin}
         {error && <span className="error"> {error}</span>}
       </p>
     );
   }
   return (
     <p className="perfil suave">
-      Perfil guardado con <strong>{usuario.email}</strong>.{" "}
+      {t.perfilGuardado} <strong>{usuario.email}</strong>.{" "}
       <button className="enlace" onClick={() => irA({ pantalla: "panel" })}>
-        Panel de playtest
+        {t.panel}
       </button>
       {" · "}
       <button className="enlace" onClick={() => cerrarSesion()}>
-        Cerrar sesión
+        {t.cerrarSesion}
       </button>
     </p>
   );

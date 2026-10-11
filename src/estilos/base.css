@@ -273,3 +273,8 @@ textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; border-c
 @media (max-width: 640px) { .rejilla-panel { grid-template-columns: 1fr; } }
 .tabla { overflow-x: auto; }
 .panel td.mono { letter-spacing: 0; }
+
+/* Idioma */
+.idioma-portada { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.selector-idioma button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+.acciones { align-items: center; flex-wrap: wrap; }

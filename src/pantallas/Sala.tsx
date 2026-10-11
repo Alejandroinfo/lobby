@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CATEGORIAS, JUEGOS, type Categoria, type Juego } from "../datos/catalogo";
+import { JUEGOS, type Categoria, type Juego } from "../datos/catalogo";
+import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
 import type { Mensaje, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function Sala({ codigo, uid, nombre, setNombre }: Props) {
+  const { t } = useIdioma();
   const { sala, estado, soyMiembro, confirmado } = useSala(codigo, uid);
   const [errorUnirse, setErrorUnirse] = useState("");
   const intentado = useRef(false);
@@ -31,18 +33,18 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
     intentado.current = true;
     unirseASala(codigo, uid, nombre).catch((e) => {
       console.error(e);
-      setErrorUnirse("No se pudo entrar a la sala. Recarga la página para intentarlo de nuevo.");
+      setErrorUnirse(t.errorUnirseSala);
     });
-  }, [estado, nombre, soyMiembro, codigo, uid]);
+  }, [estado, nombre, soyMiembro, codigo, uid, t]);
 
   if (estado === "no-existe") {
     return (
       <main className="centro">
         <div className="tarjeta">
-          <h2>No encontramos la sala {codigo}</h2>
-          <p className="suave">Revisa el código con quien te invitó; puede que lo hayas escrito mal.</p>
+          <h2>{t.noEncontramos(codigo)}</h2>
+          <p className="suave">{t.revisaCodigo}</p>
           <button className="primario" onClick={() => irA({ pantalla: "inicio" })}>
-            Volver al inicio
+            {t.volverInicio}
           </button>
         </div>
       </main>
@@ -51,7 +53,7 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
   if (estado === "error") {
     return (
       <main className="centro">
-        <p className="error">No se pudo cargar la sala. Revisa tu conexión y recarga la página.</p>
+        <p className="error">{t.errorCargarSala}</p>
       </main>
     );
   }
@@ -59,12 +61,12 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
     return (
       <main className="inicio">
         <header className="portada">
-          <h1>{sala?.nombre ?? "Lobby de juegos"}</h1>
-          <p>Te invitaron a esta sala. Elige tu nombre para entrar.</p>
+          <h1>{sala?.nombre ?? t.nombreApp}</h1>
+          <p>{t.invitadoTexto}</p>
         </header>
         <FormNombre
           inicial=""
-          boton="Entrar a la sala"
+          boton={t.entrarSala}
           alGuardar={(n) => {
             setNombre(n);
             guardarPerfil(uid, n).catch(() => {});
@@ -76,7 +78,7 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
   if (!sala || !soyMiembro) {
     return (
       <main className="centro">
-        {errorUnirse ? <p className="error">{errorUnirse}</p> : <p className="suave">Entrando a la sala…</p>}
+        {errorUnirse ? <p className="error">{errorUnirse}</p> : <p className="suave">{t.entrandoSala}</p>}
       </main>
     );
   }
@@ -85,6 +87,7 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
 }
 
 function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string; nombre: string; confirmado: boolean }) {
+  const { t } = useIdioma();
   const [copiado, setCopiado] = useState(false);
   // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
   const mensajes = useMensajes(sala.codigo, confirmado);
@@ -108,19 +111,19 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
     const enlace = enlaceSala(sala.codigo);
     try {
       if (navigator.share && matchMedia("(pointer: coarse)").matches) {
-        await navigator.share({ title: sala.nombre, text: `Únete a ${sala.nombre}`, url: enlace });
+        await navigator.share({ title: sala.nombre, text: t.uneteA(sala.nombre), url: enlace });
         return;
       }
       await navigator.clipboard.writeText(enlace);
       setCopiado(true);
       window.setTimeout(() => setCopiado(false), 2000);
     } catch {
-      window.prompt("Copia este enlace:", enlace);
+      window.prompt(t.copiaEnlace, enlace);
     }
   };
 
   const salir = async () => {
-    if (!window.confirm("¿Salir de la sala? Podrás volver con el mismo enlace.")) return;
+    if (!window.confirm(t.confirmarSalir)) return;
     await salirDeSala(sala.codigo, uid).catch(() => {});
     olvidarSala(sala.codigo);
     irA({ pantalla: "inicio" });
@@ -130,18 +133,19 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
     <main className="sala">
       <header className="cabecera">
         <div>
-          <p className="etiqueta">Sala</p>
+          <p className="etiqueta">{t.sala}</p>
           <h1>{sala.nombre}</h1>
           <p className="codigo-sala">
-            Código <strong>{sala.codigo}</strong>
+            {t.codigo} <strong>{sala.codigo}</strong>
           </p>
         </div>
         <div className="acciones">
+          <SelectorIdioma />
           <button className="primario" onClick={copiar}>
-            {copiado ? "¡Enlace copiado!" : "Invitar"}
+            {copiado ? t.enlaceCopiado : t.invitar}
           </button>
           <button className="secundario" onClick={salir}>
-            Salir
+            {t.salir}
           </button>
         </div>
       </header>
@@ -162,6 +166,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
 }
 
 function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
+  const { t } = useIdioma();
   const ahora = useAhora();
   const lista = Object.entries(sala.miembros ?? {})
     .map(([id, m]) => {
@@ -174,16 +179,16 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
   return (
     <section className="panel miembros" aria-labelledby="t-miembros">
       <h2 id="t-miembros">
-        En la sala <span className="contador">{conectados} conectados</span>
+        {t.enLaSala} <span className="contador">{t.conectados(conectados)}</span>
       </h2>
       <ul>
         {lista.map((m) => (
           <li key={m.id} className={m.conectado ? "" : "ausente"}>
             <span className={`punto ${m.conectado ? "on" : "off"}`} aria-hidden="true" />
             <span className="nombre-miembro">{m.nombre}</span>
-            {m.id === uid && <span className="insignia">tú</span>}
-            {m.id === sala.anfitrion && <span className="insignia anfitrion">anfitrión</span>}
-            <span className="sr-only">{m.conectado ? "conectado" : "desconectado"}</span>
+            {m.id === uid && <span className="insignia">{t.tu}</span>}
+            {m.id === sala.anfitrion && <span className="insignia anfitrion">{t.anfitrion}</span>}
+            <span className="sr-only">{m.conectado ? t.conectado : t.desconectado}</span>
           </li>
         ))}
       </ul>
@@ -192,12 +197,13 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
 }
 
 function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
+  const { t, idioma } = useIdioma();
   const grupos: Categoria[] = ["listo", "prueba"];
   const [elegido, setElegido] = useState<Juego | null>(null);
 
   if (elegido) {
     return (
-      <section className="panel catalogo" aria-label={`Nueva partida de ${elegido.nombre}`}>
+      <section className="panel catalogo" aria-label={t.nuevaPartidaDe(elegido.nombre)}>
         <CrearPartida juego={elegido} sala={sala} uid={uid} alCerrar={() => setElegido(null)} />
       </section>
     );
@@ -205,29 +211,26 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
 
   return (
     <section className="panel catalogo" aria-labelledby="t-juegos">
-      <h2 id="t-juegos">Juegos</h2>
+      <h2 id="t-juegos">{t.juegos}</h2>
       {grupos.map((cat) => (
         <div key={cat} className={`grupo grupo-${cat}`}>
           <h3>
-            {CATEGORIAS[cat].titulo} <span className="suave">· {CATEGORIAS[cat].nota}</span>
+            {t.categorias[cat].titulo} <span className="suave">· {t.categorias[cat].nota}</span>
           </h3>
           <ul className="juegos">
             {JUEGOS.filter((j) => j.categoria === cat).map((j) => (
               <li key={j.id} className="juego">
                 <div className="juego-cabeza">
                   <strong>{j.nombre}</strong>
-                  {cat === "prueba" && <span className="insignia prueba">en prueba</span>}
+                  {cat === "prueba" && <span className="insignia prueba">{t.enPrueba}</span>}
                 </div>
-                <p>{j.descripcion}</p>
+                <p>{textosJuego(j, idioma).descripcion}</p>
                 <p className="datos">
-                  {j.jugadores.min === j.jugadores.max
-                    ? `${j.jugadores.min} jugadores`
-                    : `${j.jugadores.min}–${j.jugadores.max} jugadores`}{" "}
-                  · {j.duracion}
-                  {j.espectadores ? " · con espectadores" : ""}
+                  {t.jugadores(j.jugadores.min, j.jugadores.max)} · {textosJuego(j, idioma).duracion}
+                  {j.espectadores ? ` · ${t.conEspectadores}` : ""}
                 </p>
                 <button className="secundario" onClick={() => setElegido(j)}>
-                  Crear partida
+                  {t.crearPartida}
                 </button>
               </li>
             ))}
@@ -239,6 +242,7 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
 }
 
 function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[] }) {
+  const { t } = useIdioma();
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
   const lista = useRef<HTMLOListElement>(null);
@@ -252,7 +256,7 @@ function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; 
     e.preventDefault();
     const limpio = texto.trim();
     if (!limpio) {
-      setError("Escribe algo antes de enviar.");
+      setError(t.escribeAlgo);
       return;
     }
     setTexto("");
@@ -260,18 +264,18 @@ function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; 
       await enviarMensaje(codigo, uid, nombre, limpio);
     } catch {
       setTexto(limpio);
-      setError("No se pudo enviar. Intenta de nuevo.");
+      setError(t.errorEnviar);
     }
   };
 
   return (
     <section className="panel chat" aria-labelledby="t-chat">
-      <h2 id="t-chat">Chat</h2>
+      <h2 id="t-chat">{t.chat}</h2>
       <ol ref={lista} className="mensajes" aria-live="polite">
-        {mensajes.length === 0 && <li className="suave vacio">Aún no hay mensajes. ¡Saluda!</li>}
+        {mensajes.length === 0 && <li className="suave vacio">{t.sinMensajes}</li>}
         {mensajes.map((m) => (
           <li key={m.id} className={m.uid === uid ? "mio" : ""}>
-            <span className="autor">{m.uid === uid ? "Tú" : m.nombre}</span>
+            <span className="autor">{m.uid === uid ? t.tuMayus : m.nombre}</span>
             <span className="texto">{m.texto}</span>
             {m.hora && (
               <time className="hora" dateTime={m.hora.toDate().toISOString()}>
@@ -283,14 +287,14 @@ function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; 
       </ol>
       <form className="escribir" onSubmit={enviar} noValidate>
         <label htmlFor="mensaje" className="sr-only">
-          Mensaje
+          {t.mensaje}
         </label>
         <input
           id="mensaje"
           autoComplete="off"
           maxLength={LARGO_MENSAJE}
           value={texto}
-          placeholder="Escribe un mensaje…"
+          placeholder={t.escribeMensaje}
           aria-invalid={Boolean(error)}
           onChange={(e) => {
             setTexto(e.target.value);
@@ -298,7 +302,7 @@ function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; 
           }}
         />
         <button type="submit" className="primario">
-          Enviar
+          {t.enviar}
         </button>
       </form>
       {error && <p className="error">{error}</p>}

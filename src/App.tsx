@@ -4,8 +4,10 @@ import { useRuta } from "./navegacion";
 import { Inicio } from "./pantallas/Inicio";
 import { Sala } from "./pantallas/Sala";
 import { Panel } from "./pantallas/Panel";
+import { useIdioma } from "./i18n";
 
 export function App() {
+  const { t } = useIdioma();
   const { uid, usuario, error } = useUsuario();
   const [nombre, setNombre] = useNombre();
   const ruta = useRuta();
@@ -14,8 +16,8 @@ export function App() {
     return (
       <main className="centro">
         <div className="tarjeta">
-          <h2>No pudimos conectarte</h2>
-          <p className="suave">Revisa tu conexión a internet y recarga la página.</p>
+          <h2>{t.errorConexionTitulo}</h2>
+          <p className="suave">{t.errorConexionTexto}</p>
           <p className="detalle">{error}</p>
         </div>
       </main>
@@ -24,7 +26,7 @@ export function App() {
   if (!uid) {
     return (
       <main className="centro">
-        <p className="suave">Conectando…</p>
+        <p className="suave">{t.conectando}</p>
       </main>
     );
   }

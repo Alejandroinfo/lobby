@@ -3,7 +3,8 @@
  * de forma opcional y por rangos, edad, cómo llegó y cuánto juega juegos de mesa.
  */
 import { useEffect, useState, type FormEvent } from "react";
-import { CATEGORIAS, juegoPorId } from "../datos/catalogo";
+import { juegoPorId } from "../datos/catalogo";
+import { textosJuego, useIdioma } from "../i18n";
 import { guardarAudiencia, guardarEncuesta, leerPerfil, yaRespondio } from "../firebase/encuestas";
 import type { ComoLlego, Duracion, Experiencia, Partida, Perfil, RangoEdad } from "../firebase/tipos";
 
@@ -120,6 +121,7 @@ interface PropsForm {
 }
 
 function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
+  const { t, idioma } = useIdioma();
   const juego = juegoPorId(p.juego);
   const enPrueba = juego?.categoria === "prueba";
   const pedirAudiencia = !perfil?.rangoEdad && !leerSeguro(CLAVE_AUDIENCIA);
@@ -139,7 +141,7 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     if (diversion === null) {
-      setError("Marca al menos qué tan divertida fue (del 1 al 5).");
+      setError(t.errorDiversion);
       return;
     }
     setEnviando(true);
@@ -165,7 +167,7 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
       window.setTimeout(alTerminar, 1800);
     } catch (err) {
       console.error(err);
-      setError("No se pudo enviar. Intenta de nuevo.");
+      setError(t.errorEnviar);
       setEnviando(false);
     }
   };
@@ -184,7 +186,7 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
   if (gracias) {
     return (
       <section className="panel encuesta" aria-live="polite">
-        <p className="listo-texto">¡Gracias! Tu opinión ya está guardada.</p>
+        <p className="listo-texto">{t.gracias}</p>
       </section>
     );
   }
@@ -192,33 +194,31 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
   return (
     <form className="panel encuesta" onSubmit={enviar} noValidate aria-labelledby="t-encuesta">
       <div className="encuesta-cabeza">
-        <h2 id="t-encuesta">¿Qué tal la partida de {juego?.nombre ?? p.juego}?</h2>
-        {enPrueba && <span className="insignia prueba">{CATEGORIAS.prueba.titulo.toLowerCase()}</span>}
+        <h2 id="t-encuesta">{t.encuestaTitulo(juego?.nombre ?? p.juego)}</h2>
+        {enPrueba && <span className="insignia prueba">{t.enPrueba}</span>}
       </div>
       <p className="suave">
-        {enPrueba
-          ? "Este juego está en prueba: tus respuestas deciden qué reglas cambian. Toma menos de un minuto."
-          : "Toma menos de un minuto y ayuda a mejorar el juego."}
+        {enPrueba ? t.encuestaTextoPrueba : t.encuestaTextoListo}
       </p>
 
-      <p className="rotulo" id="q-diversion">¿Qué tan divertida fue?</p>
-      <Escala id="q-diversion" valor={diversion} alElegir={(n) => { setDiversion(n); setError(""); }} bajo="Nada" alto="Muchísimo" />
+      <p className="rotulo" id="q-diversion">{t.qDiversion}</p>
+      <Escala id="q-diversion" valor={diversion} alElegir={(n) => { setDiversion(n); setError(""); }} bajo={t.nada} alto={t.muchisimo} />
 
-      <p className="rotulo" id="q-claridad">¿Qué tan claras fueron las reglas?</p>
-      <Escala id="q-claridad" valor={claridad} alElegir={setClaridad} bajo="Confusas" alto="Muy claras" />
+      <p className="rotulo" id="q-claridad">{t.qClaridad}</p>
+      <Escala id="q-claridad" valor={claridad} alElegir={setClaridad} bajo={t.confusas} alto={t.muyClaras} />
 
-      <p className="rotulo" id="q-duracion">La duración se sintió…</p>
-      <Opciones id="q-duracion" valor={duracion} alElegir={setDuracion} opciones={[["corta", "Corta"], ["justa", "Justa"], ["larga", "Larga"]]} />
+      <p className="rotulo" id="q-duracion">{t.qDuracion}</p>
+      <Opciones id="q-duracion" valor={duracion} alElegir={setDuracion} opciones={[["corta", t.corta], ["justa", t.justa], ["larga", t.larga]]} />
 
       {juego?.preguntas?.map((q) => (
         <div key={q.id}>
-          <p className="rotulo" id={`q-${q.id}`}>{q.texto}</p>
+          <p className="rotulo" id={`q-${q.id}`}>{juego ? textosJuego(juego, idioma).pregunta(q.id) : q.texto}</p>
           {q.tipo === "si-no" ? (
             <Opciones
               id={`q-${q.id}`}
               valor={(extra[q.id] as "si" | "no" | undefined) ?? null}
               alElegir={(v) => setExtra((x) => ({ ...x, [q.id]: v }))}
-              opciones={[["si", "Sí"], ["no", "No"]]}
+              opciones={[["si", t.si], ["no", t.no]]}
             />
           ) : (
             <input
@@ -231,34 +231,34 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
         </div>
       ))}
 
-      <label htmlFor="comentario">Algo confuso, un momento memorable o un error (opcional)</label>
+      <label htmlFor="comentario">{t.qComentario}</label>
       <textarea id="comentario" rows={2} maxLength={1000} value={comentario} onChange={(e) => setComentario(e.target.value)} />
 
       {pedirAudiencia && (
         <fieldset className="audiencia">
-          <legend>Solo esta vez, si quieres (para saber quién prueba los juegos)</legend>
-          <p className="rotulo" id="q-edad">Edad</p>
+          <legend>{t.audienciaLeyenda}</legend>
+          <p className="rotulo" id="q-edad">{t.qEdad}</p>
           <Opciones
             id="q-edad"
             valor={edad}
             alElegir={setEdad}
-            opciones={[["menos-13", "Menos de 13"], ["13-17", "13–17"], ["18-24", "18–24"], ["25-34", "25–34"], ["35-44", "35–44"], ["45-mas", "45 o más"], ["no-dice", "Prefiero no decir"]]}
+            opciones={(["menos-13", "13-17", "18-24", "25-34", "35-44", "45-mas", "no-dice"] as RangoEdad[]).map((v, k) => [v, t.edades[k]])}
           />
           {edad && edad !== "menos-13" && (
             <>
-              <p className="rotulo" id="q-llego">¿Cómo llegaste a estos juegos?</p>
+              <p className="rotulo" id="q-llego">{t.qComoLlego}</p>
               <Opciones
                 id="q-llego"
                 valor={comoLlego}
                 alElegir={setComoLlego}
-                opciones={[["amigo", "Un amigo"], ["convencion", "Una convención"], ["redes", "Redes sociales"], ["otro", "Otro"], ["no-dice", "Prefiero no decir"]]}
+                opciones={(["amigo", "convencion", "redes", "otro", "no-dice"] as ComoLlego[]).map((v, k) => [v, t.comoLlego[k]])}
               />
-              <p className="rotulo" id="q-exp">¿Cuánto juegas juegos de mesa?</p>
+              <p className="rotulo" id="q-exp">{t.qExperiencia}</p>
               <Opciones
                 id="q-exp"
                 valor={experiencia}
                 alElegir={setExperiencia}
-                opciones={[["casual", "De vez en cuando"], ["frecuente", "Seguido"], ["muy-frecuente", "Muchísimo"], ["no-dice", "Prefiero no decir"]]}
+                opciones={(["casual", "frecuente", "muy-frecuente", "no-dice"] as Experiencia[]).map((v, k) => [v, t.experiencia[k]])}
               />
             </>
           )}
@@ -268,10 +268,10 @@ function FormEncuesta({ sala, uid, p, perfil, alTerminar }: PropsForm) {
       {error && <p className="error">{error}</p>}
       <div className="botones">
         <button type="submit" className="primario" disabled={enviando}>
-          {enviando ? "Enviando…" : "Enviar"}
+          {enviando ? t.enviando : t.enviar}
         </button>
         <button type="button" className="secundario" onClick={omitir}>
-          Ahora no
+          {t.ahoraNo}
         </button>
       </div>
     </form>

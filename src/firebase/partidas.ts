@@ -100,32 +100,39 @@ export async function tomarControl(sala: string, id: string, uid: string) {
   await updateDoc(refPartida(sala, id), { anfitrion: uid });
 }
 
+export type Motivo =
+  | { tipo: "faltan"; n: number; min: number }
+  | { tipo: "sobran"; n: number; max: number }
+  | { tipo: "desconectados"; nombres: string[] }
+  | { tipo: "esperando"; nombres: string[] }
+  | { tipo: "equipos"; mitad: number }
+  | { tipo: "listos" }
+  | { tipo: "desconocido" };
+
 export interface Preparacion {
   puede: boolean;
-  motivo: string;
+  motivo: Motivo;
 }
 
 /**
- * ¿Se puede lanzar ya? Si no, explica por qué.
+ * ¿Se puede lanzar ya? Si no, explica por qué (la interfaz lo traduce).
  * `conectado(uid)` dice si esa persona sigue con el lobby abierto.
  */
 export function preparacion(p: Partida, juego: Juego, conectado: (uid: string) => boolean): Preparacion {
   const jugadores = jugadoresAceptados(p);
   const n = jugadores.length;
   const { min, max } = juego.jugadores;
-  if (n < min) return { puede: false, motivo: `Faltan jugadores: ${n} de al menos ${min}.` };
-  if (n > max) return { puede: false, motivo: `Sobran jugadores: ${n}, el máximo es ${max}.` };
+  if (n < min) return { puede: false, motivo: { tipo: "faltan", n, min } };
+  if (n > max) return { puede: false, motivo: { tipo: "sobran", n, max } };
   const aceptados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta");
   const ausentes = aceptados.filter(([uid]) => !conectado(uid)).map(([, i]) => i.nombre);
-  if (ausentes.length) {
-    return { puede: false, motivo: `Se desconectó: ${ausentes.join(", ")}. Espera a que vuelva o quítalo.` };
-  }
+  if (ausentes.length) return { puede: false, motivo: { tipo: "desconectados", nombres: ausentes } };
   const sinListo = aceptados.filter(([, i]) => !i.listo).map(([, i]) => i.nombre);
-  if (sinListo.length) return { puede: false, motivo: `Esperando a: ${sinListo.join(", ")}.` };
+  if (sinListo.length) return { puede: false, motivo: { tipo: "esperando", nombres: sinListo } };
   if (usaEquipos(p, juego) && p.equipos?.modo === "manual" && !equiposManualesValidos(p)) {
-    return { puede: false, motivo: `Los equipos deben quedar de ${n / 2} y ${n / 2}.` };
+    return { puede: false, motivo: { tipo: "equipos", mitad: n / 2 } };
   }
-  return { puede: true, motivo: "Todos listos." };
+  return { puede: true, motivo: { tipo: "listos" } };
 }
 
 function barajar<T>(lista: T[]): T[] {
@@ -181,7 +188,7 @@ export async function cancelar(sala: string, id: string) {
  * Enlace con el que cada persona abre el juego (parámetros que entiende el lobby-puente del juego).
  * `volver` es la sala del lobby: el juego regresa ahí al terminar.
  */
-export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string): string | null {
+export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string, idioma: "es" | "en"): string | null {
   const yo = p.invitados[uid];
   if (!juego.url || !p.codigoJuego || !yo || yo.respuesta !== "acepta") return null;
   const jugadores = Object.values(p.invitados)
@@ -195,7 +202,7 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string)
     rol: yo.rol,
     nombre: yo.nombre,
     nombres: jugadores.map((i) => i.nombre.replace(/\|/g, "/")).join("|"),
-    idioma: navigator.language?.toLowerCase().startsWith("en") ? "en" : "es",
+    idioma,
     variante: p.variante ?? "",
     lsala: sala,
     lpartida: p.id,
