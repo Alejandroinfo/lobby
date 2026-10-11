@@ -46,8 +46,10 @@ export function useSala(codigo: string, uid: string | null) {
 
   useEffect(() => {
     if (!uid || !soyMiembro) return;
+    // También en segundo plano: así "desconectado" significa que cerró el lobby,
+    // no que cambió de pestaña para leer las reglas.
     const tick = () => {
-      if (document.visibilityState === "visible") latido(codigo, uid).catch(() => {});
+      latido(codigo, uid).catch(() => {});
     };
     const id = window.setInterval(tick, LATIDO_MS);
     document.addEventListener("visibilitychange", tick);

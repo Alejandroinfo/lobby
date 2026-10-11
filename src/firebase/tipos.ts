@@ -31,6 +31,8 @@ export interface Invitado {
   respondio: Timestamp | null;
   /** Se asigna al lanzar; `null` para espectadores. */
   asiento: number | null;
+  /** Se asigna al lanzar en juegos por equipos. */
+  equipo?: 0 | 1;
 }
 
 /** Documento `salas/{codigo}/partidas/{id}`. */
@@ -42,6 +44,8 @@ export interface Partida {
   anfitrion: string;
   estado: EstadoPartida;
   invitados: Record<string, Invitado>;
+  /** Solo en juegos por equipos: al azar, o elegidos por quien creó la partida (uid → equipo 0 o 1). */
+  equipos?: { modo: "azar" | "manual"; de?: Record<string, 0 | 1> };
   /** Código de sala dentro del juego; se genera al lanzar. */
   codigoJuego: string | null;
   creada: Timestamp | null;

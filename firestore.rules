@@ -85,7 +85,7 @@ service cloud.firestore {
       match /partidas/{id} {
 
         function invitadoValido(i) {
-          return i.keys().hasOnly(['nombre', 'rol', 'respuesta', 'listo', 'respondio', 'asiento'])
+          return i.keys().hasOnly(['nombre', 'rol', 'respuesta', 'listo', 'respondio', 'asiento', 'equipo'])
             && nombreValido(i.nombre)
             && i.rol in ['jugador', 'espectador']
             && i.respuesta in ['pendiente', 'acepta', 'rechaza']
@@ -113,6 +113,21 @@ service cloud.firestore {
             && invitadoValido(despues[yo]);
         }
 
+        // Si quien organiza lleva más de 100 s sin dar señales (cerró el lobby), un jugador que
+        // aceptó puede quedarse con el control. Solo cambia `anfitrion`, y solo hacia sí mismo.
+        function tomoElControl() {
+          let yo = request.auth.uid;
+          let creador = resource.data.anfitrion;
+          let miembros = get(/databases/$(database)/documents/salas/$(codigo)).data.miembros;
+          return resource.data.estado in ['invitando', 'jugando']
+            && yo in resource.data.invitados
+            && resource.data.invitados[yo].respuesta == 'acepta'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['anfitrion'])
+            && request.resource.data.anfitrion == yo
+            && (!(creador in miembros)
+                || miembros[creador].ultimaVez < request.time - duration.value(100, 's'));
+        }
+
         allow read: if autenticado() && esMiembro();
 
         allow create: if autenticado() && esMiembro()
@@ -125,7 +140,8 @@ service cloud.firestore {
           && request.resource.data.invitados.size() <= 12
           && request.resource.data.creada == request.time;
 
-        allow update: if autenticado() && esMiembro() && (cambioDelCreador() || miRespuesta());
+        allow update: if autenticado() && esMiembro()
+          && (cambioDelCreador() || miRespuesta() || tomoElControl());
         allow delete: if false;
       }
     }

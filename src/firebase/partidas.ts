@@ -61,7 +61,7 @@ export async function marcarListo(sala: string, id: string, uid: string, listo: 
   await updateDoc(refPartida(sala, id), { [`invitados.${uid}.listo`]: listo });
 }
 
-/** Solo quien creó la partida: quitar a alguien que no responde. */
+/** Solo quien creó la partida: quitar a alguien que no responde o que se desconectó. */
 export async function quitarInvitado(sala: string, id: string, uid: string) {
   await updateDoc(refPartida(sala, id), { [`invitados.${uid}`]: deleteField() });
 }
@@ -77,32 +77,94 @@ export function jugadoresAceptados(p: Partida): [string, Invitado][] {
     });
 }
 
+/** ¿Esta partida se juega en equipos? (depende del juego y de cuántos jugadores aceptaron). */
+export function usaEquipos(p: Partida, juego: Juego): boolean {
+  return Boolean(juego.equiposCon?.includes(jugadoresAceptados(p).length));
+}
+
+/** Equipos elegidos a mano válidos: todos los jugadores asignados y la misma cantidad en cada equipo. */
+function equiposManualesValidos(p: Partida): boolean {
+  const jugadores = jugadoresAceptados(p);
+  const de = p.equipos?.de ?? {};
+  const enEquipo0 = jugadores.filter(([uid]) => de[uid] === 0).length;
+  const enEquipo1 = jugadores.filter(([uid]) => de[uid] === 1).length;
+  return enEquipo0 + enEquipo1 === jugadores.length && enEquipo0 === enEquipo1;
+}
+
+export async function definirEquipos(sala: string, id: string, modo: "azar" | "manual", de: Record<string, 0 | 1> = {}) {
+  await updateDoc(refPartida(sala, id), { equipos: modo === "azar" ? { modo } : { modo, de } });
+}
+
+/** Si quien creó la partida se desconecta, otro jugador que aceptó puede tomar el control. */
+export async function tomarControl(sala: string, id: string, uid: string) {
+  await updateDoc(refPartida(sala, id), { anfitrion: uid });
+}
+
 export interface Preparacion {
   puede: boolean;
   motivo: string;
 }
 
-/** ¿Se puede lanzar ya? Si no, explica por qué. */
-export function preparacion(p: Partida, juego: Juego): Preparacion {
+/**
+ * ¿Se puede lanzar ya? Si no, explica por qué.
+ * `conectado(uid)` dice si esa persona sigue con el lobby abierto.
+ */
+export function preparacion(p: Partida, juego: Juego, conectado: (uid: string) => boolean): Preparacion {
   const jugadores = jugadoresAceptados(p);
   const n = jugadores.length;
   const { min, max } = juego.jugadores;
   if (n < min) return { puede: false, motivo: `Faltan jugadores: ${n} de al menos ${min}.` };
   if (n > max) return { puede: false, motivo: `Sobran jugadores: ${n}, el máximo es ${max}.` };
-  const sinListo = Object.values(p.invitados).filter((i) => i.respuesta === "acepta" && !i.listo);
-  if (sinListo.length) return { puede: false, motivo: `Esperando a: ${sinListo.map((i) => i.nombre).join(", ")}.` };
+  const aceptados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta");
+  const ausentes = aceptados.filter(([uid]) => !conectado(uid)).map(([, i]) => i.nombre);
+  if (ausentes.length) {
+    return { puede: false, motivo: `Se desconectó: ${ausentes.join(", ")}. Espera a que vuelva o quítalo.` };
+  }
+  const sinListo = aceptados.filter(([, i]) => !i.listo).map(([, i]) => i.nombre);
+  if (sinListo.length) return { puede: false, motivo: `Esperando a: ${sinListo.join(", ")}.` };
+  if (usaEquipos(p, juego) && p.equipos?.modo === "manual" && !equiposManualesValidos(p)) {
+    return { puede: false, motivo: `Los equipos deben quedar de ${n / 2} y ${n / 2}.` };
+  }
   return { puede: true, motivo: "Todos listos." };
 }
 
+function barajar<T>(lista: T[]): T[] {
+  const copia = [...lista];
+  const azar = crypto.getRandomValues(new Uint32Array(copia.length));
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = azar[i] % (i + 1);
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+
+/**
+ * Orden de asientos al lanzar. En juegos por equipos, el equipo 0 ocupa los asientos pares
+ * (1.º y 3.º) y el equipo 1 los impares (2.º y 4.º), como espera Astrolabe.
+ */
+export function ordenDeAsientos(p: Partida, juego: Juego): { uid: string; equipo?: 0 | 1 }[] {
+  const jugadores = jugadoresAceptados(p).map(([uid]) => uid);
+  if (!usaEquipos(p, juego)) return jugadores.map((uid) => ({ uid }));
+  const de = p.equipos?.modo === "manual" && equiposManualesValidos(p) ? p.equipos.de! : null;
+  const mezcla = de ? jugadores : barajar(jugadores);
+  const equipo0 = de ? mezcla.filter((u) => de[u] === 0) : mezcla.slice(0, mezcla.length / 2);
+  const equipo1 = de ? mezcla.filter((u) => de[u] === 1) : mezcla.slice(mezcla.length / 2);
+  return equipo0.flatMap((u, k) => [
+    { uid: u, equipo: 0 as const },
+    { uid: equipo1[k], equipo: 1 as const },
+  ]);
+}
+
 /** Asigna asientos, genera el código de sala del juego y pasa a "jugando". */
-export async function lanzar(sala: string, p: Partida) {
+export async function lanzar(sala: string, p: Partida, juego: Juego) {
   const cambios: Record<string, unknown> = {
     estado: "jugando",
     iniciada: serverTimestamp(),
     codigoJuego: generarCodigo(),
   };
-  jugadoresAceptados(p).forEach(([uid], asiento) => {
+  ordenDeAsientos(p, juego).forEach(({ uid, equipo }, asiento) => {
     cambios[`invitados.${uid}.asiento`] = asiento;
+    if (equipo !== undefined) cambios[`invitados.${uid}.equipo`] = equipo;
   });
   await updateDoc(refPartida(sala, p.id), cambios);
 }

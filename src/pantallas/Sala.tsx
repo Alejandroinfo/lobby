@@ -132,7 +132,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
       <div className="rejilla">
         <Miembros sala={sala} uid={uid} />
         <div className="centro-sala">
-          <ListaPartidas sala={sala.codigo} uid={uid} partidas={partidas} />
+          <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
           <Catalogo sala={sala} uid={uid} />
         </div>
         <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} />

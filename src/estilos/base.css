@@ -206,3 +206,21 @@ select:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
 .check { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 400; font-size: 1rem; cursor: pointer; }
 .check input { width: auto; accent-color: var(--acento); }
 .crear-partida > button[type="submit"] { margin-top: 0.75rem; align-self: flex-start; }
+
+/* Equipos y desconexiones */
+.chip.no-conectado { background: transparent; color: var(--error); border-color: var(--error); }
+.aviso-control { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between;
+  border: 1px dashed var(--prueba); border-radius: 8px; padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; }
+.aviso-control p { margin: 0; font-size: 0.9rem; }
+.equipos { border-top: 1px dashed var(--linea); padding-top: 0.6rem; margin-top: 0.6rem; }
+.equipos-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.equipos p { font-size: 0.9rem; }
+.segmentado { display: inline-flex; border: 1px solid var(--linea); border-radius: 8px; overflow: hidden; }
+.segmentado button { border: 0; border-radius: 0; background: transparent; color: var(--tinta); font-size: 0.82rem; padding: 0.3rem 0.75rem; }
+.segmentado button[aria-checked="true"] { background: var(--acento); color: var(--acento-texto); }
+.columnas-equipos { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.columna-equipo { border: 1px solid var(--linea); border-radius: 8px; padding: 0.5rem; background: var(--superficie); }
+.columna-equipo ul { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
+.ficha { width: 100%; text-align: left; background: var(--fondo); border: 1px solid var(--linea); padding: 0.35rem 0.55rem; font-size: 0.9rem; color: var(--tinta); }
+.ficha:hover { border-color: var(--acento); }
+.chico-texto { font-size: 0.8rem; margin: 0.4rem 0 0; }
