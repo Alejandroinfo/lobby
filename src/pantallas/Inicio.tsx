@@ -8,6 +8,7 @@ import {
   normalizarCodigo,
 } from "../firebase/salas";
 import { irA } from "../navegacion";
+import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
 
 interface Props {
@@ -23,6 +24,7 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
   const [errorCodigo, setErrorCodigo] = useState("");
   const [errorCrear, setErrorCrear] = useState("");
   const [creando, setCreando] = useState(false);
+  const [recientes] = useState(leerRecientes);
 
   if (!nombre || editando) {
     return (
@@ -74,6 +76,21 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
           Cambiar nombre
         </button>
       </p>
+      {recientes.length > 0 && (
+        <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
+          <h2 id="t-recientes">Tus salas recientes</h2>
+          <ul>
+            {recientes.map((r) => (
+              <li key={r.codigo}>
+                <button className="enlace-sala" onClick={() => irA({ pantalla: "sala", codigo: r.codigo })}>
+                  <span>{r.nombre}</span>
+                  <span className="mono suave">{r.codigo}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="opciones">
         <form className="tarjeta" onSubmit={crear} noValidate>
           <h2>Crear una sala</h2>

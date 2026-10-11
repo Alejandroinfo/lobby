@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
 import {
   cancelar,
+  crearPartida,
   definirEquipos,
   enlaceJuego,
   jugadoresAceptados,
@@ -17,7 +18,40 @@ import {
 import type { Invitado, Partida, Sala } from "../firebase/tipos";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 
-const activa = (p: Partida) => p.estado === "invitando" || p.estado === "jugando";
+/**
+ * En curso = invitando o jugando, salvo que lleve demasiado tiempo así (nadie la terminó):
+ * esas se consideran abandonadas y dejan de mostrarse.
+ */
+const HORAS_INVITANDO = 2;
+const HORAS_JUGANDO = 6;
+function activa(p: Partida) {
+  const ahora = Date.now();
+  if (p.estado === "invitando") return ahora - (p.creada?.toMillis() ?? ahora) < HORAS_INVITANDO * 3600_000;
+  if (p.estado === "jugando") return ahora - (p.iniciada?.toMillis() ?? ahora) < HORAS_JUGANDO * 3600_000;
+  return false;
+}
+
+/** Un "ding" corto sin archivos de audio (si el navegador lo permite). */
+function sonarAviso() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    o.connect(g).connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.42);
+    o.onended = () => ctx.close();
+  } catch {
+    /* sin audio */
+  }
+}
 
 function nombreVariante(p: Partida) {
   const juego = juegoPorId(p.juego);
@@ -30,9 +64,12 @@ export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: strin
     (p) => p.estado === "invitando" && p.invitados[uid]?.respuesta === "pendiente",
   );
 
+  const antes = useRef(0);
   useEffect(() => {
     const base = "Lobby de juegos";
     document.title = pendientes.length ? `(${pendientes.length}) Invitación · ${base}` : base;
+    if (pendientes.length > antes.current) sonarAviso();
+    antes.current = pendientes.length;
   }, [pendientes.length]);
 
   if (!pendientes.length) return null;
@@ -99,6 +136,7 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
                   .map(([, i]) => i.nombre)
                   .join(", ")}
                 {resumenResultado(p) && <strong> · {resumenResultado(p)}</strong>}
+                {p.invitados[uid]?.respuesta === "acepta" && <BotonRevancha sala={sala.codigo} uid={uid} p={p} />}
                 {p.terminada && (
                   <span className="suave">
                     {" "}
@@ -348,5 +386,34 @@ function Equipos({ sala, p, editable }: { sala: string; p: Partida; editable: bo
         </>
       )}
     </div>
+  );
+}
+
+/** Misma partida otra vez: mismo juego, modo y personas (cada una con su rol). */
+function BotonRevancha({ sala, uid, p }: { sala: string; uid: string; p: Partida }) {
+  const [estado, setEstado] = useState<"" | "creando" | "error">("");
+  const juego = juegoPorId(p.juego);
+  if (!juego) return null;
+  const revancha = async () => {
+    setEstado("creando");
+    const invitaciones = Object.entries(p.invitados)
+      .filter(([, i]) => i.respuesta === "acepta")
+      .map(([id, i]) => ({ uid: id, nombre: i.nombre, rol: i.rol }));
+    try {
+      await crearPartida(sala, uid, juego, p.variante, invitaciones);
+      setEstado("");
+    } catch (e) {
+      console.error(e);
+      setEstado("error");
+    }
+  };
+  return (
+    <>
+      {" "}
+      <button className="enlace chico" onClick={revancha} disabled={estado === "creando"}>
+        {estado === "creando" ? "creando…" : "revancha"}
+      </button>
+      {estado === "error" && <span className="error"> no se pudo crear</span>}
+    </>
   );
 }

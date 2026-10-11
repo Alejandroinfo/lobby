@@ -14,12 +14,20 @@ service cloud.firestore {
       return n is string && n.size() >= 1 && n.size() <= 24;
     }
 
-    // Perfil de cada jugador: solo lo lee y lo cambia su dueño.
+    // Perfil de cada jugador: solo lo lee y lo cambia su dueño. Además del nombre, guarda de forma
+    // opcional y por rangos datos de audiencia (país de 2 letras, edad, cómo llegó, experiencia).
     match /jugadores/{uid} {
+      function perfilValido(d) {
+        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen'])
+          && (!('nombre' in d) || nombreValido(d.nombre))
+          && (!('pais' in d) || (d.pais is string && d.pais.matches('^[A-Z]{2}$')))
+          && (!('rangoEdad' in d) || d.rangoEdad in ['menos-13', '13-17', '18-24', '25-34', '35-44', '45-mas', 'no-dice'])
+          && (!('comoLlego' in d) || d.comoLlego in ['amigo', 'convencion', 'redes', 'otro', 'no-dice'])
+          && (!('experiencia' in d) || d.experiencia in ['casual', 'frecuente', 'muy-frecuente', 'no-dice'])
+          && (!('salaOrigen' in d) || (d.salaOrigen is string && d.salaOrigen.size() <= 8));
+      }
       allow read, delete: if autenticado() && request.auth.uid == uid;
-      allow create, update: if autenticado() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nombre', 'ultimaVez'])
-        && nombreValido(request.resource.data.nombre);
+      allow create, update: if autenticado() && request.auth.uid == uid && perfilValido(request.resource.data);
     }
 
     // Una sala por grupo. Cualquiera con sesión puede leerla (el código hace de invitación),
@@ -155,6 +163,27 @@ service cloud.firestore {
         allow update: if autenticado() && esMiembro()
           && (cambioDelCreador() || miRespuesta() || tomoElControl() || terminoConResultado());
         allow delete: if false;
+
+        // Encuesta de playtest de cada persona que participó. Se escribe una vez y no se cambia.
+        match /encuestas/{quien} {
+          function nota(v) {
+            return v == null || (v is int && v >= 1 && v <= 5);
+          }
+          allow read: if autenticado() && esMiembro();
+          allow create: if autenticado() && esMiembro()
+            && quien == request.auth.uid
+            && get(/databases/$(database)/documents/salas/$(codigo)/partidas/$(id)).data.invitados[quien].respuesta == 'acepta'
+            && request.resource.data.keys().hasOnly(['juego', 'diversion', 'claridad', 'duracion', 'comentario', 'extra', 'hora'])
+            && nota(request.resource.data.diversion)
+            && nota(request.resource.data.claridad)
+            && (request.resource.data.duracion == null || request.resource.data.duracion in ['corta', 'justa', 'larga'])
+            && request.resource.data.comentario is string
+            && request.resource.data.comentario.size() <= 1000
+            && request.resource.data.extra is map
+            && request.resource.data.extra.size() <= 4
+            && request.resource.data.hora == request.time;
+          allow update, delete: if false;
+        }
 
         // Resultado que informó el juego a cada jugador. Se escribe una vez y no se cambia.
         match /resultados/{quien} {

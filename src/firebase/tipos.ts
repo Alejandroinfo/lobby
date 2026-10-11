@@ -72,3 +72,30 @@ export interface ResultadoJuego {
   version?: string;
   detalle?: unknown;
 }
+
+export type Duracion = "corta" | "justa" | "larga";
+
+/** Documento `salas/{codigo}/partidas/{id}/encuestas/{uid}`. */
+export interface Encuesta {
+  juego: string;
+  diversion: number | null;
+  claridad: number | null;
+  duracion: Duracion | null;
+  comentario: string;
+  extra: Record<string, string>;
+  hora: Timestamp | null;
+}
+
+export type RangoEdad = "menos-13" | "13-17" | "18-24" | "25-34" | "35-44" | "45-mas" | "no-dice";
+export type ComoLlego = "amigo" | "convencion" | "redes" | "otro" | "no-dice";
+export type Experiencia = "casual" | "frecuente" | "muy-frecuente" | "no-dice";
+
+/** Documento `jugadores/{uid}`: el nombre y, si la persona quiso contestarlo, su perfil anónimo. */
+export interface Perfil {
+  nombre: string;
+  pais?: string | null;
+  rangoEdad?: RangoEdad;
+  comoLlego?: ComoLlego;
+  experiencia?: Experiencia;
+  salaOrigen?: string;
+}

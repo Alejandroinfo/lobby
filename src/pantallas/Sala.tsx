@@ -8,7 +8,10 @@ import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSal
 import { enlaceSala, irA } from "../navegacion";
 import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
+import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
+import { olvidarSala, recordarSala } from "../datos/recientes";
+import { guardarAudiencia, leerPerfil, registrarPais } from "../firebase/encuestas";
 
 interface Props {
   codigo: string;
@@ -88,6 +91,19 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
   const partidas = usePartidas(sala.codigo, confirmado);
   useResultados(sala.codigo, uid, partidas, confirmado);
 
+  // Recordar esta sala en "Tus salas recientes" y, una vez confirmada la entrada, anotar el país
+  // (solo el código de 2 letras) y la sala por la que llegó la primera vez.
+  useEffect(() => {
+    recordarSala(sala.codigo, sala.nombre);
+  }, [sala.codigo, sala.nombre]);
+  useEffect(() => {
+    if (!confirmado) return;
+    registrarPais(uid);
+    leerPerfil(uid).then((perfil) => {
+      if (!perfil?.salaOrigen) guardarAudiencia(uid, { nombre, salaOrigen: sala.codigo }).catch(() => {});
+    });
+  }, [confirmado, uid, sala.codigo, nombre]);
+
   const copiar = async () => {
     const enlace = enlaceSala(sala.codigo);
     try {
@@ -106,6 +122,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
   const salir = async () => {
     if (!window.confirm("¿Salir de la sala? Podrás volver con el mismo enlace.")) return;
     await salirDeSala(sala.codigo, uid).catch(() => {});
+    olvidarSala(sala.codigo);
     irA({ pantalla: "inicio" });
   };
 
@@ -130,6 +147,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
       </header>
 
       <Invitaciones sala={sala.codigo} uid={uid} partidas={partidas} />
+      <EncuestaPendiente sala={sala.codigo} uid={uid} partidas={partidas} />
 
       <div className="rejilla">
         <Miembros sala={sala} uid={uid} />

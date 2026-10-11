@@ -16,11 +16,19 @@ export interface Juego {
   variantes: { id: string; nombre: string }[];
   /** Con cuántos jugadores se juega en dos equipos (asientos pares contra impares). */
   equiposCon?: number[];
+  /** Hasta dos preguntas propias del juego en la encuesta de playtest. */
+  preguntas?: Pregunta[];
   /**
    * Página del juego que entiende los parámetros del lobby (?lobby=1&codigo=…).
    * Vacío = el juego aún no está conectado: cada uno lo abre por su cuenta.
    */
   url: string;
+}
+
+export interface Pregunta {
+  id: string;
+  texto: string;
+  tipo: "si-no" | "texto";
 }
 
 export const CATEGORIAS: Record<Categoria, { titulo: string; nota: string }> = {
@@ -41,6 +49,9 @@ export const JUEGOS: Juego[] = [
     duracion: "20–35 min",
     espectadores: true,
     variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "special", nombre: "Mapas especiales" }],
+    preguntas: [
+      { id: "habilidad-fuerte", texto: "¿Alguna habilidad o misión se sintió demasiado fuerte o débil? ¿Cuál?", tipo: "texto" },
+    ],
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
   },
   {
@@ -53,6 +64,10 @@ export const JUEGOS: Juego[] = [
     espectadores: true,
     variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
     equiposCon: [4],
+    preguntas: [
+      { id: "bitacora-clara", texto: "¿Se entendió bien la bitácora por paradas?", tipo: "si-no" },
+      { id: "momento-deduccion", texto: "¿Hubo un momento de «¡ya lo vi!»? ¿Cuál?", tipo: "texto" },
+    ],
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
   },
   {
@@ -64,6 +79,10 @@ export const JUEGOS: Juego[] = [
     duracion: "45–75 min",
     espectadores: false,
     variantes: [],
+    preguntas: [
+      { id: "adivino-rivals", texto: "¿Adivinaste quiénes eran los Rivals?", tipo: "si-no" },
+      { id: "rol-equilibrado", texto: "¿Algún rol se sintió injusto o demasiado fácil?", tipo: "texto" },
+    ],
     url: "",
   },
   {
@@ -75,6 +94,10 @@ export const JUEGOS: Juego[] = [
     duracion: "45–75 min",
     espectadores: false,
     variantes: [{ id: "A", nombre: "Escenario A: Información mixta" }, { id: "B", nombre: "Escenario B: Revelación tardía" }],
+    preguntas: [
+      { id: "zona-comun-senales", texto: "En el Escenario B, ¿la zona común reemplazó a las señales?", tipo: "si-no" },
+      { id: "silencio", texto: "¿El silencio se sintió como un reto divertido o como una frustración?", tipo: "texto" },
+    ],
     url: "",
   },
 ];
