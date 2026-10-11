@@ -30,6 +30,8 @@ export interface Juego {
    * Vacío = el juego aún no está conectado: cada uno lo abre por su cuenta.
    */
   url: string;
+  /** false si el juego no avisa el resultado solo (quien organiza marca "Terminar partida"). */
+  informaResultado?: boolean;
 }
 
 export interface Pregunta {
@@ -111,7 +113,7 @@ export const JUEGOS: Juego[] = [
         "rol-equilibrado": "Did any role feel unfair or too easy?",
       },
     },
-    url: "",
+    url: env.VITE_URL_BLINDSPOT ?? "",
   },
   {
     id: "bst-animals",
@@ -134,7 +136,8 @@ export const JUEGOS: Juego[] = [
         silencio: "Did the silence feel like a fun challenge or a frustration?",
       },
     },
-    url: "",
+    url: env.VITE_URL_BST_ANIMALS ?? "",
+    informaResultado: false,
   },
 ];
 

@@ -311,7 +311,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
                   >
                     {t.abrir(juego.nombre)}
                   </button>
-                  <span className="suave chico-texto">{t.otraPestana}</span>
+                  <span className="suave chico-texto">{juego.informaResultado === false ? t.otraPestanaSinResultado : t.otraPestana}</span>
                 </div>
               )}
             </>
