@@ -16,11 +16,28 @@ export interface Juego {
   variantes: { id: string; nombre: string }[];
   /** Con cuántos jugadores se juega en dos equipos (asientos pares contra impares). */
   equiposCon?: number[];
+  /** Textos en inglés (el resto del catálogo está en español). */
+  en?: {
+    descripcion: string;
+    duracion?: string;
+    variantes?: Record<string, string>;
+    preguntas?: Record<string, string>;
+  };
+  /** Hasta dos preguntas propias del juego en la encuesta de playtest. */
+  preguntas?: Pregunta[];
   /**
    * Página del juego que entiende los parámetros del lobby (?lobby=1&codigo=…).
    * Vacío = el juego aún no está conectado: cada uno lo abre por su cuenta.
    */
   url: string;
+  /** false si el juego no avisa el resultado solo (quien organiza marca "Terminar partida"). */
+  informaResultado?: boolean;
+}
+
+export interface Pregunta {
+  id: string;
+  texto: string;
+  tipo: "si-no" | "texto";
 }
 
 export const CATEGORIAS: Record<Categoria, { titulo: string; nota: string }> = {
@@ -41,6 +58,14 @@ export const JUEGOS: Juego[] = [
     duracion: "20–35 min",
     espectadores: true,
     variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "special", nombre: "Mapas especiales" }],
+    preguntas: [
+      { id: "habilidad-fuerte", texto: "¿Alguna habilidad o misión se sintió demasiado fuerte o débil? ¿Cuál?", tipo: "texto" },
+    ],
+    en: {
+      descripcion: "Recruit agents and decide whether each one serves their nation or their rank.",
+      variantes: { simple: "Simple maps", special: "Special maps" },
+      preguntas: { "habilidad-fuerte": "Did any ability or mission feel too strong or too weak? Which one?" },
+    },
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
   },
   {
@@ -53,6 +78,19 @@ export const JUEGOS: Juego[] = [
     espectadores: true,
     variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
     equiposCon: [4],
+    preguntas: [
+      { id: "bitacora-clara", texto: "¿Se entendió bien la bitácora por paradas?", tipo: "si-no" },
+      { id: "momento-deduccion", texto: "¿Hubo un momento de «¡ya lo vi!»? ¿Cuál?", tipo: "texto" },
+    ],
+    en: {
+      descripcion: "Deduce your home's secret orbit among the stars. With 4, in teams of two.",
+      duracion: "Not measured yet",
+      variantes: { normal: "Normal (4 stars)", corto: "Short (3 stars)", extendido: "Extended (5 stars)", tutorial: "Tutorial" },
+      preguntas: {
+        "bitacora-clara": "Was the logbook by stops easy to understand?",
+        "momento-deduccion": "Was there an \"I see it!\" moment? Which one?",
+      },
+    },
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
   },
   {
@@ -64,7 +102,18 @@ export const JUEGOS: Juego[] = [
     duracion: "45–75 min",
     espectadores: false,
     variantes: [],
-    url: "",
+    preguntas: [
+      { id: "adivino-rivals", texto: "¿Adivinaste quiénes eran los Rivals?", tipo: "si-no" },
+      { id: "rol-equilibrado", texto: "¿Algún rol se sintió injusto o demasiado fácil?", tipo: "texto" },
+    ],
+    en: {
+      descripcion: "Everyone sees your personality except you. Figure it out before the Soulmate.",
+      preguntas: {
+        "adivino-rivals": "Did you guess who the Rivals were?",
+        "rol-equilibrado": "Did any role feel unfair or too easy?",
+      },
+    },
+    url: env.VITE_URL_BLINDSPOT ?? "https://matchmaking-one-gamma.vercel.app/",
   },
   {
     id: "bst-animals",
@@ -75,7 +124,20 @@ export const JUEGOS: Juego[] = [
     duracion: "45–75 min",
     espectadores: false,
     variantes: [{ id: "A", nombre: "Escenario A: Información mixta" }, { id: "B", nombre: "Escenario B: Revelación tardía" }],
-    url: "",
+    preguntas: [
+      { id: "zona-comun-senales", texto: "En el Escenario B, ¿la zona común reemplazó a las señales?", tipo: "si-no" },
+      { id: "silencio", texto: "¿El silencio se sintió como un reto divertido o como una frustración?", tipo: "texto" },
+    ],
+    en: {
+      descripcion: "Build trees in silence, without saying which cards you hold.",
+      variantes: { A: "Scenario A: Mixed information", B: "Scenario B: Late reveal" },
+      preguntas: {
+        "zona-comun-senales": "In Scenario B, did the common zone replace the signals?",
+        silencio: "Did the silence feel like a fun challenge or a frustration?",
+      },
+    },
+    url: env.VITE_URL_BST_ANIMALS ?? "https://bst-firebase.vercel.app/",
+    informaResultado: false,
   },
 ];
 

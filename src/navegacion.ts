@@ -1,17 +1,18 @@
-/** Rutas del lobby: `/` (inicio) y `/s/CODIGO` (una sala). Sin librerías de rutas. */
+/** Rutas del lobby: `/` (inicio), `/s/CODIGO` (una sala) y `/panel` (playtest). Sin librerías de rutas. */
 import { useEffect, useState } from "react";
 import { normalizarCodigo } from "./firebase/salas";
 
-export type Ruta = { pantalla: "inicio" } | { pantalla: "sala"; codigo: string };
+export type Ruta = { pantalla: "inicio" } | { pantalla: "panel" } | { pantalla: "sala"; codigo: string };
 
 export function leerRuta(path = window.location.pathname): Ruta {
   const m = path.match(/^\/s\/([^/]+)\/?$/i);
   if (m) return { pantalla: "sala", codigo: normalizarCodigo(decodeURIComponent(m[1])) };
+  if (/^\/panel\/?$/i.test(path)) return { pantalla: "panel" };
   return { pantalla: "inicio" };
 }
 
 export function irA(ruta: Ruta) {
-  const path = ruta.pantalla === "sala" ? `/s/${ruta.codigo}` : "/";
+  const path = ruta.pantalla === "sala" ? `/s/${ruta.codigo}` : ruta.pantalla === "panel" ? "/panel" : "/";
   window.history.pushState(null, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }

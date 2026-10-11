@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { LARGO_NOMBRE, limpiarNombre } from "../firebase/salas";
+import { useIdioma } from "../i18n";
 
 interface Props {
   inicial: string;
@@ -9,6 +10,7 @@ interface Props {
 
 /** Pide el nombre con el que te verán los demás, con el aviso de privacidad. */
 export function FormNombre({ inicial, boton, alGuardar }: Props) {
+  const { t } = useIdioma();
   const [texto, setTexto] = useState(inicial);
   const [error, setError] = useState("");
 
@@ -16,7 +18,7 @@ export function FormNombre({ inicial, boton, alGuardar }: Props) {
     e.preventDefault();
     const nombre = limpiarNombre(texto);
     if (!nombre) {
-      setError("Escribe un nombre para que tus amigos te reconozcan.");
+      setError(t.errorNombre);
       return;
     }
     alGuardar(nombre);
@@ -24,14 +26,14 @@ export function FormNombre({ inicial, boton, alGuardar }: Props) {
 
   return (
     <form className="tarjeta form-nombre" onSubmit={enviar} noValidate>
-      <label htmlFor="nombre">¿Cómo te llamamos?</label>
+      <label htmlFor="nombre">{t.comoTeLlamamos}</label>
       <input
         id="nombre"
         autoFocus
         autoComplete="nickname"
         maxLength={LARGO_NOMBRE}
         value={texto}
-        placeholder="Tu nombre o apodo"
+        placeholder={t.nombrePlaceholder}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? "nombre-error" : undefined}
         onChange={(e) => {
@@ -47,10 +49,7 @@ export function FormNombre({ inicial, boton, alGuardar }: Props) {
       <button type="submit" className="primario">
         {boton}
       </button>
-      <p className="aviso">
-        No necesitas cuenta. Solo guardamos el nombre que elijas y los mensajes que escribas en el chat
-        de tu sala, para que el lobby funcione. Las estadísticas de visitas son anónimas y sin cookies.
-      </p>
+      <p className="aviso">{t.avisoPrivacidad}</p>
     </form>
   );
 }

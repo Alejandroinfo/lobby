@@ -8,21 +8,28 @@ import {
   normalizarCodigo,
 } from "../firebase/salas";
 import { irA } from "../navegacion";
+import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
+import { Perfil } from "./Perfil";
+import { SelectorIdioma, useIdioma } from "../i18n";
+import type { Usuario } from "../hooks/useUsuario";
 
 interface Props {
   uid: string;
+  usuario: Usuario;
   nombre: string;
   setNombre: (n: string) => void;
 }
 
-export function Inicio({ uid, nombre, setNombre }: Props) {
+export function Inicio({ uid, usuario, nombre, setNombre }: Props) {
+  const { t } = useIdioma();
   const [editando, setEditando] = useState(false);
   const [nombreSala, setNombreSala] = useState("");
   const [codigo, setCodigo] = useState("");
   const [errorCodigo, setErrorCodigo] = useState("");
   const [errorCrear, setErrorCrear] = useState("");
   const [creando, setCreando] = useState(false);
+  const [recientes] = useState(leerRecientes);
 
   if (!nombre || editando) {
     return (
@@ -30,7 +37,7 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
         <Portada />
         <FormNombre
           inicial={nombre}
-          boton="Continuar"
+          boton={t.continuar}
           alGuardar={(n) => {
             setNombre(n);
             setEditando(false);
@@ -46,10 +53,10 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
     setErrorCrear("");
     setCreando(true);
     try {
-      const nuevo = await crearSala(uid, nombre, limpiarNombre(nombreSala));
+      const nuevo = await crearSala(uid, nombre, limpiarNombre(nombreSala) || t.salaDe(nombre));
       irA({ pantalla: "sala", codigo: nuevo });
     } catch (err) {
-      setErrorCrear("No se pudo crear la sala. Revisa tu conexión e intenta de nuevo.");
+      setErrorCrear(t.errorCrearSala);
       console.error(err);
       setCreando(false);
     }
@@ -59,7 +66,7 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
     e.preventDefault();
     const limpio = normalizarCodigo(codigo);
     if (!codigoValido(limpio)) {
-      setErrorCodigo(`El código tiene ${LARGO_CODIGO} letras o números, como K7Q2M.`);
+      setErrorCodigo(t.errorCodigo(LARGO_CODIGO));
       return;
     }
     irA({ pantalla: "sala", codigo: limpio });
@@ -69,32 +76,48 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
     <main className="inicio">
       <Portada />
       <p className="saludo">
-        Hola, <strong>{nombre}</strong>.{" "}
+        {t.hola} <strong>{nombre}</strong>.{" "}
         <button type="button" className="enlace" onClick={() => setEditando(true)}>
-          Cambiar nombre
+          {t.cambiarNombre}
         </button>
       </p>
+      <Perfil usuario={usuario} />
+      {recientes.length > 0 && (
+        <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
+          <h2 id="t-recientes">{t.salasRecientes}</h2>
+          <ul>
+            {recientes.map((r) => (
+              <li key={r.codigo}>
+                <button className="enlace-sala" onClick={() => irA({ pantalla: "sala", codigo: r.codigo })}>
+                  <span>{r.nombre}</span>
+                  <span className="mono suave">{r.codigo}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="opciones">
         <form className="tarjeta" onSubmit={crear} noValidate>
-          <h2>Crear una sala</h2>
-          <p className="suave">Una sala reúne a tu grupo para toda la sesión de juego.</p>
-          <label htmlFor="nombre-sala">Nombre de la sala (opcional)</label>
+          <h2>{t.crearSala}</h2>
+          <p className="suave">{t.crearSalaTexto}</p>
+          <label htmlFor="nombre-sala">{t.nombreSalaLabel}</label>
           <input
             id="nombre-sala"
             maxLength={40}
             value={nombreSala}
-            placeholder={`Sala de ${nombre}`}
+            placeholder={t.salaDe(nombre)}
             onChange={(e) => setNombreSala(e.target.value)}
           />
           {errorCrear && <p className="error">{errorCrear}</p>}
           <button type="submit" className="primario" disabled={creando}>
-            {creando ? "Creando…" : "Crear sala"}
+            {creando ? t.creando : t.botonCrearSala}
           </button>
         </form>
         <form className="tarjeta" onSubmit={unirse} noValidate>
-          <h2>Unirse con un código</h2>
-          <p className="suave">Si te pasaron un enlace, ábrelo directamente.</p>
-          <label htmlFor="codigo">Código de la sala</label>
+          <h2>{t.unirse}</h2>
+          <p className="suave">{t.unirseTexto}</p>
+          <label htmlFor="codigo">{t.codigoLabel}</label>
           <input
             id="codigo"
             className="codigo"
@@ -112,7 +135,7 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
           />
           {errorCodigo && <p className="error">{errorCodigo}</p>}
           <button type="submit" className="secundario">
-            Entrar
+            {t.entrar}
           </button>
         </form>
       </div>
@@ -121,10 +144,14 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
 }
 
 function Portada() {
+  const { t } = useIdioma();
   return (
     <header className="portada">
-      <h1>Lobby de juegos</h1>
-      <p>Reúne a tu grupo en una sala y elijan a qué jugar.</p>
+      <div className="idioma-portada">
+        <SelectorIdioma />
+      </div>
+      <h1>{t.nombreApp}</h1>
+      <p>{t.lema}</p>
     </header>
   );
 }

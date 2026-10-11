@@ -114,3 +114,22 @@ export function onSnapshot(r: Ref | Consulta, ...args: any[]) {
   queueMicrotask(emitir);
   return () => { oyentes.delete(emitir); };
 }
+
+// Consultas de grupo y lecturas puntuales (panel de playtest).
+export const collectionGroup = (_db: unknown, nombre: string) => ({ grupo: nombre });
+export async function getDocs(q: Consulta | { grupo: string }) {
+  if (!("grupo" in q)) return resultado(q);
+  const db = leerDB();
+  const docs = Object.keys(db)
+    .map((k) => k.split("/"))
+    .filter((partes) => partes.length >= 2 && partes[partes.length - 2] === q.grupo)
+    .map((partes) => {
+      const ruta = partes.join("/");
+      return {
+        id: partes[partes.length - 1],
+        ref: { parent: { parent: partes.length >= 4 ? { id: partes[partes.length - 3] } : null } },
+        data: () => revivir(db[ruta]),
+      };
+    });
+  return { docs };
+}

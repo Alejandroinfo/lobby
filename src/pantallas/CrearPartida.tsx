@@ -3,6 +3,7 @@ import type { Juego } from "../datos/catalogo";
 import { crearPartida, type Invitacion } from "../firebase/partidas";
 import type { Rol, Sala } from "../firebase/tipos";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
+import { textosJuego, useIdioma } from "../i18n";
 
 interface Props {
   juego: Juego;
@@ -13,6 +14,7 @@ interface Props {
 
 /** Elegir variante e invitados (toda la sala o algunas personas) con su rol. */
 export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
+  const { t, idioma } = useIdioma();
   const ahora = useAhora();
   const [variante, setVariante] = useState(juego.variantes[0]?.id ?? null);
   const [roles, setRoles] = useState<Record<string, Rol | null>>({ [uid]: "jugador" });
@@ -49,14 +51,11 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
     const jugadores = invitaciones.filter((i) => i.rol === "jugador").length;
     const { min, max } = juego.jugadores;
     if (jugadores < min) {
-      setError(`${juego.nombre} necesita al menos ${min} jugadores; invita a ${min - jugadores} más.`);
+      setError(t.necesitaMin(juego.nombre, min, min - jugadores));
       return;
     }
     if (jugadores > max) {
-      setError(
-        `${juego.nombre} admite como máximo ${max} jugadores.` +
-          (juego.espectadores ? " Pon al resto como espectadores." : " Quita a alguien de la lista."),
-      );
+      setError(t.admiteMax(juego.nombre, max, juego.espectadores));
       return;
     }
     setEnviando(true);
@@ -65,34 +64,34 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
       alCerrar();
     } catch (err) {
       console.error(err);
-      setError("No se pudo crear la partida. Intenta de nuevo.");
+      setError(t.errorCrearPartida);
       setEnviando(false);
     }
   };
 
   const opcionesRol = (
     <>
-      <option value="jugador">Jugador</option>
-      {juego.espectadores && <option value="espectador">Espectador</option>}
+      <option value="jugador">{t.jugador}</option>
+      {juego.espectadores && <option value="espectador">{t.espectador}</option>}
     </>
   );
 
   return (
     <form className="crear-partida" onSubmit={enviar} noValidate>
       <div className="crear-cabeza">
-        <h3>Nueva partida de {juego.nombre}</h3>
+        <h3>{t.nuevaPartidaDe(juego.nombre)}</h3>
         <button type="button" className="enlace" onClick={alCerrar}>
-          Cancelar
+          {t.cancelar}
         </button>
       </div>
 
       {juego.variantes.length > 0 && (
         <>
-          <label htmlFor="variante">Modo</label>
+          <label htmlFor="variante">{t.modo}</label>
           <select id="variante" value={variante ?? ""} onChange={(e) => setVariante(e.target.value)}>
             {juego.variantes.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.nombre}
+                {textosJuego(juego, idioma).variante(v.id)}
               </option>
             ))}
           </select>
@@ -100,10 +99,10 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
       )}
 
       <div className="invitar-cabeza">
-        <p className="rotulo">A quién invitas</p>
+        <p className="rotulo">{t.aQuienInvitas}</p>
         {otros.length > 0 && (
           <button type="button" className="secundario chico" onClick={invitarATodos}>
-            Invitar a toda la sala
+            {t.invitarTodos}
           </button>
         )}
       </div>
@@ -122,13 +121,13 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
                 />
                 <span>
                   {m.nombre}
-                  {soyYo && " (tú)"}
-                  {!m.conectado && <span className="suave"> · desconectado</span>}
+                  {soyYo && t.tuParen}
+                  {!m.conectado && <span className="suave">{t.desconectadoPunto}</span>}
                 </span>
               </label>
               {rol && (
                 <select
-                  aria-label={`Rol de ${m.nombre}`}
+                  aria-label={t.rolDe(m.nombre)}
                   value={rol}
                   onChange={(e) => cambiar(m.id, e.target.value as Rol)}
                 >
@@ -140,11 +139,11 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
         })}
       </ul>
       {otros.length === 0 && (
-        <p className="suave">Aún no hay nadie más en la sala. Usa "Invitar" arriba para compartir el enlace.</p>
+        <p className="suave">{t.nadieMas}</p>
       )}
       {error && <p className="error">{error}</p>}
       <button type="submit" className="primario" disabled={enviando}>
-        {enviando ? "Enviando…" : "Enviar invitaciones"}
+        {enviando ? t.enviando : t.enviarInvitaciones}
       </button>
     </form>
   );

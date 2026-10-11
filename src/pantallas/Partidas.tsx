@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
+import { textosJuego, useIdioma, type Textos } from "../i18n";
 import {
   cancelar,
+  crearPartida,
   definirEquipos,
   enlaceJuego,
   jugadoresAceptados,
@@ -13,54 +15,103 @@ import {
   terminar,
   tomarControl,
   usaEquipos,
+  type Motivo,
 } from "../firebase/partidas";
 import type { Invitado, Partida, Sala } from "../firebase/tipos";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 
-const activa = (p: Partida) => p.estado === "invitando" || p.estado === "jugando";
+/**
+ * En curso = invitando o jugando, salvo que lleve demasiado tiempo así (nadie la terminó):
+ * esas se consideran abandonadas y dejan de mostrarse.
+ */
+const HORAS_INVITANDO = 2;
+const HORAS_JUGANDO = 6;
+function activa(p: Partida) {
+  const ahora = Date.now();
+  if (p.estado === "invitando") return ahora - (p.creada?.toMillis() ?? ahora) < HORAS_INVITANDO * 3600_000;
+  if (p.estado === "jugando") return ahora - (p.iniciada?.toMillis() ?? ahora) < HORAS_JUGANDO * 3600_000;
+  return false;
+}
 
-function nombreVariante(p: Partida) {
+/** Un "ding" corto sin archivos de audio (si el navegador lo permite). */
+function sonarAviso() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    o.connect(g).connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.42);
+    o.onended = () => ctx.close();
+  } catch {
+    /* sin audio */
+  }
+}
+
+function nombreVariante(p: Partida, idioma: "es" | "en") {
   const juego = juegoPorId(p.juego);
-  return juego?.variantes.find((v) => v.id === p.variante)?.nombre ?? null;
+  return juego ? textosJuego(juego, idioma).variante(p.variante) : null;
+}
+
+function textoMotivo(m: Motivo, t: Textos): string {
+  switch (m.tipo) {
+    case "faltan": return t.motivoFaltan(m.n, m.min);
+    case "sobran": return t.motivoSobran(m.n, m.max);
+    case "desconectados": return t.motivoDesconectados(m.nombres);
+    case "esperando": return t.motivoEsperando(m.nombres);
+    case "equipos": return t.motivoEquipos(m.mitad);
+    case "listos": return t.motivoListos;
+    default: return t.motivoDesconocido;
+  }
 }
 
 /** Avisos de invitación para mí, arriba de todo. */
 export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: string; partidas: Partida[] }) {
+  const { t, idioma } = useIdioma();
   const pendientes = partidas.filter(
     (p) => p.estado === "invitando" && p.invitados[uid]?.respuesta === "pendiente",
   );
 
+  const antes = useRef(0);
   useEffect(() => {
-    const base = "Lobby de juegos";
-    document.title = pendientes.length ? `(${pendientes.length}) Invitación · ${base}` : base;
-  }, [pendientes.length]);
+    document.title = pendientes.length ? t.tituloInvitacion(pendientes.length) : t.nombreApp;
+    if (pendientes.length > antes.current) sonarAviso();
+    antes.current = pendientes.length;
+  }, [pendientes.length, t]);
 
   if (!pendientes.length) return null;
   return (
-    <section className="invitaciones" aria-label="Invitaciones">
+    <section className="invitaciones" aria-label={t.invitacionesAria}>
       {pendientes.map((p) => {
         const juego = juegoPorId(p.juego);
         const yo = p.invitados[uid];
-        const quien = p.invitados[p.anfitrion]?.nombre ?? "Alguien";
-        const variante = nombreVariante(p);
+        const quien = p.invitados[p.anfitrion]?.nombre ?? t.alguien;
+        const variante = nombreVariante(p, idioma);
         return (
           <div key={p.id} className="invitacion" role="alert">
             <p>
-              <strong>{quien}</strong> te invita a {yo.rol === "jugador" ? "jugar" : "mirar"}{" "}
+              <strong>{quien}</strong> {t.teInvitaA} {yo.rol === "jugador" ? t.verboJugar : t.verboMirar}{" "}
               <strong>{juego?.nombre ?? p.juego}</strong>
               {variante && <span className="suave"> · {variante}</span>}
             </p>
             <div className="botones">
               <button className="primario" onClick={() => responder(sala, p.id, uid, "acepta", yo.rol)}>
-                {yo.rol === "jugador" ? "Jugar" : "Mirar"}
+                {yo.rol === "jugador" ? t.jugar : t.mirar}
               </button>
               {yo.rol === "jugador" && juego?.espectadores && (
                 <button className="secundario" onClick={() => responder(sala, p.id, uid, "acepta", "espectador")}>
-                  Solo mirar
+                  {t.soloMirar}
                 </button>
               )}
               <button className="secundario" onClick={() => responder(sala, p.id, uid, "rechaza", yo.rol)}>
-                Ahora no
+                {t.ahoraNo}
               </button>
             </div>
           </div>
@@ -72,6 +123,7 @@ export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: strin
 
 /** Partidas en curso de la sala y las últimas terminadas. */
 export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string; partidas: Partida[] }) {
+  const { t } = useIdioma();
   const ahora = useAhora();
   const enCurso = partidas.filter(activa);
   const recientes = partidas.filter((p) => p.estado === "terminada").slice(0, 3);
@@ -84,13 +136,13 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
 
   return (
     <section className="panel partidas" aria-labelledby="t-partidas">
-      <h2 id="t-partidas">Partidas</h2>
+      <h2 id="t-partidas">{t.partidas}</h2>
       {enCurso.map((p) => (
         <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} />
       ))}
       {recientes.length > 0 && (
         <div className="recientes">
-          <p className="rotulo">Recientes</p>
+          <p className="rotulo">{t.recientes}</p>
           <ul>
             {recientes.map((p) => (
               <li key={p.id}>
@@ -98,7 +150,8 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
                 {jugadoresAceptados(p)
                   .map(([, i]) => i.nombre)
                   .join(", ")}
-                {resumenResultado(p) && <strong> · {resumenResultado(p)}</strong>}
+                {resumenResultado(p, t) && <strong> · {resumenResultado(p, t)}</strong>}
+                {p.invitados[uid]?.respuesta === "acepta" && <BotonRevancha sala={sala.codigo} uid={uid} p={p} />}
                 {p.terminada && (
                   <span className="suave">
                     {" "}
@@ -114,29 +167,28 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
   );
 }
 
-const NOMBRE_EQUIPO = ["Equipo A", "Equipo B"] as const;
 
 /** "Ganó Ana" / "Ganaron Ana y Bea" / "Empate", a partir de los asientos ganadores. */
-function resumenResultado(p: Partida): string | null {
+function resumenResultado(p: Partida, t: Textos): string | null {
   if (!p.resultado) return null;
   const porAsiento = new Map(Object.values(p.invitados).filter((i) => i.asiento !== null).map((i) => [i.asiento!, i.nombre]));
   const nombres = p.resultado.ganadores.map((a) => porAsiento.get(a)).filter(Boolean) as string[];
-  if (!nombres.length) return "sin ganador";
+  if (!nombres.length) return t.sinGanador;
   const jugadores = jugadoresAceptados(p).length;
-  if (nombres.length === jugadores && jugadores > 1) return "empate";
-  return nombres.length === 1 ? `ganó ${nombres[0]}` : `ganaron ${nombres.slice(0, -1).join(", ")} y ${nombres.at(-1)}`;
+  if (nombres.length === jugadores && jugadores > 1) return t.empate;
+  return nombres.length === 1 ? t.gano(nombres[0]) : t.ganaron(nombres);
 }
 
-function estadoInvitado(i: Invitado, jugando: boolean, enLinea: boolean): { texto: string; clase: string } {
-  if (i.respuesta === "acepta" && !enLinea) return { texto: "desconectado", clase: "no-conectado" };
+function estadoInvitado(i: Invitado, jugando: boolean, enLinea: boolean, t: Textos): { texto: string; clase: string } {
+  if (i.respuesta === "acepta" && !enLinea) return { texto: t.chipDesconectado, clase: "no-conectado" };
   if (jugando) {
-    if (i.rol === "espectador") return { texto: "mira", clase: "neutro" };
-    const equipo = i.equipo !== undefined ? ` · ${NOMBRE_EQUIPO[i.equipo]}` : "";
-    return { texto: `asiento ${(i.asiento ?? 0) + 1}${equipo}`, clase: "ok" };
+    if (i.rol === "espectador") return { texto: t.chipMira, clase: "neutro" };
+    const equipo = i.equipo !== undefined ? ` · ${t.equipos[i.equipo]}` : "";
+    return { texto: `${t.chipAsiento((i.asiento ?? 0) + 1)}${equipo}`, clase: "ok" };
   }
-  if (i.respuesta === "rechaza") return { texto: "no va", clase: "no" };
-  if (i.respuesta === "pendiente") return { texto: "sin responder", clase: "neutro" };
-  return i.listo ? { texto: "listo", clase: "ok" } : { texto: "preparándose", clase: "espera" };
+  if (i.respuesta === "rechaza") return { texto: t.chipNoVa, clase: "no" };
+  if (i.respuesta === "pendiente") return { texto: t.chipSinResponder, clase: "neutro" };
+  return i.listo ? { texto: t.chipListo, clase: "ok" } : { texto: t.chipPreparandose, clase: "espera" };
 }
 
 interface PropsTarjeta {
@@ -147,16 +199,17 @@ interface PropsTarjeta {
 }
 
 function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
+  const { t, idioma } = useIdioma();
   const juego = juegoPorId(p.juego);
   const yo = p.invitados[uid];
   const soyCreador = p.anfitrion === uid;
   const jugando = p.estado === "jugando";
-  const variante = nombreVariante(p);
-  const prep = juego ? preparacion(p, juego, conectado) : { puede: false, motivo: "Juego desconocido." };
+  const variante = nombreVariante(p, idioma);
+  const prep = juego ? preparacion(p, juego, conectado) : { puede: false, motivo: { tipo: "desconocido" } as Motivo };
   const conEquipos = Boolean(juego && usaEquipos(p, juego));
-  const creador = p.invitados[p.anfitrion]?.nombre ?? "Quien creó la partida";
+  const creador = p.invitados[p.anfitrion]?.nombre ?? t.quienCreo;
   const puedoTomarControl = !soyCreador && yo?.respuesta === "acepta" && !conectado(p.anfitrion);
-  const enlace = juego ? enlaceJuego(juego, sala, p, uid) : null;
+  const enlace = juego ? enlaceJuego(juego, sala, p, uid, idioma) : null;
 
   const lista = Object.entries(p.invitados)
     .filter(([, i]) => !jugando || i.respuesta === "acepta")
@@ -168,26 +221,26 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         <div>
           <strong>{juego?.nombre ?? p.juego}</strong>
           {variante && <span className="suave"> · {variante}</span>}
-          {conEquipos && <span className="suave"> · por equipos</span>}
+          {conEquipos && <span className="suave"> · {t.porEquipos}</span>}
         </div>
-        <span className={`estado-partida ${p.estado}`}>{jugando ? "en juego" : "preparando"}</span>
+        <span className={`estado-partida ${p.estado}`}>{jugando ? t.enJuego : t.preparando}</span>
       </header>
 
       <ul className="invitados">
         {lista.map(([id, i]) => {
-          const e = estadoInvitado(i, jugando, conectado(id));
+          const e = estadoInvitado(i, jugando, conectado(id), t);
           return (
             <li key={id}>
               <span>
                 {i.nombre}
-                {id === uid && <span className="suave"> (tú)</span>}
-                {id === p.anfitrion && <span className="suave"> · organiza</span>}
-                {!jugando && i.rol === "espectador" && <span className="suave"> · espectador</span>}
+                {id === uid && <span className="suave">{t.tuParen}</span>}
+                {id === p.anfitrion && <span className="suave"> · {t.organiza}</span>}
+                {!jugando && i.rol === "espectador" && <span className="suave"> · {t.espectador.toLowerCase()}</span>}
               </span>
               <span className={`chip ${e.clase}`}>{e.texto}</span>
               {soyCreador && !jugando && id !== uid && (
                 <button className="enlace chico" onClick={() => quitarInvitado(sala, p.id, id)}>
-                  quitar
+                  {t.quitar}
                 </button>
               )}
             </li>
@@ -197,11 +250,9 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
 
       {puedoTomarControl && (
         <div className="aviso-control">
-          <p>
-            {creador} se desconectó. Si no vuelve, puedes organizar tú la partida.
-          </p>
+          <p>{t.seDesconectoOrganizador(creador)}</p>
           <button className="secundario chico" onClick={() => tomarControl(sala, p.id, uid)}>
-            Tomar el control
+            {t.tomarControl}
           </button>
         </div>
       )}
@@ -212,11 +263,11 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
             className={yo.listo ? "secundario" : "primario"}
             onClick={() => marcarListo(sala, p.id, uid, !yo.listo)}
           >
-            {yo.listo ? "Ya no estoy listo" : "Estoy listo"}
+            {yo.listo ? t.yaNoListo : t.estoyListo}
           </button>
           {!soyCreador && (
             <button className="enlace" onClick={() => responder(sala, p.id, uid, "rechaza", yo.rol)}>
-              Salirme
+              {t.salirme}
             </button>
           )}
         </div>
@@ -226,13 +277,13 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
 
       {!jugando && soyCreador && juego && (
         <div className="lanzar">
-          <p className={prep.puede ? "listo-texto" : "suave"}>{prep.motivo}</p>
+          <p className={prep.puede ? "listo-texto" : "suave"}>{textoMotivo(prep.motivo, t)}</p>
           <div className="botones">
             <button className="primario" disabled={!prep.puede} onClick={() => lanzar(sala, p, juego)}>
-              Lanzar partida
+              {t.lanzar}
             </button>
             <button className="secundario" onClick={() => cancelar(sala, p.id)}>
-              Cancelar partida
+              {t.cancelarPartida}
             </button>
           </div>
         </div>
@@ -244,15 +295,9 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
             <>
               <p>
                 {yo.rol === "jugador"
-                  ? `Juegas en el asiento ${(yo.asiento ?? 0) + 1}` +
-                    (yo.equipo !== undefined ? `, en el ${NOMBRE_EQUIPO[yo.equipo]}.` : ".")
-                  : "Entras como espectador."}{" "}
-                {!enlace && (
-                  <span className="suave">
-                    Este juego aún no está conectado al lobby: ábranlo por su cuenta y, al acabar, quien
-                    organiza marca "Terminar partida".
-                  </span>
-                )}
+                  ? t.juegasAsiento((yo.asiento ?? 0) + 1, yo.equipo !== undefined ? t.equipos[yo.equipo] : null)
+                  : t.entrasEspectador}{" "}
+                {!enlace && <span className="suave">{t.noConectado}</span>}
               </p>
               {enlace && juego && (
                 <div className="botones">
@@ -264,16 +309,16 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
                       if (!w) window.location.href = enlace; // si el navegador bloqueó la pestaña
                     }}
                   >
-                    Abrir {juego.nombre}
+                    {t.abrir(juego.nombre)}
                   </button>
-                  <span className="suave chico-texto">Se abre en otra pestaña. El resultado llega solo al terminar.</span>
+                  <span className="suave chico-texto">{juego.informaResultado === false ? t.otraPestanaSinResultado : t.otraPestana}</span>
                 </div>
               )}
             </>
           )}
           {soyCreador && (
             <button className="secundario" onClick={() => terminar(sala, p.id)}>
-              Terminar partida
+              {t.terminarPartida}
             </button>
           )}
         </div>
@@ -284,6 +329,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
 
 /** Elegir equipos al azar o a mano (quien organiza); los demás solo ven cómo quedan. */
 function Equipos({ sala, p, editable }: { sala: string; p: Partida; editable: boolean }) {
+  const { t } = useIdioma();
   const jugadores = jugadoresAceptados(p);
   const modo = p.equipos?.modo ?? "azar";
   const de = p.equipos?.de ?? {};
@@ -304,35 +350,35 @@ function Equipos({ sala, p, editable }: { sala: string; p: Partida; editable: bo
   return (
     <div className="equipos">
       <div className="equipos-cabeza">
-        <p className="rotulo">Equipos</p>
+        <p className="rotulo">{t.rotuloEquipos}</p>
         {editable ? (
-          <div className="segmentado" role="radiogroup" aria-label="Cómo se forman los equipos">
+          <div className="segmentado" role="radiogroup" aria-label={t.comoEquipos}>
             <button role="radio" aria-checked={modo === "azar"} onClick={() => elegirModo("azar")}>
-              Al azar
+              {t.alAzar}
             </button>
             <button role="radio" aria-checked={modo === "manual"} onClick={() => elegirModo("manual")}>
-              Elegirlos
+              {t.elegirlos}
             </button>
           </div>
         ) : (
-          <span className="suave">{modo === "azar" ? "se sortean al lanzar" : "elegidos por quien organiza"}</span>
+          <span className="suave">{modo === "azar" ? t.seSortean : t.elegidosPorOrganizador}</span>
         )}
       </div>
       {modo === "azar" ? (
-        <p className="suave">Se sortean al lanzar la partida.</p>
+        <p className="suave">{t.seSorteanLargo}</p>
       ) : (
         <>
           <div className="columnas-equipos">
             {([0, 1] as const).map((eq) => (
               <div key={eq} className="columna-equipo">
-                <p className="rotulo">{NOMBRE_EQUIPO[eq]}</p>
+                <p className="rotulo">{t.equipos[eq]}</p>
                 <ul>
                   {jugadores
                     .filter(([uid]) => de[uid] === eq)
                     .map(([uid, i]) => (
                       <li key={uid}>
                         {editable ? (
-                          <button className="ficha" onClick={() => mover(uid)} title="Cambiar de equipo">
+                          <button className="ficha" onClick={() => mover(uid)} title={t.cambiarEquipo}>
                             {i.nombre} <span aria-hidden="true">⇄</span>
                           </button>
                         ) : (
@@ -344,9 +390,39 @@ function Equipos({ sala, p, editable }: { sala: string; p: Partida; editable: bo
               </div>
             ))}
           </div>
-          {editable && <p className="suave chico-texto">Toca un nombre para cambiarlo de equipo.</p>}
+          {editable && <p className="suave chico-texto">{t.tocaNombre}</p>}
         </>
       )}
     </div>
+  );
+}
+
+/** Misma partida otra vez: mismo juego, modo y personas (cada una con su rol). */
+function BotonRevancha({ sala, uid, p }: { sala: string; uid: string; p: Partida }) {
+  const { t } = useIdioma();
+  const [estado, setEstado] = useState<"" | "creando" | "error">("");
+  const juego = juegoPorId(p.juego);
+  if (!juego) return null;
+  const revancha = async () => {
+    setEstado("creando");
+    const invitaciones = Object.entries(p.invitados)
+      .filter(([, i]) => i.respuesta === "acepta")
+      .map(([id, i]) => ({ uid: id, nombre: i.nombre, rol: i.rol }));
+    try {
+      await crearPartida(sala, uid, juego, p.variante, invitaciones);
+      setEstado("");
+    } catch (e) {
+      console.error(e);
+      setEstado("error");
+    }
+  };
+  return (
+    <>
+      {" "}
+      <button className="enlace chico" onClick={revancha} disabled={estado === "creando"}>
+        {estado === "creando" ? t.creandoMin : t.revancha}
+      </button>
+      {estado === "error" && <span className="error"> {t.noSePudoCrear}</span>}
+    </>
   );
 }
