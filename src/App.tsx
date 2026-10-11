@@ -3,9 +3,10 @@ import { useNombre } from "./hooks/useNombre";
 import { useRuta } from "./navegacion";
 import { Inicio } from "./pantallas/Inicio";
 import { Sala } from "./pantallas/Sala";
+import { Panel } from "./pantallas/Panel";
 
 export function App() {
-  const { uid, error } = useUsuario();
+  const { uid, usuario, error } = useUsuario();
   const [nombre, setNombre] = useNombre();
   const ruta = useRuta();
 
@@ -28,9 +29,10 @@ export function App() {
     );
   }
 
+  if (ruta.pantalla === "panel") return <Panel usuario={usuario!} />;
   return ruta.pantalla === "sala" ? (
     <Sala key={ruta.codigo} codigo={ruta.codigo} uid={uid} nombre={nombre} setNombre={setNombre} />
   ) : (
-    <Inicio uid={uid} nombre={nombre} setNombre={setNombre} />
+    <Inicio uid={uid} usuario={usuario!} nombre={nombre} setNombre={setNombre} />
   );
 }

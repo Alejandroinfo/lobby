@@ -243,3 +243,33 @@ textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; border-c
 .recientes-salas ul { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.4rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .enlace-sala { width: 100%; display: flex; justify-content: space-between; gap: 0.5rem; background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); text-align: left; }
 .enlace-sala:hover { border-color: var(--acento); }
+
+/* Paso 5: perfil y panel de playtest */
+.perfil { text-align: center; font-size: 0.85rem; margin: -0.75rem 0 1.25rem; }
+.panel-playtest { max-width: 1200px; margin: 0 auto; padding: 1.5rem 16px 3rem; }
+.filtros { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
+.filtros .segmentado { flex-wrap: wrap; }
+.tiles { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 1rem; }
+.tile { background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio); padding: 0.9rem 1rem; }
+.tile-valor { font-family: var(--titulos); font-size: 1.9rem; line-height: 1.1; margin: 0; }
+.tile-rotulo { color: var(--tinta-suave); font-size: 0.82rem; margin: 0.2rem 0 0; }
+.rejilla-panel { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+.rejilla-panel .ancho { grid-column: 1 / -1; }
+.panel table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.panel th, .panel td { text-align: left; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--linea); }
+.panel th { font-weight: 600; color: var(--tinta-suave); font-size: 0.8rem; }
+.panel td { font-variant-numeric: tabular-nums; }
+.conteo + .conteo { margin-top: 0.9rem; }
+.conteo ul { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+.conteo li { display: grid; grid-template-columns: minmax(90px, 140px) 1fr 2.5rem; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
+.conteo .mono { text-align: right; letter-spacing: 0; }
+.barra { height: 8px; background: var(--fondo); border-radius: 4px; overflow: hidden; }
+.barra span { display: block; height: 100%; background: var(--acento); border-radius: 4px; }
+.citas { list-style: none; padding: 0; margin: 0.3rem 0 0; font-size: 0.9rem; }
+.comentarios { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.comentarios li { border-bottom: 1px solid var(--linea); padding-bottom: 0.5rem; }
+.comentarios p { margin: 0.1rem 0; }
+.vacio-panel { text-align: center; padding: 2rem 0; }
+@media (max-width: 640px) { .rejilla-panel { grid-template-columns: 1fr; } }
+.tabla { overflow-x: auto; }
+.panel td.mono { letter-spacing: 0; }

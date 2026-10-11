@@ -10,14 +10,17 @@ import {
 import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
+import { Perfil } from "./Perfil";
+import type { Usuario } from "../hooks/useUsuario";
 
 interface Props {
   uid: string;
+  usuario: Usuario;
   nombre: string;
   setNombre: (n: string) => void;
 }
 
-export function Inicio({ uid, nombre, setNombre }: Props) {
+export function Inicio({ uid, usuario, nombre, setNombre }: Props) {
   const [editando, setEditando] = useState(false);
   const [nombreSala, setNombreSala] = useState("");
   const [codigo, setCodigo] = useState("");
@@ -76,6 +79,7 @@ export function Inicio({ uid, nombre, setNombre }: Props) {
           Cambiar nombre
         </button>
       </p>
+      <Perfil usuario={usuario} />
       {recientes.length > 0 && (
         <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
           <h2 id="t-recientes">Tus salas recientes</h2>

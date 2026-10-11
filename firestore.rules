@@ -14,6 +14,24 @@ service cloud.firestore {
       return n is string && n.size() >= 1 && n.size() <= 24;
     }
 
+    // Dueño del lobby: solo esta cuenta de Google (verificada) puede leer el panel de playtest.
+    function esAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'alejandro.armasb@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Panel de playtest: lectura de todas las partidas, resultados y encuestas (consultas de grupo).
+    match /{ruta=**}/partidas/{id} {
+      allow read: if esAdmin();
+    }
+    match /{ruta=**}/resultados/{quien} {
+      allow read: if esAdmin();
+    }
+    match /{ruta=**}/encuestas/{quien} {
+      allow read: if esAdmin();
+    }
+
     // Perfil de cada jugador: solo lo lee y lo cambia su dueño. Además del nombre, guarda de forma
     // opcional y por rangos datos de audiencia (país de 2 letras, edad, cómo llegó, experiencia).
     match /jugadores/{uid} {
@@ -26,7 +44,8 @@ service cloud.firestore {
           && (!('experiencia' in d) || d.experiencia in ['casual', 'frecuente', 'muy-frecuente', 'no-dice'])
           && (!('salaOrigen' in d) || (d.salaOrigen is string && d.salaOrigen.size() <= 8));
       }
-      allow read, delete: if autenticado() && request.auth.uid == uid;
+      allow read: if (autenticado() && request.auth.uid == uid) || esAdmin();
+      allow delete: if autenticado() && request.auth.uid == uid;
       allow create, update: if autenticado() && request.auth.uid == uid && perfilValido(request.resource.data);
     }
 
