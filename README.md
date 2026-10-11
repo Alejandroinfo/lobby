@@ -32,7 +32,7 @@ variables de entorno (Vercel → Settings → Environment Variables, o `.env.loc
 | Variable | Juego |
 | --- | --- |
 | `VITE_URL_ASTROLABE` | Astrolabe (por defecto `https://astrolabebg.vercel.app/`) |
-| `VITE_URL_SPLIT_LOYALTY` | Split Loyalty, la página `…/app/online.html` (sin valor = no conectado) |
+| `VITE_URL_SPLIT_LOYALTY` | Split Loyalty (por defecto `https://split-loyalty.vercel.app/app/online.html`) |
 
 Cada juego conectado incluye un "puente" (`src/lobby/puente.ts` en Astrolabe, `app/lobby-puente.js`
 en Split Loyalty) que lee los parámetros `?lobby=1&codigo=…&asiento=…&rol=…` y, al terminar, avisa el

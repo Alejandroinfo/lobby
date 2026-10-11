@@ -41,7 +41,7 @@ export const JUEGOS: Juego[] = [
     duracion: "20–35 min",
     espectadores: true,
     variantes: [{ id: "simple", nombre: "Mapas simples" }, { id: "special", nombre: "Mapas especiales" }],
-    url: env.VITE_URL_SPLIT_LOYALTY ?? "",
+    url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
   },
   {
     id: "astrolabe",
