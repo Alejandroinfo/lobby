@@ -114,6 +114,17 @@ export const JUEGOS: Juego[] = [
       },
     },
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
+    logros: {
+      reencuentro: { icono: "🏠", es: "Reencuentro", en: "Reunion" },
+      tocToc: { icono: "🚪", es: "Al primer toc, toc", en: "First knock" },
+      pocasPalabras: { icono: "🎯", es: "Pocas palabras", en: "Few words" },
+      cazador: { icono: "🚀", es: "Cazador de naves", en: "Ship hunter" },
+      superviviente: { icono: "☀️", es: "Superviviente", en: "Survivor" },
+      astronomo: { icono: "🔭", es: "Astrónomo", en: "Astronomer" },
+      colaDeCometa: { icono: "☄️", es: "Cola de cometa", en: "Comet tail" },
+      maquina: { icono: "🤖", es: "Más listo que la máquina", en: "Smarter than the machine" },
+      tripulacion: { icono: "👨‍👩‍👧‍👦", es: "Gran tripulación", en: "Big crew" },
+    },
   },
   {
     id: "blindspot",
