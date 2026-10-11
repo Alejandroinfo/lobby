@@ -3,9 +3,10 @@
 Una sala web donde un grupo de amigos se reúne, conversa y elige a cuál de los juegos jugar.
 Diseño completo: documento "Lobby central: diseño técnico (fase 1)".
 
-**Estado:** paso 1 del plan — entrar con nombre, crear sala, unirse por enlace (`/s/CODIGO`),
-ver quién está conectado y chatear. El catálogo ya muestra los juegos en dos categorías,
-pero "Crear partida" llega en el paso 2.
+**Estado:** pasos 1 y 2 del plan — entrar con nombre, crear sala, unirse por enlace (`/s/CODIGO`),
+ver quién está conectado, chatear, y crear partidas: elegir juego y modo, invitar a toda la sala
+o a algunas personas como jugador o espectador, marcar "listo" y lanzar. Abrir el juego
+automáticamente llega en los pasos 4 y 5.
 
 ## Stack
 
@@ -29,9 +30,10 @@ pero "Crear partida" llega en el paso 2.
 | `jugadores/{uid}` | `nombre`, `ultimaVez` |
 | `salas/{codigo}` | `nombre`, `anfitrion`, `miembros: {uid: {nombre, entrada, ultimaVez}}`, `creada` |
 | `salas/{codigo}/mensajes/{id}` | `uid`, `nombre`, `texto`, `hora` |
+| `salas/{codigo}/partidas/{id}` | `juego`, `variante`, `anfitrion`, `estado` (invitando → jugando → terminada / cancelada), `invitados: {uid: {nombre, rol, respuesta, listo, respondio, asiento}}`, `codigoJuego`, `creada`, `iniciada`, `terminada` |
 
-Cada miembro solo puede modificar su propia entrada en `miembros`; el chat solo lo leen y
-escriben los miembros. Detalle en `firestore.rules`.
+Cada miembro solo puede modificar su propia entrada en `miembros`; el chat y las partidas solo
+los ven los miembros. Quien crea una partida la controla; cada invitado solo cambia su respuesta. Detalle en `firestore.rules`.
 
 ## Desarrollo
 
