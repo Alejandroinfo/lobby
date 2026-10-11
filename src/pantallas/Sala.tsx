@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function Sala({ codigo, uid, nombre, setNombre }: Props) {
-  const { sala, estado, soyMiembro } = useSala(codigo, uid);
+  const { sala, estado, soyMiembro, confirmado } = useSala(codigo, uid);
   const [errorUnirse, setErrorUnirse] = useState("");
   const intentado = useRef(false);
 
@@ -77,13 +77,14 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
     );
   }
 
-  return <VistaSala sala={sala} uid={uid} nombre={nombre} />;
+  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} />;
 }
 
-function VistaSala({ sala, uid, nombre }: { sala: TSala; uid: string; nombre: string }) {
+function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string; nombre: string; confirmado: boolean }) {
   const [copiado, setCopiado] = useState(false);
-  const mensajes = useMensajes(sala.codigo, true);
-  const partidas = usePartidas(sala.codigo);
+  // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
+  const mensajes = useMensajes(sala.codigo, confirmado);
+  const partidas = usePartidas(sala.codigo, confirmado);
 
   const copiar = async () => {
     const enlace = enlaceSala(sala.codigo);
