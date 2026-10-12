@@ -82,6 +82,12 @@ export async function sendEmailVerification() {}
 export async function sendPasswordResetEmail(_auth: unknown, correo: string) {
   if (!leerCuentas()[correo.trim().toLowerCase()]) return; // Firebase tampoco dice si existe
 }
+export async function deleteUser(u: Usuario) {
+  const cuentas = leerCuentas();
+  for (const [correo, c] of Object.entries(cuentas)) if (c.uid === u.uid) delete cuentas[correo];
+  localStorage.setItem(CUENTAS, JSON.stringify(cuentas));
+  await signOut();
+}
 export async function signOut() {
   sessionStorage.removeItem("local_uid");
   avisar();

@@ -46,7 +46,9 @@ service cloud.firestore {
     // opcional y por rangos datos de audiencia (país de 2 letras, edad, cómo llegó, experiencia).
     match /jugadores/{uid} {
       function perfilValido(d) {
-        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar'])
+        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar', 'fichaVisible', 'tipoJugador'])
+          && (!('fichaVisible' in d) || d.fichaVisible is bool)
+          && (!('tipoJugador' in d) || d.tipoJugador in ['estratega', 'social', 'competitivo', 'casual', 'no-dice'])
           && (!('avatar' in d) || avatarValido(d.avatar))
           && (!('nombre' in d) || nombreValido(d.nombre))
           && (!('pais' in d) || (d.pais is string && d.pais.matches('^[A-Z]{2}$')))
@@ -78,6 +80,19 @@ service cloud.firestore {
       }
     }
 
+    // Ficha que ven los demás (rango, avatar, condecoraciones). Solo se lee si su dueño la hizo
+    // visible; la escribe y la borra solo su dueño.
+    match /perfiles/{uid} {
+      allow read: if autenticado() && (request.auth.uid == uid || resource.data.visible == true);
+      allow delete: if autenticado() && request.auth.uid == uid;
+      allow create, update: if autenticado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['visible', 'nombre', 'avatar', 'partidas', 'victorias', 'retos', 'logros'])
+        && request.resource.data.visible is bool
+        && (!('nombre' in request.resource.data) || nombreValido(request.resource.data.nombre))
+        && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
+        && (!('logros' in request.resource.data) || request.resource.data.logros is map);
+    }
+
     // Reto del día: una marca por persona y por día, igual para todas las salas. Cualquiera con
     // sesión las lee (ranking global; cada sala filtra a sus miembros). Se escribe una vez y no se cambia.
     match /retosDiarios/{fecha}/marcas/{quien} {
@@ -93,7 +108,8 @@ service cloud.firestore {
         && request.resource.data.detalleJson.size() <= 200000
         && (!('sala' in request.resource.data) || (request.resource.data.sala is string && request.resource.data.sala.size() <= 8))
         && request.resource.data.hora == request.time;
-      allow update, delete: if false;
+      allow delete: if autenticado() && quien == request.auth.uid; // «Borrar mis datos»
+      allow update: if false;
     }
 
     // Una sala por grupo. Cualquiera con sesión puede leerla (el código hace de invitación),

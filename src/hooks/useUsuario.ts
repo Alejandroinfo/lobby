@@ -12,6 +12,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  deleteUser,
   onIdTokenChanged,
   signInAnonymously,
   signInWithCredential,
@@ -103,4 +104,20 @@ export async function recuperarClave(correo: string): Promise<void> {
 /** Cierra la sesión; se abre otra anónima nueva. */
 export async function cerrarSesion(): Promise<void> {
   await signOut(auth);
+}
+
+/**
+ * Tras borrar tus datos: elimina también la cuenta (si la sesión es reciente; si no, Firebase pide
+ * volver a entrar y solo se cierra la sesión) y olvida lo guardado en este navegador.
+ */
+export async function olvidarEsteDispositivo(): Promise<void> {
+  const actual = auth.currentUser;
+  try {
+    localStorage.removeItem("lobby_nombre");
+    localStorage.removeItem("lobby_salas_recientes");
+  } catch {
+    /* sin almacenamiento */
+  }
+  if (actual) await deleteUser(actual).catch(() => signOut(auth));
+  else await signOut(auth);
 }

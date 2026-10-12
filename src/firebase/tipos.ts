@@ -103,6 +103,23 @@ export interface Perfil {
   salaOrigen?: string;
   carrera?: Carrera;
   avatar?: Avatar;
+  /** Si otros pueden ver tu ficha (rango, condecoraciones). Menores de 18: siempre privada. */
+  fichaVisible?: boolean;
+  /** Pregunta opcional para el playtest: qué tipo de jugador eres. */
+  tipoJugador?: TipoJugador;
+}
+
+export type TipoJugador = "estratega" | "social" | "competitivo" | "casual" | "no-dice";
+
+/** Documento `perfiles/{uid}`: la ficha que ven los demás (solo si la persona la hizo visible). */
+export interface Ficha {
+  visible: boolean;
+  nombre?: string;
+  avatar?: Avatar;
+  partidas?: number;
+  victorias?: number;
+  retos?: number;
+  logros?: Record<string, number>;
 }
 
 /** Emoji y color con los que se te ve en las salas. */

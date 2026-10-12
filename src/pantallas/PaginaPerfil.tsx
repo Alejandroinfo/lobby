@@ -12,6 +12,7 @@ import { SelectorIdioma, useIdioma } from "../i18n";
 import { irA } from "../navegacion";
 import { Carrera } from "./Carrera";
 import { Cuenta } from "./Perfil";
+import { Privacidad } from "./Privacidad";
 
 const ADMIN = "alejandro.armasb@gmail.com";
 
@@ -101,6 +102,7 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
         <div className="col-perfil">
           <Cuenta usuario={usuario} />
           <Carrera uid={usuario.uid} carreraEnVivo={perfil?.carrera} />
+          <Privacidad uid={usuario.uid} perfil={perfil} />
         </div>
         <div className="col-perfil">
           {historial === null ? (

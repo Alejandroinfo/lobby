@@ -129,6 +129,25 @@ export function victoriasPorAsiento(d: DatosPanel) {
   return [...filas.entries()].sort((a, b) => a[0] - b[0]).map(([jugadores, f]) => ({ jugadores, ...f }));
 }
 
+// ── Opiniones según el tipo de jugador (pregunta opcional del perfil) ──
+
+export function porTipoJugador(d: DatosPanel) {
+  const grupos = new Map<string, EncuestaPanel[]>();
+  for (const e of d.encuestas) {
+    const tipo = d.perfiles[e.uid]?.tipoJugador ?? "sin-dato";
+    grupos.set(tipo, [...(grupos.get(tipo) ?? []), e]);
+  }
+  return [...grupos.entries()]
+    .map(([tipo, es]) => ({
+      tipo,
+      encuestas: es.length,
+      diversion: media(es.map((e) => e.diversion).filter((x): x is number => x !== null)),
+      claridad: media(es.map((e) => e.claridad).filter((x): x is number => x !== null)),
+      duracion: contar(es.map((e) => e.duracion))[0]?.[0] ?? null,
+    }))
+    .sort((a, b) => b.encuestas - a.encuestas);
+}
+
 // ── Habilidades (juegos que informan qué habilidad tuvo cada jugador, p. ej. Split Loyalty) ──
 
 interface JugadorResumen {

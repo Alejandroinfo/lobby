@@ -378,3 +378,22 @@ button.ancho { width: 100%; }
 .pagina-perfil table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.75rem; }
 .pagina-perfil th, .pagina-perfil td { text-align: left; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
 .pagina-perfil th { font-weight: 600; color: var(--tinta-suave); font-size: 0.8rem; }
+
+/* Privacidad y ficha */
+.privacidad h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+.interruptor { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; margin: 0.5rem 0 1rem; }
+.interruptor input { width: 1.2rem; height: 1.2rem; margin-top: 0.15rem; flex: none; accent-color: var(--acento); }
+.interruptor > span { display: flex; flex-direction: column; }
+.interruptor .chico-texto { margin: 0.15rem 0 0; }
+button.peligro { background: transparent; color: var(--error); border: 1px solid var(--error); }
+button.peligro:hover:not(:disabled) { background: var(--error); color: var(--superficie); }
+.enlace-nombre { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.enlace-nombre:hover { text-decoration: underline; }
+dialog.ficha { border: 1px solid var(--linea); border-radius: var(--radio); background: var(--superficie); color: var(--tinta); padding: 1.25rem; width: min(420px, calc(100vw - 32px)); box-shadow: var(--sombra); }
+dialog.ficha::backdrop { background: rgba(20, 22, 25, 0.45); }
+.ficha-cabeza { display: flex; align-items: center; gap: 0.75rem; }
+.ficha-cabeza h2 { margin: 0; }
+.ficha-cabeza .chico-texto { margin: 0.15rem 0 0; }
+.cerrar-ficha { margin-left: auto; padding: 0.3rem 0.6rem; }
+dialog.ficha h3 { font-size: 0.95rem; margin: 1rem 0 0.25rem; }
+dialog.ficha .logros { margin-top: 0.75rem; }

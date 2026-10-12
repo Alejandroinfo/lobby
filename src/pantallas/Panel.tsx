@@ -12,6 +12,7 @@ import {
   csvPartidas,
   descargar,
   habilidades,
+  porTipoJugador,
   porVersion,
   resumenRetos,
   resumen,
@@ -77,6 +78,7 @@ const ETIQUETAS: Record<string, string> = {
   "menos-13": "Menos de 13", "13-17": "13–17", "18-24": "18–24", "25-34": "25–34", "35-44": "35–44", "45-mas": "45 o más", "no-dice": "Prefiere no decir",
   amigo: "Un amigo", convencion: "Convención", redes: "Redes", otro: "Otro",
   casual: "De vez en cuando", frecuente: "Seguido", "muy-frecuente": "Muchísimo",
+  estratega: "Estratega", social: "Social", competitivo: "Competitivo", "sin-dato": "Sin responder",
   si: "Sí", no: "No",
 };
 const et = (k: string) => ETIQUETAS[k] ?? k;
@@ -277,6 +279,21 @@ export function Panel({ usuario }: { usuario: Usuario }) {
             <Conteo titulo="Edad" pares={contar(perfiles.map((p) => p.rangoEdad))} />
             <Conteo titulo="Cómo llegó" pares={contar(perfiles.map((p) => p.comoLlego))} />
             <Conteo titulo="Experiencia" pares={contar(perfiles.map((p) => p.experiencia))} />
+          </section>
+
+          <section className="panel">
+            <h2>Según el tipo de jugador</h2>
+            <p className="suave chico-texto">Lo que cada uno marcó en su perfil (pregunta opcional). Sirve para ver si un juego gusta a un tipo de jugador y a otro no.</p>
+            <div className="tabla"><table>
+              <thead><tr><th>Tipo</th><th>Encuestas</th><th>Diversión</th><th>Claridad</th><th>Duración más votada</th></tr></thead>
+              <tbody>
+                {porTipoJugador(vista).map((f) => (
+                  <tr key={f.tipo}>
+                    <td>{f.tipo === "casual" ? "Casual" : et(f.tipo)}</td><td>{f.encuestas}</td><td>{n1(f.diversion)}</td><td>{n1(f.claridad)}</td><td>{f.duracion ? et(f.duracion) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
           </section>
 
           <section className="panel ancho">

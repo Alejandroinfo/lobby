@@ -5,7 +5,7 @@ import { Inicio } from "./pantallas/Inicio";
 import { Sala } from "./pantallas/Sala";
 import { Panel } from "./pantallas/Panel";
 import { PaginaPerfil } from "./pantallas/PaginaPerfil";
-import { usePerfil } from "./firebase/perfil";
+import { publicarFicha, usePerfil } from "./firebase/perfil";
 import { useEffect } from "react";
 import { useIdioma } from "./i18n";
 
@@ -15,6 +15,11 @@ export function App() {
   const [nombre, setNombre] = useNombre();
   const ruta = useRuta();
   const perfil = usePerfil(uid);
+
+  // Tu ficha visible para otros se mantiene al día con tu perfil (o se oculta).
+  useEffect(() => {
+    if (uid && perfil) publicarFicha(uid, perfil, nombre).catch(() => {});
+  }, [uid, perfil, nombre]);
 
   // El nombre guardado en el perfil manda: al entrar con tu cuenta en otro dispositivo, se recupera.
   useEffect(() => {

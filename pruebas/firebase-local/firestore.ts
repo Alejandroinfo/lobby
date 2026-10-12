@@ -106,6 +106,12 @@ export async function updateDoc(r: Ref, cambios: Datos) {
   guardarDB(db);
 }
 
+export async function deleteDoc(r: Ref) {
+  const db = leerDB();
+  delete db[r.ruta];
+  guardarDB(db);
+}
+
 export async function addDoc(c: Coleccion, d: Datos) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   escribir({ ruta: `${c.coleccion}/${id}`, id }, d, false);

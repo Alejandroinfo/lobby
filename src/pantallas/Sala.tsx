@@ -14,6 +14,7 @@ import { FormNombre } from "./FormNombre";
 import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
 import { Retos } from "./Retos";
+import { FichaJugador } from "./Ficha";
 import { olvidarSala, recordarSala } from "../datos/recientes";
 import { guardarAudiencia, leerPerfil, registrarPais } from "../firebase/encuestas";
 
@@ -187,6 +188,7 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
     })
     .sort((a, b) => Number(b.conectado) - Number(a.conectado) || a.nombre.localeCompare(b.nombre));
   const conectados = lista.filter((m) => m.conectado).length;
+  const [ficha, setFicha] = useState<{ uid: string; nombre: string } | null>(null);
 
   return (
     <section className="panel miembros" aria-labelledby="t-miembros">
@@ -200,13 +202,20 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
               <AvatarCirculo avatar={m.avatar ?? avatarPorDefecto(m.id)} tam="sm" />
               <span className={`punto ${m.conectado ? "on" : "off"}`} aria-hidden="true" />
             </span>
-            <span className="nombre-miembro">{m.nombre}</span>
+            <button
+              className="nombre-miembro enlace-nombre"
+              onClick={() => (m.id === uid ? irA({ pantalla: "perfil" }) : setFicha({ uid: m.id, nombre: m.nombre }))}
+              aria-label={m.id === uid ? t.verPerfil : t.verFichaDe(m.nombre)}
+            >
+              {m.nombre}
+            </button>
             {m.id === uid && <span className="insignia">{t.tu}</span>}
             {m.id === sala.anfitrion && <span className="insignia anfitrion">{t.anfitrion}</span>}
             <span className="sr-only">{m.conectado ? t.conectado : t.desconectado}</span>
           </li>
         ))}
       </ul>
+      {ficha && <FichaJugador uid={ficha.uid} yo={uid} nombre={ficha.nombre} alCerrar={() => setFicha(null)} />}
     </section>
   );
 }
