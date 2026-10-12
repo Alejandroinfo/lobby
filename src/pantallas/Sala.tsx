@@ -15,6 +15,7 @@ import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
 import { Retos } from "./Retos";
 import { FichaJugador } from "./Ficha";
+import { PanelAmigos, useSalaActual } from "./Amigos";
 import { olvidarSala, recordarSala } from "../datos/recientes";
 import { guardarAudiencia, leerPerfil, registrarPais } from "../firebase/encuestas";
 
@@ -94,6 +95,7 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
 
 function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado: boolean; avatar: Avatar; perfil: TPerfil | null | undefined }) {
   const { sala, uid, nombre, confirmado, avatar, perfil } = props;
+  useSalaActual(sala.codigo, confirmado ? sala.nombre : undefined);
   const { t } = useIdioma();
   // Si cambiaste de avatar (o la sala aún no lo tiene), se actualiza tu entrada.
   const enSala = sala.miembros?.[uid]?.avatar;
@@ -168,7 +170,10 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
       <EncuestaPendiente sala={sala.codigo} uid={uid} partidas={partidas} />
 
       <div className="rejilla">
-        <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} />
+        <div className="col-izquierda">
+          <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} />
+          <PanelAmigos sala={{ codigo: sala.codigo, nombre: sala.nombre, miembros: Object.keys(sala.miembros ?? {}) }} />
+        </div>
         <div className="centro-sala">
           <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
           <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} retosPropios={perfil === undefined ? undefined : (perfil?.retosDiarios ?? {})} />

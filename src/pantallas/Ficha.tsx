@@ -9,6 +9,7 @@ import type { Ficha as TFicha, RivalGuardado } from "../firebase/tipos";
 import { useIdioma } from "../i18n";
 import { rangoDe } from "./Carrera";
 import { AvatarCirculo } from "./PaginaPerfil";
+import { BotonAmistad } from "./Amigos";
 
 interface Props {
   uid: string; // de quien es la ficha
@@ -66,6 +67,9 @@ export function FichaJugador({ uid, nombre, record, alCerrar }: Props) {
       ) : (
         <p className="suave chico-texto">{t.sinCondecoracionesOtro}</p>
       )}
+
+      {/* Con la ficha privada (siempre en menores) solo te pueden agregar con tu código de amigo. */}
+      {ficha && <div className="botones"><BotonAmistad otro={uid} nombre={ficha.nombre ?? nombre} /></div>}
 
       <h3>{t.contraTi}</h3>
       {!record || record.partidas === 0 ? (

@@ -11,6 +11,7 @@ import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
 import { Perfil } from "./Perfil";
+import { PanelAmigos } from "./Amigos";
 import { rangoDe } from "./Carrera";
 import { AvatarCirculo } from "./PaginaPerfil";
 import { avatarPorDefecto } from "../firebase/perfil";
@@ -96,6 +97,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
         <span className="mini-perfil-ir">{t.verPerfil} →</span>
       </button>
       <Perfil usuario={usuario} />
+      <div className="amigos-inicio"><PanelAmigos /></div>
       {recientes.length > 0 && (
         <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
           <h2 id="t-recientes">{t.salasRecientes}</h2>

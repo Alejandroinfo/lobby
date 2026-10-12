@@ -113,6 +113,8 @@ export interface Perfil {
   rivales?: Record<string, RivalGuardado>;
   /** Tus marcas del reto del día (fecha → puntaje): racha, mejor marca y promedio sin lecturas extra. */
   retosDiarios?: Record<string, number>;
+  /** Tu código para que te agreguen como amigo (8 caracteres). */
+  codigoAmigo?: string;
 }
 
 export interface EstadisticaGuardada {

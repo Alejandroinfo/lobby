@@ -2,6 +2,7 @@
 import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "./config";
+import { borrarDatosSociales } from "./amigos";
 import type { Avatar, Carrera, EntradaHistorial, EstadisticaGuardada, Ficha, Perfil, RivalGuardado, TipoJugador } from "./tipos";
 
 export const EMOJIS = ["🕵️", "🚀", "🦊", "🐙", "🦉", "🐉", "🌙", "⭐", "🎲", "🃏", "🧭", "🔭", "🎩", "🐺", "🦜", "🍀"];
@@ -140,6 +141,7 @@ export async function borrarMisDatos(uid: string) {
   // y tu fila en el ranking de cada día
   await Promise.all(fechas.map((f) => setDoc(doc(db, "retosDiarios", f), { jugadores: { [uid]: deleteField() } }, { merge: true }).catch(() => {})));
   await Promise.all(historial.map((e) => deleteDoc(doc(db, "jugadores", uid, "historial", e.id)).catch(() => {})));
+  await borrarDatosSociales(uid, perfil?.codigoAmigo).catch(() => {});
   await deleteDoc(doc(db, "perfiles", uid)).catch(() => {});
   await deleteDoc(doc(db, "jugadores", uid));
   ultimaFicha = "";

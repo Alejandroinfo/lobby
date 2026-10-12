@@ -118,6 +118,15 @@ export async function addDoc(c: Coleccion, d: Datos) {
   return { id };
 }
 
+export function writeBatch(_db?: unknown) {
+  const ops: (() => void | Promise<void>)[] = [];
+  return {
+    set(r: Ref, d: Datos, o?: { merge?: boolean }) { ops.push(() => escribir(r, d, Boolean(o?.merge))); return this; },
+    delete(r: Ref) { ops.push(() => deleteDoc(r)); return this; },
+    async commit() { for (const op of ops) await op(); },
+  };
+}
+
 export async function runTransaction<T>(_db: unknown, fn: (tx: any) => Promise<T>): Promise<T> {
   return fn({ get: async (r: Ref) => snap(r), set: (r: Ref, d: Datos, o?: { merge?: boolean }) => escribir(r, d, Boolean(o?.merge)) });
 }

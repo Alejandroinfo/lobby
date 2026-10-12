@@ -47,7 +47,8 @@ service cloud.firestore {
     match /jugadores/{uid} {
       function perfilValido(d) {
         return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar', 'fichaVisible', 'tipoJugador',
-                                'estadisticas', 'rivales', 'retosDiarios'])
+                                'estadisticas', 'rivales', 'retosDiarios', 'codigoAmigo'])
+          && (!('codigoAmigo' in d) || (d.codigoAmigo is string && d.codigoAmigo.matches('^[A-Z0-9]{8}$')))
           && (!('estadisticas' in d) || d.estadisticas is map)
           && (!('rivales' in d) || d.rivales is map)
           && (!('retosDiarios' in d) || d.retosDiarios is map)
@@ -66,6 +67,23 @@ service cloud.firestore {
       allow delete: if autenticado() && request.auth.uid == uid;
       allow create, update: if autenticado() && request.auth.uid == uid && perfilValido(request.resource.data);
 
+      // Lista de amigos. La crea quien acepta una solicitud (en su lista y en la de quien la pidió);
+      // cualquiera de los dos puede quitar la amistad.
+      match /amigos/{amigo} {
+        function solicitud(para, de) {
+          return exists(/databases/$(database)/documents/solicitudes/$(para)/de/$(de));
+        }
+        allow read: if autenticado() && request.auth.uid == uid;
+        allow delete: if autenticado() && (request.auth.uid == uid || request.auth.uid == amigo);
+        allow create: if autenticado()
+          && ((request.auth.uid == uid && solicitud(uid, amigo)) || (request.auth.uid == amigo && solicitud(amigo, uid)))
+          && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'desde'])
+          && nombreValido(request.resource.data.nombre)
+          && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
+          && request.resource.data.desde == request.time;
+        allow update: if false;
+      }
+
       // Historial personal: una entrada por partida o reto terminado. Solo lo ve y lo escribe su dueño.
       match /historial/{id} {
         allow read: if (autenticado() && request.auth.uid == uid) || esAdmin();
@@ -82,6 +100,55 @@ service cloud.firestore {
           && request.resource.data.fecha == request.time;
         allow update: if false;
       }
+    }
+
+    // ── Amigos ──
+    function sonAmigos(a, b) {
+      return exists(/databases/$(database)/documents/jugadores/$(a)/amigos/$(b));
+    }
+
+    // Código de amigo → uid. Cualquiera con sesión lo busca; solo su dueño lo crea o lo borra.
+    match /codigosAmigo/{codigo} {
+      allow read: if autenticado();
+      allow create: if autenticado() && codigo.matches('^[A-Z0-9]{8}$')
+        && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
+      allow delete: if autenticado() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // Solicitud de amistad de {de} para {para}. La ven y la borran los dos.
+    match /solicitudes/{para}/de/{de} {
+      allow read, delete: if autenticado() && (request.auth.uid == para || request.auth.uid == de);
+      allow create, update: if autenticado() && request.auth.uid == de && de != para
+        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'hora'])
+        && nombreValido(request.resource.data.nombre)
+        && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
+        && request.resource.data.hora == request.time;
+    }
+
+    // Presencia (en línea y en qué sala): solo la ven tus amigos.
+    match /presencia/{uid} {
+      allow read: if autenticado() && (request.auth.uid == uid || sonAmigos(request.auth.uid, uid));
+      allow delete: if autenticado() && request.auth.uid == uid;
+      allow create, update: if autenticado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'ultimaVez'])
+        && nombreValido(request.resource.data.nombre)
+        && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
+        && (request.resource.data.sala == null || (request.resource.data.sala is string && request.resource.data.sala.size() <= 8))
+        && (request.resource.data.nombreSala == null || (request.resource.data.nombreSala is string && request.resource.data.nombreSala.size() <= 40))
+        && request.resource.data.ultimaVez == request.time;
+    }
+
+    // Invitación a una sala de {de} para {para}: solo entre amigos.
+    match /invitaciones/{para}/de/{de} {
+      allow read, delete: if autenticado() && (request.auth.uid == para || request.auth.uid == de);
+      allow create, update: if autenticado() && request.auth.uid == de && sonAmigos(para, de)
+        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'hora'])
+        && nombreValido(request.resource.data.nombre)
+        && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
+        && request.resource.data.sala is string && request.resource.data.sala.matches('^[A-HJ-NP-Z2-9]{5}$')
+        && request.resource.data.nombreSala is string && request.resource.data.nombreSala.size() <= 40
+        && request.resource.data.hora == request.time;
     }
 
     // Ficha que ven los demás (rango, avatar, condecoraciones). Solo se lee si su dueño la hizo

@@ -34,7 +34,7 @@ function activa(p: Partida) {
 }
 
 /** Un "ding" corto sin archivos de audio (si el navegador lo permite). */
-function sonarAviso() {
+export function sonarAviso() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctx();

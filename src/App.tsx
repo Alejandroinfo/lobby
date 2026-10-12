@@ -5,6 +5,7 @@ import { Inicio } from "./pantallas/Inicio";
 import { Sala } from "./pantallas/Sala";
 import { Panel } from "./pantallas/Panel";
 import { PaginaPerfil } from "./pantallas/PaginaPerfil";
+import { SocialProvider } from "./pantallas/Amigos";
 import { publicarFicha, usePerfil } from "./firebase/perfil";
 import { useEffect } from "react";
 import { useIdioma } from "./i18n";
@@ -47,10 +48,13 @@ export function App() {
   }
 
   if (ruta.pantalla === "panel") return <Panel usuario={usuario!} />;
-  if (ruta.pantalla === "perfil") return <PaginaPerfil usuario={usuario!} nombre={nombre} perfil={perfil} />;
-  return ruta.pantalla === "sala" ? (
+  return (
+    <SocialProvider uid={uid} nombre={nombre} perfil={perfil}>
+      {ruta.pantalla === "perfil" ? <PaginaPerfil usuario={usuario!} nombre={nombre} perfil={perfil} /> : ruta.pantalla === "sala" ? (
     <Sala key={ruta.codigo} codigo={ruta.codigo} uid={uid} nombre={nombre} setNombre={setNombre} perfil={perfil} />
   ) : (
     <Inicio uid={uid} usuario={usuario!} nombre={nombre} setNombre={setNombre} perfil={perfil} />
+      )}
+    </SocialProvider>
   );
 }
