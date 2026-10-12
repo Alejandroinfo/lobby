@@ -362,8 +362,9 @@ service cloud.firestore {
         allow read: if autenticado() && esMiembro();
 
         allow create: if autenticado() && esMiembro()
-          && request.resource.data.keys().hasOnly(['juego', 'variante', 'anfitrion', 'estado', 'invitados',
+          && request.resource.data.keys().hasOnly(['juego', 'variante', 'nivel', 'anfitrion', 'estado', 'invitados',
                                                    'codigoJuego', 'creada', 'iniciada', 'terminada'])
+          && (!('nivel' in request.resource.data) || request.resource.data.nivel in ['hard', 'easy'])
           && request.resource.data.anfitrion == request.auth.uid
           && request.resource.data.estado == 'invitando'
           && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals']

@@ -41,6 +41,8 @@ export interface Partida {
   id: string;
   juego: string;
   variante: string | null;
+  /** Partida en solitario contra la máquina: su nivel. */
+  nivel?: "hard" | "easy";
   /** Quien creó la partida (puede ser cualquier miembro de la sala). */
   anfitrion: string;
   estado: EstadoPartida;

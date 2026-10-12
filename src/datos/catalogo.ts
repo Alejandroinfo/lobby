@@ -32,6 +32,8 @@ export interface Juego {
   url: string;
   /** false si el juego no avisa el resultado solo (quien organiza marca "Terminar partida"). */
   informaResultado?: boolean;
+  /** Si se puede jugar solo contra la máquina, y con qué niveles (el primero es el predeterminado). */
+  solo?: { niveles: { id: "hard" | "easy"; es: string; en: string }[] };
   /** Si el juego tiene retos en solitario con semilla (reto del día y retos entre amigos). */
   retos?: { variante: string; dificultad: "hard" | "easy"; puntaje: { es: string; en: string } };
   /** Condecoraciones que el juego puede otorgar (id → icono y nombre). */
@@ -77,6 +79,12 @@ export const JUEGOS: Juego[] = [
       preguntas: { "habilidad-fuerte": "Did any ability or mission feel too strong or too weak? Which one?" },
     },
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
+    solo: {
+      niveles: [
+        { id: "hard", es: "Oficial de Contrainteligencia (difícil)", en: "Counter-Intel Officer (hard)" },
+        { id: "easy", es: "Vetting de rutina (fácil)", en: "Routine vetting (easy)" },
+      ],
+    },
     retos: {
       variante: "special",
       dificultad: "hard",
@@ -121,6 +129,12 @@ export const JUEGOS: Juego[] = [
       },
     },
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
+    solo: {
+      niveles: [
+        { id: "hard", es: "Ordenador normal", en: "Computer: normal" },
+        { id: "easy", es: "Ordenador fácil", en: "Computer: easy" },
+      ],
+    },
     retos: {
       variante: "corto",
       dificultad: "hard",

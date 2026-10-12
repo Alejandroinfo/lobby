@@ -20,6 +20,7 @@ export async function crearPartida(
   juego: Juego,
   variante: string | null,
   invitaciones: Invitacion[],
+  nivel?: "hard" | "easy",
 ): Promise<string> {
   const invitados: Record<string, Record<string, unknown>> = {};
   for (const inv of invitaciones) {
@@ -36,6 +37,7 @@ export async function crearPartida(
   const ref = await addDoc(collection(db, "salas", sala, "partidas"), {
     juego: juego.id,
     variante,
+    ...(nivel ? { nivel } : {}),
     anfitrion: creador,
     estado: "invitando",
     invitados,
@@ -45,6 +47,22 @@ export async function crearPartida(
     terminada: null,
   });
   return ref.id;
+}
+
+/**
+ * Partida en solitario contra la máquina: se crea y se lanza de una vez (no hay a quién esperar).
+ * Queda en la lista de la sala, con su resultado, como cualquier partida.
+ */
+export async function crearPartidaSolo(sala: string, yo: { uid: string; nombre: string }, juego: Juego, variante: string | null, nivel: "hard" | "easy") {
+  const id = await crearPartida(sala, yo.uid, juego, variante, [{ uid: yo.uid, nombre: yo.nombre, rol: "jugador" }], nivel);
+  const codigoJuego = generarCodigo();
+  await updateDoc(refPartida(sala, id), {
+    estado: "jugando",
+    iniciada: serverTimestamp(),
+    codigoJuego,
+    [`invitados.${yo.uid}.asiento`]: 0,
+  });
+  return { id, codigoJuego };
 }
 
 /** El invitado acepta (como jugador o espectador) o rechaza. */
@@ -121,7 +139,9 @@ export interface Preparacion {
 export function preparacion(p: Partida, juego: Juego, conectado: (uid: string) => boolean): Preparacion {
   const jugadores = jugadoresAceptados(p);
   const n = jugadores.length;
-  const { min, max } = juego.jugadores;
+  const { max } = juego.jugadores;
+  // En solitario (contra la máquina) basta con una persona.
+  const min = p.nivel && juego.solo ? 1 : juego.jugadores.min;
   if (n < min) return { puede: false, motivo: { tipo: "faltan", n, min } };
   if (n > max) return { puede: false, motivo: { tipo: "sobran", n, max } };
   const aceptados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta");
@@ -207,6 +227,7 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string,
     lsala: sala,
     lpartida: p.id,
     volver: `${window.location.origin}/s/${sala}`,
+    ...(p.nivel ? { dificultad: p.nivel, solo: "1" } : {}),
   });
   return `${juego.url}${juego.url.includes("?") ? "&" : "?"}${q}`;
 }

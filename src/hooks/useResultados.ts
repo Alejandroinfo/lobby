@@ -91,7 +91,8 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
         const ganadores = aviso.resultado.ganadores;
         const sentados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta" && i.rol === "jugador");
         // Un empate de todos no cuenta como victoria.
-        const empate = ganadores.length >= sentados.length;
+        // En solitario no hay empate: ganaste si tu asiento está entre los ganadores.
+        const empate = !p.nivel && ganadores.length >= sentados.length;
         const gano = ganadores.includes(asiento) && !empate;
         const puntaje = aviso.resultado.puntajes?.[String(asiento)];
         return Promise.all([

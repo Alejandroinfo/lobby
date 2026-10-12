@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { abrirPartidaSolo } from "./CrearPartida";
 import { juegoPorId } from "../datos/catalogo";
 import { textosJuego, useIdioma, type Textos } from "../i18n";
 import {
@@ -172,6 +173,13 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
 function resumenResultado(p: Partida, t: Textos): string | null {
   if (!p.resultado) return null;
   const porAsiento = new Map(Object.values(p.invitados).filter((i) => i.asiento !== null).map((i) => [i.asiento!, i.nombre]));
+  // En solitario: el puntaje (si el juego tiene) o quién ganó, tú o la máquina.
+  if (p.nivel) {
+    const yo = porAsiento.get(0) ?? "";
+    const puntos = p.resultado.puntajes?.["0"];
+    const base = typeof puntos === "number" ? t.puntosDe(yo, puntos) : p.resultado.ganadores.includes(0) ? t.gano(yo) : t.ganoMaquina;
+    return `${base} · ${t.enSolitario}`;
+  }
   const nombres = p.resultado.ganadores.map((a) => porAsiento.get(a)).filter(Boolean) as string[];
   if (!nombres.length) return t.sinGanador;
   const jugadores = jugadoresAceptados(p).length;
@@ -399,12 +407,23 @@ function Equipos({ sala, p, editable }: { sala: string; p: Partida; editable: bo
 
 /** Misma partida otra vez: mismo juego, modo y personas (cada una con su rol). */
 function BotonRevancha({ sala, uid, p }: { sala: string; uid: string; p: Partida }) {
-  const { t } = useIdioma();
+  const { t, idioma } = useIdioma();
   const [estado, setEstado] = useState<"" | "creando" | "error">("");
   const juego = juegoPorId(p.juego);
   if (!juego) return null;
   const revancha = async () => {
     setEstado("creando");
+    // En solitario: se juega otra vez al instante, con el mismo modo y nivel.
+    if (p.nivel) {
+      try {
+        await abrirPartidaSolo(sala, { uid, nombre: p.invitados[uid]?.nombre ?? "" }, juego, p.variante, p.nivel, idioma);
+        setEstado("");
+      } catch (e) {
+        console.error(e);
+        setEstado("error");
+      }
+      return;
+    }
     const invitaciones = Object.entries(p.invitados)
       .filter(([, i]) => i.respuesta === "acepta")
       .map(([id, i]) => ({ uid: id, nombre: i.nombre, rol: i.rol }));
@@ -420,7 +439,7 @@ function BotonRevancha({ sala, uid, p }: { sala: string; uid: string; p: Partida
     <>
       {" "}
       <button className="enlace chico" onClick={revancha} disabled={estado === "creando"}>
-        {estado === "creando" ? t.creandoMin : t.revancha}
+        {estado === "creando" ? t.creandoMin : p.nivel ? t.jugarOtraVez : t.revancha}
       </button>
       {estado === "error" && <span className="error"> {t.noSePudoCrear}</span>}
     </>

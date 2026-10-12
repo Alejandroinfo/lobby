@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { Juego } from "../datos/catalogo";
-import { crearPartida, type Invitacion } from "../firebase/partidas";
-import type { Rol, Sala } from "../firebase/tipos";
+import { crearPartida, crearPartidaSolo, enlaceJuego, type Invitacion } from "../firebase/partidas";
+import type { Partida, Rol, Sala } from "../firebase/tipos";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 import { textosJuego, useIdioma } from "../i18n";
 
@@ -12,6 +12,39 @@ interface Props {
   alCerrar: () => void;
 }
 
+/**
+ * Crea y lanza una partida en solitario y abre el juego en otra pestaña. La pestaña se abre en el
+ * mismo clic (si no, el navegador la bloquea) y después recibe la dirección.
+ */
+export async function abrirPartidaSolo(
+  sala: string,
+  yo: { uid: string; nombre: string },
+  juego: Juego,
+  variante: string | null,
+  nivel: "hard" | "easy",
+  idioma: "es" | "en",
+) {
+  const pestana = window.open("", "_blank");
+  try {
+    const { id, codigoJuego } = await crearPartidaSolo(sala, yo, juego, variante, nivel);
+    const p = {
+      id,
+      juego: juego.id,
+      variante,
+      nivel,
+      codigoJuego,
+      invitados: { [yo.uid]: { nombre: yo.nombre, rol: "jugador", respuesta: "acepta", listo: true, respondio: null, asiento: 0 } },
+    } as unknown as Partida;
+    const enlace = enlaceJuego(juego, sala, p, yo.uid, idioma);
+    if (!enlace) pestana?.close();
+    else if (pestana) pestana.location.href = enlace;
+    else window.location.href = enlace;
+  } catch (e) {
+    pestana?.close();
+    throw e;
+  }
+}
+
 /** Elegir variante e invitados (toda la sala o algunas personas) con su rol. */
 export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
   const { t, idioma } = useIdioma();
@@ -20,6 +53,22 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
   const [roles, setRoles] = useState<Record<string, Rol | null>>({ [uid]: "jugador" });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [solo, setSolo] = useState(false);
+  const [nivel, setNivel] = useState<"hard" | "easy">(juego.solo?.niveles[0]?.id ?? "hard");
+  const yo = (sala.miembros ?? {})[uid];
+
+  const jugarSolo = async () => {
+    setError("");
+    setEnviando(true);
+    try {
+      await abrirPartidaSolo(sala.codigo, { uid, nombre: yo?.nombre ?? "" }, juego, variante, nivel, idioma);
+      alCerrar();
+    } catch (err) {
+      console.error(err);
+      setError(t.errorCrearPartida);
+      setEnviando(false);
+    }
+  };
 
   const miembros = Object.entries(sala.miembros ?? {})
     .map(([id, m]) => ({ id, nombre: m.nombre, conectado: ahora - (m.ultimaVez?.toMillis() ?? ahora) < DESCONECTADO_MS }))
@@ -85,6 +134,13 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
         </button>
       </div>
 
+      {juego.solo && (
+        <div className="segmentado modo-partida" role="radiogroup" aria-label={t.comoJugar}>
+          <button type="button" role="radio" aria-checked={!solo} onClick={() => setSolo(false)}>{t.conLaSala}</button>
+          <button type="button" role="radio" aria-checked={solo} onClick={() => setSolo(true)}>{t.soloContraMaquina}</button>
+        </div>
+      )}
+
       {juego.variantes.length > 0 && (
         <>
           <label htmlFor="variante">{t.modo}</label>
@@ -98,6 +154,22 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
         </>
       )}
 
+      {solo && juego.solo ? (
+        <>
+          <label htmlFor="nivel">{t.rival}</label>
+          <select id="nivel" value={nivel} onChange={(e) => setNivel(e.target.value as "hard" | "easy")}>
+            {juego.solo.niveles.map((n) => (
+              <option key={n.id} value={n.id}>{idioma === "en" ? n.en : n.es}</option>
+            ))}
+          </select>
+          <p className="suave chico-texto">{t.soloTexto}</p>
+          {error && <p className="error">{error}</p>}
+          <button type="button" className="primario" disabled={enviando} onClick={jugarSolo}>
+            {enviando ? t.enviando : t.jugarSolo}
+          </button>
+        </>
+      ) : (
+      <>
       <div className="invitar-cabeza">
         <p className="rotulo">{t.aQuienInvitas}</p>
         {otros.length > 0 && (
@@ -145,6 +217,8 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
       <button type="submit" className="primario" disabled={enviando}>
         {enviando ? t.enviando : t.enviarInvitaciones}
       </button>
+      </>
+      )}
     </form>
   );
 }
