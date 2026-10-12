@@ -117,6 +117,8 @@ export interface Perfil {
   retosDiarios?: Record<string, number>;
   /** Tu código para que te agreguen como amigo (8 caracteres). */
   codigoAmigo?: string;
+  /** Última vez que se te invitó a la encuesta de playtest (como mucho una vez por semana). */
+  encuestaOfrecida?: Timestamp;
 }
 
 export interface EstadisticaGuardada {

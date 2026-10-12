@@ -47,7 +47,8 @@ service cloud.firestore {
     match /jugadores/{uid} {
       function perfilValido(d) {
         return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar', 'fichaVisible', 'tipoJugador',
-                                'estadisticas', 'rivales', 'retosDiarios', 'codigoAmigo'])
+                                'estadisticas', 'rivales', 'retosDiarios', 'codigoAmigo', 'encuestaOfrecida'])
+          && (!('encuestaOfrecida' in d) || d.encuestaOfrecida is timestamp)
           && (!('codigoAmigo' in d) || (d.codigoAmigo is string && d.codigoAmigo.matches('^[A-Z0-9]{8}$')))
           && (!('estadisticas' in d) || d.estadisticas is map)
           && (!('rivales' in d) || d.rivales is map)

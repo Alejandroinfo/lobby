@@ -9,7 +9,8 @@ const SERVER = { __servidor: true };
 const BORRAR = { __borrar: true };
 type Incremento = { __incremento: number };
 
-class Timestamp {
+export class Timestamp {
+  static now() { return new Timestamp(Date.now()); }
   constructor(private ms: number) {}
   toMillis() { return this.ms; }
   toDate() { return new Date(this.ms); }

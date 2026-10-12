@@ -1,14 +1,18 @@
 /**
- * Encuesta corta al volver de una partida (playtesting). La primera vez también pregunta,
- * de forma opcional y por rangos, edad, cómo llegó y cuánto juega juegos de mesa.
+ * Encuesta corta al volver de una partida (playtesting). Como mucho una vez por semana, y siempre
+ * primero con una pregunta («¿quieres contarnos qué te pareció?»): el formulario solo aparece si
+ * dices que sí. La primera vez también pregunta, de forma opcional y por rangos, edad, cómo llegó
+ * y cuánto juega juegos de mesa.
  */
 import { useEffect, useState, type FormEvent } from "react";
 import { juegoPorId } from "../datos/catalogo";
 import { textosJuego, useIdioma } from "../i18n";
-import { guardarAudiencia, guardarEncuesta, leerPerfil, yaRespondio } from "../firebase/encuestas";
+import { guardarAudiencia, guardarEncuesta, leerPerfil, marcarEncuestaOfrecida, ultimaEncuestaOfrecida, yaRespondio } from "../firebase/encuestas";
 import type { ComoLlego, Duracion, Experiencia, Partida, Perfil, RangoEdad } from "../firebase/tipos";
 
 const HORAS_VIGENCIA = 12;
+/** Días entre una invitación a la encuesta y la siguiente. */
+export const DIAS_ENTRE_ENCUESTAS = 7;
 const CLAVE_LISTA = "lobby_encuesta_lista:";
 const CLAVE_AUDIENCIA = "lobby_audiencia_omitida";
 
@@ -54,6 +58,8 @@ export function EncuestaPendiente({ sala, uid, partidas }: { sala: string; uid: 
   const p = pendiente(partidas, uid);
   const [revisada, setRevisada] = useState<string | null>(null);
   const [perfil, setPerfil] = useState<Perfil | null | undefined>(undefined);
+  const [paso, setPaso] = useState<"pregunta" | "form">("pregunta");
+  const { t } = useIdioma();
 
   // Si ya la respondió en otro dispositivo o pestaña, no volver a mostrarla.
   useEffect(() => {
@@ -77,11 +83,35 @@ export function EncuestaPendiente({ sala, uid, partidas }: { sala: string; uid: 
   }, [uid]);
 
   if (!p || revisada !== p.id || perfil === undefined) return null;
+  // Una invitación por semana como mucho (se cuenta desde la última vez que respondiste a la pregunta).
+  const enEspera = Date.now() - ultimaEncuestaOfrecida(perfil) < DIAS_ENTRE_ENCUESTAS * 86_400_000;
+  if (enEspera && paso === "pregunta") return null;
 
   const cerrar = () => {
     marcar(p.id);
+    setPaso("pregunta");
     refrescar((x) => x + 1);
   };
+  const responder = (quiere: boolean) => {
+    const ahora = marcarEncuestaOfrecida(uid);
+    setPerfil((x) => (x ? { ...x, encuestaOfrecida: ahora } : x));
+    if (quiere) setPaso("form");
+    else cerrar();
+  };
+
+  if (paso === "pregunta") {
+    const juego = juegoPorId(p.juego);
+    return (
+      <section className="panel encuesta invitacion-encuesta" aria-labelledby="t-inv-encuesta">
+        <h2 id="t-inv-encuesta">{t.invitacionEncuesta(juego?.nombre ?? p.juego)}</h2>
+        <p className="suave">{t.invitacionEncuestaTexto}</p>
+        <div className="botones">
+          <button type="button" className="primario" onClick={() => responder(true)}>{t.siRellenar}</button>
+          <button type="button" className="secundario" onClick={() => responder(false)}>{t.ahoraNo}</button>
+        </div>
+      </section>
+    );
+  }
 
   return <FormEncuesta key={p.id} sala={sala} uid={uid} p={p} perfil={perfil} alTerminar={cerrar} />;
 }

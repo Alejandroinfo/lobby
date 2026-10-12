@@ -1,5 +1,5 @@
 /** Encuesta de playtest al terminar una partida, y el perfil anónimo de audiencia. */
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "./config";
 import type { Duracion, Encuesta, Perfil } from "./tipos";
 
@@ -61,4 +61,29 @@ export async function registrarPais(uid: string) {
   } catch {
     /* sin país: no pasa nada */
   }
+}
+
+const CLAVE_OFRECIDA = "lobby_encuesta_ofrecida";
+
+/** Cuándo se te invitó por última vez a la encuesta (ms). Vale lo más reciente entre tu perfil y este navegador. */
+export function ultimaEncuestaOfrecida(perfil: Perfil | null): number {
+  let local = 0;
+  try {
+    local = Number(localStorage.getItem(CLAVE_OFRECIDA)) || 0;
+  } catch {
+    /* sin almacenamiento */
+  }
+  return Math.max(local, perfil?.encuestaOfrecida?.toMillis?.() ?? 0);
+}
+
+/** Anota que ya se te invitó (en el navegador y en tu perfil, para que valga en todos tus dispositivos). */
+export function marcarEncuestaOfrecida(uid: string): Timestamp {
+  const ahora = Timestamp.now();
+  try {
+    localStorage.setItem(CLAVE_OFRECIDA, String(ahora.toMillis()));
+  } catch {
+    /* sin almacenamiento */
+  }
+  setDoc(doc(db, "jugadores", uid), { encuestaOfrecida: serverTimestamp() }, { merge: true }).catch(() => {});
+  return ahora;
 }
