@@ -171,7 +171,10 @@ const es = {
   tocaNombre: "Toca un nombre para cambiarlo de equipo.",
   motivoFaltan: (n: number, min: number) => `Faltan jugadores: ${n} de al menos ${min}.`,
   motivoSobran: (n: number, max: number) => `Sobran jugadores: ${n}, el máximo es ${max}.`,
-  motivoDesconectados: (nombres: string[]) => `Se desconectó: ${nombres.join(", ")}. Espera a que vuelva o quítalo.`,
+  motivoDesconectados: (nombres: string[]) =>
+    `${nombres.join(", ")} ${nombres.length > 1 ? "aparecen" : "aparece"} sin conexión. Si ${nombres.length > 1 ? "están" : "está"} aquí, puedes empezar igual.`,
+  empezarIgual: "Empezar igual",
+  partidaNumero: (n: number) => `partida ${n}`,
   motivoEsperando: (nombres: string[]) => `Esperando a: ${nombres.join(", ")}.`,
   motivoEquipos: (m: number) => `Los equipos deben quedar de ${m} y ${m}.`,
   motivoListos: "Todos listos.",
@@ -548,7 +551,10 @@ const en: Textos = {
   tocaNombre: "Tap a name to switch teams.",
   motivoFaltan: (n: number, min: number) => `Not enough players: ${n} of at least ${min}.`,
   motivoSobran: (n: number, max: number) => `Too many players: ${n}, the maximum is ${max}.`,
-  motivoDesconectados: (nombres: string[]) => `Disconnected: ${nombres.join(", ")}. Wait for them or remove them.`,
+  motivoDesconectados: (nombres: string[]) =>
+    `${nombres.join(", ")} ${nombres.length > 1 ? "seem" : "seems"} to be offline. If they're here, you can start anyway.`,
+  empezarIgual: "Start anyway",
+  partidaNumero: (n: number) => `game ${n}`,
   motivoEsperando: (nombres: string[]) => `Waiting for: ${nombres.join(", ")}.`,
   motivoEquipos: (m: number) => `Teams must be ${m} and ${m}.`,
   motivoListos: "Everyone is ready.",

@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef } from "react";
 import { ORIGENES_JUEGOS, juegoPorId } from "../datos/catalogo";
-import { guardarResultado } from "../firebase/partidas";
+import { asegurarRonda, guardarResultado, idRonda } from "../firebase/partidas";
 import { guardarMarca, logrosDe } from "../firebase/retos";
 import { registrarEnHistorial, sumarAlPerfil } from "../firebase/perfil";
 import { useIdioma } from "../i18n";
@@ -15,7 +15,13 @@ interface Aviso {
   partida: string;
   asiento: number;
   resultado: ResultadoJuego;
+  /** Número de partida en una serie de «Jugar de nuevo» (sin él, la 1: la original). */
+  ronda?: number;
+  /** Código de sala del juego de esta ronda (Astrolabe crea una sala nueva en cada revancha). */
+  codigo?: string;
 }
+
+const rondaDe = (a: { ronda?: unknown }) => (Number.isInteger(a.ronda) && (a.ronda as number) > 1 ? (a.ronda as number) : 1);
 
 function decodificar(texto: string): Aviso | null {
   try {
@@ -76,11 +82,23 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
         .catch((e) => console.warn("No se pudo guardar la marca del reto", e));
       return;
     }
+    const ronda = rondaDe(aviso);
+    if (ronda > 1) {
+      // «Jugar de nuevo» dentro del juego: se registra como una partida más de la sala.
+      asegurarRonda(sala, aviso.partida, ronda, aviso.codigo)
+        .then((p) => p && guardar(p, aviso))
+        .catch((e) => console.warn("No se pudo registrar la revancha", e));
+      return;
+    }
     const p = actuales.current.find((x) => x.id === aviso.partida);
     if (!p) {
       pendientes.current.push(aviso); // las partidas aún no cargaron: se reintenta al llegar
       return;
     }
+    guardar(p, aviso);
+  };
+
+  const guardar = (p: Partida, aviso: Aviso) => {
     const yo = p.invitados[uid];
     if (!yo || yo.respuesta !== "acepta" || yo.rol !== "jugador") return;
     if (!aviso.resultado || !Array.isArray(aviso.resultado.ganadores)) return;
@@ -130,8 +148,16 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
     const alRecibir = (e: MessageEvent) => {
       if (!ORIGENES_JUEGOS.has(e.origin)) return;
       const d = e.data as { tipo?: string; sala?: string } & Aviso;
-      if (d?.tipo !== "lobby:resultado" || d.sala !== sala) return;
-      procesar({ partida: d.partida, asiento: d.asiento, resultado: d.resultado });
+      if (!d || d.sala !== sala || typeof d.partida !== "string") return;
+      // El juego empezó otra partida con «Jugar de nuevo»: aparece ya en juego en la sala.
+      if (d.tipo === "lobby:ronda") {
+        const ronda = rondaDe(d);
+        if (ronda > 1 && !actuales.current.some((p) => p.id === idRonda(d.partida, ronda)))
+          asegurarRonda(sala, d.partida, ronda, d.codigo).catch((e) => console.warn("No se pudo registrar la revancha", e));
+        return;
+      }
+      if (d.tipo !== "lobby:resultado") return;
+      procesar({ partida: d.partida, asiento: d.asiento, resultado: d.resultado, ronda: d.ronda, codigo: d.codigo });
     };
     window.addEventListener("message", alRecibir);
     return () => window.removeEventListener("message", alRecibir);

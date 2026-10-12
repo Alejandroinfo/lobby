@@ -1,8 +1,8 @@
 /** Partidas dentro de una sala: invitar, responder, prepararse, lanzar y terminar. */
-import { addDoc, collection, deleteField, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteField, doc, getDoc, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
-import { generarCodigo } from "./salas";
+import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
 
 const refPartida = (sala: string, id: string) => doc(db, "salas", sala, "partidas", id);
@@ -65,8 +65,62 @@ export async function crearPartidaSolo(sala: string, yo: { uid: string; nombre: 
   return { id, codigoJuego };
 }
 
+/** Id de la partida número `ronda` de una serie de «Jugar de nuevo» (la 1 es la original). */
+export const idRonda = (base: string, ronda: number) => (ronda > 1 ? `${base}-r${ronda}` : base);
+
+/**
+ * «Jugar de nuevo» dentro del juego: la partida siguiente, con los mismos jugadores, asientos y
+ * opciones, ya en juego. La crea el primero que se entera (cualquiera de los jugadores); si ya
+ * existe, la devuelve. Así cuenta en la sala, el historial y el perfil como cualquier partida.
+ */
+export async function asegurarRonda(sala: string, base: string, ronda: number, codigoJuego?: string | null): Promise<Partida | null> {
+  if (!Number.isInteger(ronda) || ronda < 2 || ronda > 500 || !/^[A-Za-z0-9]{1,40}$/.test(base)) return null;
+  const ref = refPartida(sala, idRonda(base, ronda));
+  return runTransaction(db, async (tx) => {
+    const ya = await tx.get(ref);
+    if (ya.exists()) return { id: ref.id, ...(ya.data() as Omit<Partida, "id">) };
+    const b = await tx.get(refPartida(sala, base));
+    if (!b.exists()) return null;
+    const d = b.data() as Omit<Partida, "id">;
+    const invitados = Object.fromEntries(
+      Object.entries(d.invitados)
+        .filter(([, i]) => i.respuesta === "acepta")
+        .map(([u, i]) => [
+          u,
+          {
+            nombre: i.nombre,
+            rol: i.rol,
+            respuesta: "acepta",
+            listo: true,
+            respondio: i.respondio ?? null,
+            asiento: i.asiento ?? null,
+            ...(i.equipo !== undefined ? { equipo: i.equipo } : {}),
+          },
+        ]),
+    );
+    const nueva = {
+      juego: d.juego,
+      variante: d.variante ?? null,
+      ...(d.nivel ? { nivel: d.nivel } : {}),
+      ...(d.equipos ? { equipos: d.equipos } : {}),
+      anfitrion: d.anfitrion,
+      estado: "jugando",
+      invitados,
+      codigoJuego: codigoJuego && /^[A-Z0-9]{4,8}$/.test(codigoJuego) ? codigoJuego : d.codigoJuego,
+      creada: serverTimestamp(),
+      iniciada: serverTimestamp(),
+      terminada: null,
+      revanchaDe: base,
+      ronda,
+    };
+    tx.set(ref, nueva);
+    return { id: ref.id, ...(nueva as unknown as Omit<Partida, "id">) };
+  });
+}
+
 /** El invitado acepta (como jugador o espectador) o rechaza. */
 export async function responder(sala: string, id: string, uid: string, respuesta: "acepta" | "rechaza", rol: Rol) {
+  latido(sala, uid).catch(() => {}); // quien responde está aquí
   await updateDoc(refPartida(sala, id), {
     [`invitados.${uid}.respuesta`]: respuesta,
     [`invitados.${uid}.rol`]: rol,
@@ -76,6 +130,7 @@ export async function responder(sala: string, id: string, uid: string, respuesta
 }
 
 export async function marcarListo(sala: string, id: string, uid: string, listo: boolean) {
+  latido(sala, uid).catch(() => {}); // quien marca "listo" está aquí
   await updateDoc(refPartida(sala, id), { [`invitados.${uid}.listo`]: listo });
 }
 
@@ -130,6 +185,8 @@ export type Motivo =
 export interface Preparacion {
   puede: boolean;
   motivo: Motivo;
+  /** Todo listo salvo que alguien parece desconectado: quien organiza puede empezar igual. */
+  forzable?: boolean;
 }
 
 /**
@@ -145,13 +202,15 @@ export function preparacion(p: Partida, juego: Juego, conectado: (uid: string) =
   if (n < min) return { puede: false, motivo: { tipo: "faltan", n, min } };
   if (n > max) return { puede: false, motivo: { tipo: "sobran", n, max } };
   const aceptados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta");
-  const ausentes = aceptados.filter(([uid]) => !conectado(uid)).map(([, i]) => i.nombre);
-  if (ausentes.length) return { puede: false, motivo: { tipo: "desconectados", nombres: ausentes } };
   const sinListo = aceptados.filter(([, i]) => !i.listo).map(([, i]) => i.nombre);
   if (sinListo.length) return { puede: false, motivo: { tipo: "esperando", nombres: sinListo } };
   if (usaEquipos(p, juego) && p.equipos?.modo === "manual" && !equiposManualesValidos(p)) {
     return { puede: false, motivo: { tipo: "equipos", mitad: n / 2 } };
   }
+  // Todos marcaron "listo" (así que estuvieron aquí). Si alguien parece desconectado puede ser un
+  // celular que congeló la pestaña o una señal que tarda: se avisa, pero no impide empezar.
+  const ausentes = aceptados.filter(([uid]) => !conectado(uid)).map(([, i]) => i.nombre);
+  if (ausentes.length) return { puede: false, forzable: true, motivo: { tipo: "desconectados", nombres: ausentes } };
   return { puede: true, motivo: { tipo: "listos" } };
 }
 
@@ -225,7 +284,10 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string,
     idioma,
     variante: p.variante ?? "",
     lsala: sala,
-    lpartida: p.id,
+    // Una partida de «Jugar de nuevo» se abre como la original más su número: así la siguiente
+    // revancha sigue la misma serie.
+    lpartida: p.revanchaDe ?? p.id,
+    ...(p.ronda && p.ronda > 1 ? { ronda: String(p.ronda) } : {}),
     volver: `${window.location.origin}/s/${sala}`,
     ...(p.nivel ? { dificultad: p.nivel, solo: "1" } : {}),
   });

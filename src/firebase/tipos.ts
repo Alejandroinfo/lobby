@@ -56,6 +56,9 @@ export interface Partida {
   creada: Timestamp | null;
   iniciada: Timestamp | null;
   terminada: Timestamp | null;
+  /** «Jugar de nuevo» dentro del juego: la partida original y el número de esta (2, 3…). */
+  revanchaDe?: string;
+  ronda?: number;
 }
 
 /** Documento `salas/{codigo}/mensajes/{id}`. */

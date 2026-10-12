@@ -362,16 +362,35 @@ service cloud.firestore {
 
         allow read: if autenticado() && esMiembro();
 
+        // «Jugar de nuevo» dentro del juego: la partida siguiente de una serie (id «original-rN»), ya
+        // en juego. La crea cualquiera de los jugadores que aceptaron la original, con su mismo juego
+        // y organizador.
+        function revanchaValida() {
+          let d = request.resource.data;
+          let base = get(/databases/$(database)/documents/salas/$(codigo)/partidas/$(d.revanchaDe)).data;
+          return d.revanchaDe is string
+            && d.ronda is int && d.ronda >= 2 && d.ronda <= 500
+            && id == d.revanchaDe + '-r' + string(d.ronda)
+            && d.juego == base.juego
+            && d.anfitrion == base.anfitrion
+            && request.auth.uid in base.invitados
+            && base.invitados[request.auth.uid].respuesta == 'acepta'
+            && d.estado == 'jugando';
+        }
+
         allow create: if autenticado() && esMiembro()
           && request.resource.data.keys().hasOnly(['juego', 'variante', 'nivel', 'anfitrion', 'estado', 'invitados',
-                                                   'codigoJuego', 'creada', 'iniciada', 'terminada'])
+                                                   'codigoJuego', 'creada', 'iniciada', 'terminada', 'equipos',
+                                                   'revanchaDe', 'ronda'])
           && (!('nivel' in request.resource.data) || request.resource.data.nivel in ['hard', 'easy'])
-          && request.resource.data.anfitrion == request.auth.uid
-          && request.resource.data.estado == 'invitando'
           && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals']
           && request.auth.uid in request.resource.data.invitados
           && request.resource.data.invitados.size() <= 12
-          && request.resource.data.creada == request.time;
+          && request.resource.data.creada == request.time
+          && (('revanchaDe' in request.resource.data && revanchaValida())
+              || (!('revanchaDe' in request.resource.data)
+                  && request.resource.data.anfitrion == request.auth.uid
+                  && request.resource.data.estado == 'invitando'));
 
         allow update: if autenticado() && esMiembro()
           && (cambioDelCreador() || miRespuesta() || tomoElControl() || terminoConResultado());

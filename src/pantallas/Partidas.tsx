@@ -147,7 +147,8 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
           <ul>
             {recientes.map((p) => (
               <li key={p.id}>
-                {juegoPorId(p.juego)?.nombre ?? p.juego} ·{" "}
+                {juegoPorId(p.juego)?.nombre ?? p.juego}
+                {p.ronda && p.ronda > 1 && <span className="suave"> ({t.partidaNumero(p.ronda)})</span>} ·{" "}
                 {jugadoresAceptados(p)
                   .map(([, i]) => i.nombre)
                   .join(", ")}
@@ -229,6 +230,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         <div>
           <strong>{juego?.nombre ?? p.juego}</strong>
           {variante && <span className="suave"> · {variante}</span>}
+          {p.ronda && p.ronda > 1 && <span className="suave"> · {t.partidaNumero(p.ronda)}</span>}
           {conEquipos && <span className="suave"> · {t.porEquipos}</span>}
         </div>
         <span className={`estado-partida ${p.estado}`}>{jugando ? t.enJuego : t.preparando}</span>
@@ -287,8 +289,8 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         <div className="lanzar">
           <p className={prep.puede ? "listo-texto" : "suave"}>{textoMotivo(prep.motivo, t)}</p>
           <div className="botones">
-            <button className="primario" disabled={!prep.puede} onClick={() => lanzar(sala, p, juego)}>
-              {t.lanzar}
+            <button className="primario" disabled={!prep.puede && !prep.forzable} onClick={() => lanzar(sala, p, juego)}>
+              {prep.forzable ? t.empezarIgual : t.lanzar}
             </button>
             <button className="secundario" onClick={() => cancelar(sala, p.id)}>
               {t.cancelarPartida}

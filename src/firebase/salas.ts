@@ -77,6 +77,7 @@ export async function unirseASala(codigo: string, uid: string, nombre: string, a
   const sala = await getDoc(refSala(codigo));
   if (!sala.exists()) throw new SalaNoExiste(codigo);
   const yaEstaba = Boolean(sala.data().miembros?.[uid]);
+  reloj.enviado = Date.now();
   await updateDoc(refSala(codigo), {
     [`miembros.${uid}.nombre`]: nombre,
     [`miembros.${uid}.ultimaVez`]: serverTimestamp(),
@@ -90,8 +91,16 @@ export async function actualizarAvatarEnSala(codigo: string, uid: string, avatar
   await updateDoc(refSala(codigo), { [`miembros.${uid}.avatar`]: avatar });
 }
 
-/** Marca al jugador como conectado. Se llama periódicamente mientras la sala está abierta. */
+/**
+ * Reloj del servidor visto desde este aparato. `ultimaVez` es hora del servidor, pero "ahora" es
+ * la del aparato: si su reloj va adelantado un par de minutos, todos parecerían desconectados.
+ * Al ver volver mi propio latido se calcula la diferencia y se corrige (ver useSala / useAhora).
+ */
+export const reloj = { enviado: 0, desfase: 0 };
+
+/** Marca al jugador como conectado. Se llama al entrar, al volver a la pestaña y periódicamente. */
 export async function latido(codigo: string, uid: string) {
+  reloj.enviado = Date.now();
   await updateDoc(refSala(codigo), { [`miembros.${uid}.ultimaVez`]: serverTimestamp() });
 }
 
