@@ -33,7 +33,7 @@ export interface Juego {
   /** false si el juego no avisa el resultado solo (quien organiza marca "Terminar partida"). */
   informaResultado?: boolean;
   /** Si el juego tiene retos en solitario con semilla (reto del día y retos entre amigos). */
-  retos?: { variante: string; dificultad: "hard" | "easy" };
+  retos?: { variante: string; dificultad: "hard" | "easy"; puntaje: { es: string; en: string } };
   /** Condecoraciones que el juego puede otorgar (id → icono y nombre). */
   logros?: Record<string, Logro>;
 }
@@ -77,7 +77,14 @@ export const JUEGOS: Juego[] = [
       preguntas: { "habilidad-fuerte": "Did any ability or mission feel too strong or too weak? Which one?" },
     },
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
-    retos: { variante: "special", dificultad: "hard" },
+    retos: {
+      variante: "special",
+      dificultad: "hard",
+      puntaje: {
+        es: "En solitario contra Contrainteligencia (difícil), con mapas especiales. Cuenta el puntaje final.",
+        en: "Solo against Counter-Intel (hard), with special maps. Your final score counts.",
+      },
+    },
     logros: {
       "dossier-completo": { icono: "🗂️", es: "Dossier completo", en: "Full dossier" },
       "primero-en-llegar": { icono: "🥇", es: "Primero en llegar", en: "First on the scene" },
@@ -114,6 +121,14 @@ export const JUEGOS: Juego[] = [
       },
     },
     url: env.VITE_URL_ASTROLABE ?? "https://astrolabebg.vercel.app/",
+    retos: {
+      variante: "corto",
+      dificultad: "hard",
+      puntaje: {
+        es: "Contra el ordenador, viaje corto: mismo mapa, mismo viaje de tu familia y mismas paradas para todos. 100 puntos si la encuentras en tu primer turno y 5 menos por cada turno más (mínimo 10); 0 si el ordenador encuentra a la suya antes.",
+        en: "Against the computer, short trip: same map, same family trip and same stops for everyone. 100 points if you find your family on your first turn, 5 fewer for each extra turn (minimum 10); 0 if the computer finds its family first.",
+      },
+    },
     logros: {
       reencuentro: { icono: "🏠", es: "Reencuentro", en: "Reunion" },
       tocToc: { icono: "🚪", es: "Al primer toc, toc", en: "First knock" },

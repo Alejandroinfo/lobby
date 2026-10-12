@@ -165,6 +165,7 @@ service cloud.firestore {
     }
 
     // Ranking del reto del día en un solo documento (uid → nombre y puntaje): leerlo cuesta 1 lectura.
+    // {fecha} es la fecha (Split Loyalty) o «juego-fecha» (los demás juegos, p. ej. astrolabe-2026-10-12).
     // Cada persona solo escribe o quita su propia fila, y su puntaje debe ser el de su marca.
     match /retosDiarios/{fecha} {
       function filaPropiaValida() {
@@ -179,7 +180,7 @@ service cloud.firestore {
       }
       allow read: if autenticado();
       allow create, update: if autenticado()
-        && fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && fecha.matches('^([a-z-]+-)?[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && request.resource.data.keys().hasOnly(['jugadores'])
         && request.resource.data.jugadores is map
         && filaPropiaValida();
@@ -192,7 +193,7 @@ service cloud.firestore {
       allow read: if autenticado();
       allow create: if autenticado()
         && quien == request.auth.uid
-        && fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && fecha.matches('^([a-z-]+-)?[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && request.resource.data.keys().hasOnly(['nombre', 'puntaje', 'version', 'detalleJson', 'hora', 'sala'])
         && nombreValido(request.resource.data.nombre)
         && request.resource.data.puntaje is number
@@ -271,7 +272,7 @@ service cloud.firestore {
         allow create: if autenticado() && esMiembro()
           && request.resource.data.keys().hasOnly(['juego', 'tipo', 'semilla', 'variante', 'dificultad', 'creador', 'creadorNombre', 'creado'])
           && request.resource.data.tipo == 'directo'
-          && request.resource.data.juego in ['split-loyalty']
+          && request.resource.data.juego in ['split-loyalty', 'astrolabe']
           && request.resource.data.semilla is string
           && request.resource.data.semilla.matches('^[A-Z0-9]{4,12}$')
           && request.resource.data.variante is string && request.resource.data.variante.size() <= 20

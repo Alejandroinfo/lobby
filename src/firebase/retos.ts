@@ -30,10 +30,10 @@ export function diasAntes(fecha: string, n: number): string {
  * Semilla del reto del día. Desde el 12 de octubre de 2026 no es la fecha a la vista, para que
  * no se pueda practicar el reto de mañana escribiendo su código en el modo Solo.
  */
-export function semillaDiaria(fecha: string): string {
-  if (fecha <= "2026-10-11") return "D" + fecha.replace(/-/g, "");
+export function semillaDiaria(fecha: string, juego = "split-loyalty"): string {
+  if (juego === "split-loyalty" && fecha <= "2026-10-11") return "D" + fecha.replace(/-/g, "");
   let h = 0x811c9dc5;
-  for (const c of `split-loyalty|${fecha}|operacion-del-dia`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  for (const c of `${juego}|${fecha}|operacion-del-dia`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
   let s = "";
   for (let i = 0; i < 6; i++) {
     s += LETRAS[h % LETRAS.length];
@@ -42,12 +42,27 @@ export function semillaDiaria(fecha: string): string {
   return "D" + s;
 }
 
+/**
+ * Clave del reto del día de un juego: la fecha para Split Loyalty (el primero, así siguen valiendo
+ * sus marcas) y «juego-fecha» para los demás. Es el id del documento en `retosDiarios`.
+ */
+export function claveDia(juego: string, fecha: string): string {
+  return juego === "split-loyalty" ? fecha : `${juego}-${fecha}`;
+}
+
+/** La fecha de una clave del día de ese juego, o null si la clave es de otro juego. */
+export function fechaDeClave(juego: string, clave: string): string | null {
+  const m = clave.match(/^(?:([a-z-]+)-)?(\d{4}-\d{2}-\d{2})$/);
+  if (!m) return null;
+  return (m[1] ?? "split-loyalty") === juego ? m[2] : null;
+}
+
 export function retoDiario(juego: Juego, fecha = fechaHoy()): Reto {
   return {
-    id: `diario-${fecha}`,
+    id: `diario-${claveDia(juego.id, fecha)}`,
     juego: juego.id,
     tipo: "diario",
-    semilla: semillaDiaria(fecha),
+    semilla: semillaDiaria(fecha, juego.id),
     variante: juego.retos?.variante ?? "",
     dificultad: juego.retos?.dificultad ?? "hard",
     creador: null,
@@ -104,7 +119,7 @@ export function enlaceReto(juego: Juego, sala: string, r: Reto, nombre: string, 
     idioma,
     variante: r.variante,
     lsala: sala,
-    lpartida: `reto:${r.id}`,
+    lpartida: `reto:${r.juego}:${r.id}`,
     volver: `${window.location.origin}/s/${sala}`,
     reto: "1",
     semilla: r.semilla,

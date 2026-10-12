@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, limitToLast, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase/config";
 import type { FilaRanking, Marca, ResumenDia, Reto } from "../firebase/tipos";
-import { diasAntes, filasResumen, rankingDelDia, refResumenDia } from "../firebase/retos";
+import { claveDia, diasAntes, filasResumen, rankingDelDia, refResumenDia } from "../firebase/retos";
 import { useReintento } from "./useSala";
 
 /** Los retos directos más recientes de la sala (los 6 últimos). */
@@ -84,18 +84,18 @@ export interface DiaHistorial {
 }
 
 /** Rankings de los días anteriores (sin hoy): una lectura por día. Se carga al abrir el historial. */
-export function useHistorialRetos(hoy: string, activo: boolean, dias = 13) {
+export function useHistorialRetos(hoy: string, juego: string, activo: boolean, dias = 13) {
   const [datos, setDatos] = useState<DiaHistorial[] | null>(null);
   useEffect(() => {
     if (!activo) return;
     let vivo = true;
     const fechas = Array.from({ length: dias }, (_, i) => diasAntes(hoy, i + 1));
-    Promise.all(fechas.map(async (fecha) => ({ fecha, filas: await rankingDelDia(fecha).catch(() => []) }))).then((d) => {
+    Promise.all(fechas.map(async (fecha) => ({ fecha, filas: await rankingDelDia(claveDia(juego, fecha)).catch(() => []) }))).then((d) => {
       if (vivo) setDatos(d);
     });
     return () => {
       vivo = false;
     };
-  }, [hoy, activo, dias]);
+  }, [hoy, juego, activo, dias]);
   return datos;
 }

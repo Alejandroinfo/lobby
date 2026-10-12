@@ -38,14 +38,17 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
     if (!aviso.resultado || typeof aviso.partida !== "string") return;
     // Reto en solitario: se guarda la marca (solo el primer intento) en vez de un resultado de partida.
     if (aviso.partida.startsWith("reto:")) {
-      const retoId = aviso.partida.slice(5);
-      if (!/^[A-Za-z0-9-]{1,40}$/.test(retoId)) return;
+      // «reto:juego:id» (o «reto:id» de antes, que era siempre Split Loyalty).
+      const resto = aviso.partida.slice(5);
+      const [juegoId, retoId] = resto.includes(":") ? resto.split(":", 2) : ["split-loyalty", resto];
+      if (!/^[A-Za-z0-9-]{1,48}$/.test(retoId)) return;
       const puntaje = Number(aviso.resultado.puntajes?.["0"]);
-      const juego = juegoPorId("split-loyalty");
-      const texto = retoId.startsWith("diario-") ? textos.current.avisoRetoDiario(puntaje) : textos.current.avisoReto(puntaje);
+      const juego = juegoPorId(juegoId);
+      if (!juego?.retos) return;
+      const texto = retoId.startsWith("diario-") ? textos.current.avisoRetoDiario(juego.nombre, puntaje) : textos.current.avisoReto(juego.nombre, puntaje);
       guardarMarca(sala, retoId, uid, nombre, aviso.resultado, texto)
         .then((nueva) => {
-          if (!nueva || !juego) return;
+          if (!nueva) return;
           return Promise.all([
             sumarAlPerfil(uid, {
               juego: juego.id,

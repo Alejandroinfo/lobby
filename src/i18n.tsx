@@ -203,6 +203,8 @@ const es = {
 
   // Retos
   retosTitulo: (juego: string) => `Retos de ${juego}`,
+  retosTituloGeneral: "Retos",
+  comoSePuntua: "Cómo se puntúa",
   crearReto: "Crear un reto",
   retosTexto: "Todos juegan la misma operación en solitario y comparan puntaje. Solo cuenta tu primer intento.",
   errorCrearReto: "No se pudo guardar el reto. Revisa tu conexión e intenta de nuevo.",
@@ -218,8 +220,8 @@ const es = {
   nadieAun: "Nadie lo jugó todavía. ¡Sé el primero!",
   verTodos: (n: number) => `Ver los ${n}`,
   verMenos: "Ver menos",
-  avisoRetoDiario: (p: number) => `🕵️ Jugué el reto del día de Split Loyalty: ${p} puntos.`,
-  avisoReto: (p: number) => `🕵️ Hice ${p} puntos en un reto de Split Loyalty. ¿Me superas?`,
+  avisoRetoDiario: (juego: string, p: number) => `🏆 Jugué el reto del día de ${juego}: ${p} puntos.`,
+  avisoReto: (juego: string, p: number) => `🏆 Hice ${p} puntos en un reto de ${juego}. ¿Me superas?`,
   rankingDe: "Ranking de",
   estaSala: "Esta sala",
   global: "Global",
@@ -563,6 +565,8 @@ const en: Textos = {
 
   // Challenges
   retosTitulo: (juego: string) => `${juego} challenges`,
+  retosTituloGeneral: "Challenges",
+  comoSePuntua: "How it's scored",
   crearReto: "Create a challenge",
   retosTexto: "Everyone plays the same operation solo and compares scores. Only your first try counts.",
   errorCrearReto: "Couldn't save the challenge. Check your connection and try again.",
@@ -578,8 +582,8 @@ const en: Textos = {
   nadieAun: "Nobody has played it yet. Be the first!",
   verTodos: (n: number) => `See all ${n}`,
   verMenos: "See less",
-  avisoRetoDiario: (p: number) => `🕵️ I played today's Split Loyalty challenge: ${p} points.`,
-  avisoReto: (p: number) => `🕵️ I scored ${p} on a Split Loyalty challenge. Can you beat me?`,
+  avisoRetoDiario: (juego: string, p: number) => `🏆 I played today's ${juego} challenge: ${p} points.`,
+  avisoReto: (juego: string, p: number) => `🏆 I scored ${p} on a ${juego} challenge. Can you beat me?`,
   rankingDe: "Ranking for",
   estaSala: "This room",
   global: "Global",

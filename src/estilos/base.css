@@ -422,3 +422,6 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .aviso-social button { padding: 0.3rem 0.65rem; font-size: 0.82rem; }
 .col-izquierda .agregar-amigo .fila { flex-wrap: wrap; }
 .col-izquierda .agregar-amigo input { min-width: 8rem; }
+.selector-juego-reto { margin: 0.6rem 0 0.25rem; }
+.como-se-puntua summary { cursor: pointer; color: var(--acento); }
+.como-se-puntua p { margin-top: 0.25rem; }

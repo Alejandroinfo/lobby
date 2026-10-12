@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import { JUEGOS, type Juego } from "../datos/catalogo";
-import { diasAntes, enlaceReto, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
+import { claveDia, diasAntes, enlaceReto, fechaDeClave, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
 import type { FilaRanking, Reto } from "../firebase/tipos";
 import { useHistorialRetos, useMarcas, useRankingDelDia, useRetos, type DiaHistorial } from "../hooks/useRetos";
 import { useIdioma } from "../i18n";
@@ -36,7 +36,23 @@ interface Props {
 
 export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }: Props) {
   const { t, idioma } = useIdioma();
-  const juego = JUEGOS.find((j) => j.retos && j.url);
+  const conRetos = JUEGOS.filter((j) => j.retos && j.url);
+  const [juegoId, setJuegoId] = useState(() => {
+    try {
+      return localStorage.getItem("lobby_reto_juego") ?? conRetos[0]?.id ?? "";
+    } catch {
+      return conRetos[0]?.id ?? "";
+    }
+  });
+  const juego = conRetos.find((j) => j.id === juegoId) ?? conRetos[0];
+  const elegirJuego = (id: string) => {
+    setJuegoId(id);
+    try {
+      localStorage.setItem("lobby_reto_juego", id);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
   const retos = useRetos(sala, confirmado && Boolean(juego));
   const [error, setError] = useState("");
   const [ambito, setAmbito] = useState<Ambito>("sala");
@@ -46,6 +62,7 @@ export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }:
   const perfilListo = retosPropios !== undefined;
   useEffect(() => {
     if (!confirmado || !perfilListo) return;
+    // (Solo Split Loyalty tuvo marcas guardadas con versiones anteriores.)
     for (const f of [fecha, diasAntes(fecha, 1)]) ponerAlDiaMarcaDiaria(sala, f, uid, retosPropios).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmado, perfilListo, sala, fecha, uid]);
@@ -67,16 +84,36 @@ export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }:
     });
   };
 
+  // Tus marcas del reto del día de este juego, por fecha.
+  const propias: Record<string, number> = {};
+  for (const [clave, p] of Object.entries(retosPropios ?? {})) {
+    const f = fechaDeClave(juego.id, clave);
+    if (f) propias[f] = p;
+  }
+
   return (
     <section className="panel retos" aria-labelledby="t-retos">
       <div className="retos-cabeza">
-        <h2 id="t-retos">{t.retosTitulo(juego.nombre)}</h2>
+        <h2 id="t-retos">{conRetos.length > 1 ? t.retosTituloGeneral : t.retosTitulo(juego.nombre)}</h2>
         <button className="secundario" onClick={crear}>{t.crearReto}</button>
       </div>
+      {conRetos.length > 1 && (
+        <div className="segmentado selector-juego-reto" role="radiogroup" aria-label={t.juego}>
+          {conRetos.map((j) => (
+            <button key={j.id} role="radio" aria-checked={j.id === juego.id} onClick={() => elegirJuego(j.id)}>
+              {j.nombre}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="suave chico-texto">{t.retosTexto}</p>
+      <details className="como-se-puntua">
+        <summary className="chico-texto">{t.comoSePuntua}</summary>
+        <p className="suave chico-texto">{idioma === "en" ? juego.retos!.puntaje.en : juego.retos!.puntaje.es}</p>
+      </details>
       {error && <p className="error">{error}</p>}
       <ul className="lista-retos">
-        <TarjetaDiaria sala={sala} uid={uid} nombre={nombre} juego={juego} reto={diario} miembros={miembros} confirmado={confirmado} ambito={ambito} setAmbito={setAmbito} />
+        <TarjetaDiaria key={diario.id} sala={sala} uid={uid} nombre={nombre} juego={juego} reto={diario} miembros={miembros} confirmado={confirmado} ambito={ambito} setAmbito={setAmbito} />
         {directos.map((r) => (
           <TarjetaReto
             key={r.id}
@@ -90,7 +127,7 @@ export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }:
           />
         ))}
       </ul>
-      <Historial hoy={fecha} uid={uid} miembros={miembros} ambito={ambito} setAmbito={setAmbito} confirmado={confirmado} retosPropios={retosPropios ?? {}} />
+      <Historial key={juego.id} hoy={fecha} juego={juego.id} uid={uid} miembros={miembros} ambito={ambito} setAmbito={setAmbito} confirmado={confirmado} retosPropios={propias} />
     </section>
   );
 }
@@ -240,12 +277,12 @@ function racha(propias: Record<string, number>, hoy: string, jugadoHoy: boolean)
   return n;
 }
 
-function Historial(props: { hoy: string; uid: string; miembros: string[]; ambito: Ambito; setAmbito: (a: Ambito) => void; confirmado: boolean; retosPropios: Record<string, number> }) {
-  const { hoy, uid, miembros, ambito, setAmbito, confirmado, retosPropios } = props;
+function Historial(props: { hoy: string; juego: string; uid: string; miembros: string[]; ambito: Ambito; setAmbito: (a: Ambito) => void; confirmado: boolean; retosPropios: Record<string, number> }) {
+  const { hoy, juego, uid, miembros, ambito, setAmbito, confirmado, retosPropios } = props;
   const { t, idioma } = useIdioma();
   const [abierto, setAbierto] = useState(false);
-  const deHoy = useRankingDelDia(hoy, confirmado && abierto);
-  const anteriores = useHistorialRetos(hoy, confirmado && abierto);
+  const deHoy = useRankingDelDia(claveDia(juego, hoy), confirmado && abierto);
+  const anteriores = useHistorialRetos(hoy, juego, confirmado && abierto);
 
   const formato = (f: string) => {
     const [a, m, d] = f.split("-").map(Number);
