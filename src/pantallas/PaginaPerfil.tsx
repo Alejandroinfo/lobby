@@ -11,7 +11,7 @@ import type { Usuario } from "../hooks/useUsuario";
 import { SelectorIdioma, useIdioma } from "../i18n";
 import { irA } from "../navegacion";
 import { Carrera } from "./Carrera";
-import { Cuenta } from "./Perfil";
+import { CompletarEnlace, Cuenta } from "./Perfil";
 import { Privacidad } from "./Privacidad";
 
 const ADMIN = "alejandro.armasb@gmail.com";
@@ -70,6 +70,8 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
           <button className="secundario" onClick={() => irA({ pantalla: "inicio" })}>{t.volverInicio}</button>
         </div>
       </header>
+
+      <CompletarEnlace />
 
       {eligiendo && (
         <section className="tarjeta elegir-avatar" aria-label={t.cambiarAvatar}>

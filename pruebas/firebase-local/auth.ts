@@ -60,10 +60,44 @@ export const signInWithCredential = linkWithPopup;
 
 export const EmailAuthProvider = {
   credential: (correo: string, clave: string) => ({ correo: correo.trim().toLowerCase(), clave }),
+  credentialWithLink: (correo: string, enlace: string) => ({ correo: correo.trim().toLowerCase(), clave: "", enlace }),
 };
-export async function linkWithCredential(u: Usuario, cred: { correo: string; clave: string }) {
+// Acceso con enlace: el "correo" se simula guardando el último enlace en localStorage.
+export async function sendSignInLinkToEmail(_auth: unknown, correo: string, ajustes: { url: string }) {
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo.trim())) throw error("auth/invalid-email");
+  const u = new URL(ajustes.url);
+  u.searchParams.set("mode", "signIn");
+  u.searchParams.set("oobCode", "local-" + correo.trim().toLowerCase());
+  localStorage.setItem("local_ultimo_enlace", u.toString());
+}
+export const isSignInWithEmailLink = (_auth: unknown, enlace: string) => new URL(enlace).searchParams.get("mode") === "signIn";
+function correoDelEnlace(enlace: string) {
+  return (new URL(enlace).searchParams.get("oobCode") ?? "").replace(/^local-/, "");
+}
+export async function signInWithEmailLink(_auth: unknown, correo: string, enlace: string) {
+  if (correoDelEnlace(enlace) !== correo.trim().toLowerCase()) throw error("auth/invalid-email");
+  const cuentas = leerCuentas();
+  const c = cuentas[correo.trim().toLowerCase()];
+  if (c) sessionStorage.setItem("local_uid", c.uid);
+  else {
+    sessionStorage.removeItem("local_uid");
+    cuentas[correo.trim().toLowerCase()] = { clave: "", uid: usuario().uid };
+    localStorage.setItem(CUENTAS, JSON.stringify(cuentas));
+  }
+  avisar();
+  return { user: usuario() };
+}
+export async function linkWithCredential(u: Usuario, cred: { correo: string; clave: string; enlace?: string }) {
   const cuentas = leerCuentas();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cred.correo)) throw error("auth/invalid-email");
+  if (cred.enlace) {
+    if (correoDelEnlace(cred.enlace) !== cred.correo) throw error("auth/invalid-email");
+    if (cuentas[cred.correo]) throw error("auth/email-already-in-use");
+    cuentas[cred.correo] = { clave: "", uid: u.uid };
+    localStorage.setItem(CUENTAS, JSON.stringify(cuentas));
+    avisar();
+    return { user: usuario() };
+  }
   if (cred.clave.length < 6) throw error("auth/weak-password");
   if (cuentas[cred.correo]) throw error("auth/email-already-in-use");
   cuentas[cred.correo] = { clave: cred.clave, uid: u.uid };

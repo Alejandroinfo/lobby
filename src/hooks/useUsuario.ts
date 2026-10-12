@@ -13,6 +13,9 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   deleteUser,
+  isSignInWithEmailLink,
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
   onIdTokenChanged,
   signInAnonymously,
   signInWithCredential,
@@ -120,4 +123,62 @@ export async function olvidarEsteDispositivo(): Promise<void> {
   }
   if (actual) await deleteUser(actual).catch(() => signOut(auth));
   else await signOut(auth);
+}
+
+// ── Acceso con enlace por correo (sin contraseña) ──────────────────────────────
+
+const CLAVE_CORREO_ENLACE = "lobby_correo_enlace";
+
+/** Manda un enlace de acceso al correo. Al abrirlo se entra (o se crea la cuenta) sin contraseña. */
+export async function enviarEnlaceDeAcceso(correo: string): Promise<void> {
+  const limpio = correo.trim();
+  await sendSignInLinkToEmail(auth, limpio, { url: `${window.location.origin}/perfil`, handleCodeInApp: true });
+  try {
+    localStorage.setItem(CLAVE_CORREO_ENLACE, limpio);
+  } catch {
+    /* sin almacenamiento: al abrir el enlace se pedirá el correo */
+  }
+}
+
+/** ¿La página se abrió desde un enlace de acceso? */
+export function esEnlaceDeAcceso(): boolean {
+  return isSignInWithEmailLink(auth, window.location.href);
+}
+
+/** El correo al que se mandó el enlace, si fue desde este mismo navegador. */
+export function correoDelEnlace(): string | null {
+  try {
+    return localStorage.getItem(CLAVE_CORREO_ENLACE);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Completa el acceso con el enlace. Si la sesión actual es de invitado, la convierte en cuenta
+ * (mismo uid: se conserva lo jugado); si ese correo ya tenía cuenta, entra en ella.
+ */
+export async function completarEnlaceDeAcceso(correo: string): Promise<void> {
+  const enlace = window.location.href;
+  const actual = auth.currentUser;
+  if (actual?.isAnonymous) {
+    try {
+      await linkWithCredential(actual, EmailAuthProvider.credentialWithLink(correo.trim(), enlace));
+      await actual.reload();
+      await actual.getIdToken(true);
+    } catch (e) {
+      const codigo = (e as { code?: string }).code;
+      if (codigo !== "auth/email-already-in-use" && codigo !== "auth/credential-already-in-use" && codigo !== "auth/provider-already-linked") throw e;
+      await signInWithEmailLink(auth, correo.trim(), enlace);
+    }
+  } else {
+    await signInWithEmailLink(auth, correo.trim(), enlace);
+  }
+  // El enlace sirve una sola vez: ya usado, se quita de la barra de direcciones.
+  window.history.replaceState(null, "", window.location.pathname);
+  try {
+    localStorage.removeItem(CLAVE_CORREO_ENLACE);
+  } catch {
+    /* nada */
+  }
 }
