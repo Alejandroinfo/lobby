@@ -28,6 +28,7 @@ function mensajeError(e: unknown, t: Textos): string {
   if (codigo === "auth/too-many-requests") return t.errDemasiados;
   if (codigo === "auth/network-request-failed") return t.errRed;
   if (codigo === "auth/operation-not-allowed") return t.errNoHabilitado;
+  if (codigo === "auth/quota-exceeded") return t.errCupoEnlaces;
   if (codigo === "auth/invalid-action-code" || codigo === "auth/expired-action-code") return t.errEnlaceVencido;
   if (codigo === "auth/unauthorized-continue-uri" || codigo === "auth/unauthorized-domain") return t.errDominio;
   return t.errCuenta;
