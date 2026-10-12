@@ -1,8 +1,8 @@
 /** Perfil personal: avatar e historial de partidas y retos (`jugadores/{uid}` y su historial). */
-import { collection, deleteDoc, doc, getDoc, getDocs, limitToLast, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "./config";
-import type { Avatar, EntradaHistorial, Ficha, Perfil, TipoJugador } from "./tipos";
+import type { Avatar, Carrera, EntradaHistorial, EstadisticaGuardada, Ficha, Perfil, RivalGuardado, TipoJugador } from "./tipos";
 
 export const EMOJIS = ["🕵️", "🚀", "🦊", "🐙", "🦉", "🐉", "🌙", "⭐", "🎲", "🃏", "🧭", "🔭", "🎩", "🐺", "🦜", "🍀"];
 export const COLORES = ["#2f6b4f", "#3a6ea5", "#7d5ba6", "#c9648f", "#d97a3e", "#b8801f", "#4c9a6a", "#5f6268"];
@@ -94,7 +94,7 @@ export async function guardarPreferencias(uid: string, cambios: { fichaVisible?:
 // ── Tus datos: descargar y borrar ──────────────────────────────────────────────
 
 /** Fechas en las que pudiste jugar el reto del día: las de tu historial y los últimos días. */
-function fechasDeRetos(historial: EntradaHistorial[], ultimos = 14): string[] {
+function fechasDeRetos(historial: EntradaHistorial[], ultimos = 14, delPerfil: string[] = []): string[] {
   const hoy = new Date();
   const z = (n: number) => String(n).padStart(2, "0");
   const recientes = Array.from({ length: ultimos }, (_, i) => {
@@ -102,7 +102,7 @@ function fechasDeRetos(historial: EntradaHistorial[], ultimos = 14): string[] {
     return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
   });
   const delHistorial = historial.filter((e) => e.id.startsWith("reto-diario-")).map((e) => e.id.slice(12));
-  return [...new Set([...delHistorial, ...recientes])];
+  return [...new Set([...delPerfil, ...delHistorial, ...recientes])];
 }
 
 /** Todo lo que el lobby guarda asociado a tu cuenta y que puedes leer, en un objeto. */
@@ -111,7 +111,7 @@ export async function exportarMisDatos(uid: string) {
   const ficha = await getDoc(doc(db, "perfiles", uid)).catch(() => null);
   const historial = await leerHistorial(uid, 10_000);
   const marcas = (
-    await Promise.all(fechasDeRetos(historial).map(async (f) => {
+    await Promise.all(fechasDeRetos(historial, 14, Object.keys((perfil.data() as Perfil | undefined)?.retosDiarios ?? {})).map(async (f) => {
       const m = await getDoc(doc(db, "retosDiarios", f, "marcas", uid)).catch(() => null);
       return m?.exists() ? { fecha: f, ...m.data() } : null;
     }))
@@ -134,9 +134,107 @@ export async function exportarMisDatos(uid: string) {
  */
 export async function borrarMisDatos(uid: string) {
   const historial = await leerHistorial(uid, 10_000);
-  await Promise.all(fechasDeRetos(historial).map((f) => deleteDoc(doc(db, "retosDiarios", f, "marcas", uid)).catch(() => {})));
+  const perfil = (await getDoc(doc(db, "jugadores", uid))).data() as Perfil | undefined;
+  const fechas = fechasDeRetos(historial, 14, Object.keys(perfil?.retosDiarios ?? {}));
+  await Promise.all(fechas.map((f) => deleteDoc(doc(db, "retosDiarios", f, "marcas", uid)).catch(() => {})));
+  // y tu fila en el ranking de cada día
+  await Promise.all(fechas.map((f) => setDoc(doc(db, "retosDiarios", f), { jugadores: { [uid]: deleteField() } }, { merge: true }).catch(() => {})));
   await Promise.all(historial.map((e) => deleteDoc(doc(db, "jugadores", uid, "historial", e.id)).catch(() => {})));
   await deleteDoc(doc(db, "perfiles", uid)).catch(() => {});
   await deleteDoc(doc(db, "jugadores", uid));
   ultimaFicha = "";
+}
+
+// ── Totales del perfil: se suman al terminar (una transacción, sin releer el historial) ──
+
+const VACIA: EstadisticaGuardada = { partidas: 0, victorias: 0, empates: 0, mejor: null, retos: 0, mejorReto: null, sumaReto: 0 };
+
+export interface FinDePartida {
+  juego: string;
+  tipo: "partida" | "reto";
+  gano: boolean;
+  empate: boolean;
+  puntaje: number | null;
+  logros: string[];
+  jugadores: { uid: string; nombre: string; gano: boolean }[];
+  /** Reto del día: su fecha ("AAAA-MM-DD"). */
+  fechaReto?: string;
+}
+
+/** Aplica una partida o reto terminado a los totales (carrera, estadísticas, rivales, retos del día). */
+export function aplicarFin(p: Perfil, uid: string, f: FinDePartida) {
+  const carrera: Carrera = { ...(p.carrera ?? {}) };
+  carrera.partidas = (carrera.partidas ?? 0) + 1;
+  if (f.gano) carrera.victorias = (carrera.victorias ?? 0) + 1;
+  if (f.tipo === "reto") carrera.retos = (carrera.retos ?? 0) + 1;
+  if (f.logros.length) {
+    carrera.logros = { ...(carrera.logros ?? {}) };
+    for (const id of f.logros) carrera.logros[`${f.juego}:${id}`] = (carrera.logros[`${f.juego}:${id}`] ?? 0) + 1;
+  }
+  const estadisticas = { ...(p.estadisticas ?? {}) };
+  const e = { ...VACIA, ...(estadisticas[f.juego] ?? {}) };
+  if (f.tipo === "reto") {
+    e.retos++;
+    if (f.puntaje !== null) {
+      e.sumaReto += f.puntaje;
+      e.mejorReto = Math.max(e.mejorReto ?? -Infinity, f.puntaje);
+    }
+  } else {
+    e.partidas++;
+    if (f.gano) e.victorias++;
+    if (f.empate) e.empates++;
+    if (f.puntaje !== null) e.mejor = Math.max(e.mejor ?? -Infinity, f.puntaje);
+  }
+  estadisticas[f.juego] = e;
+  const rivales = { ...(p.rivales ?? {}) };
+  for (const j of f.jugadores) {
+    if (j.uid === uid) continue;
+    const r: RivalGuardado = { ...{ n: j.nombre, partidas: 0, ganadas: 0, perdidas: 0, juntos: 0 }, ...(rivales[j.uid] ?? {}), n: j.nombre };
+    r.partidas++;
+    if (f.gano && !j.gano) r.ganadas++;
+    else if (j.gano && !f.gano) r.perdidas++;
+    else if (j.gano && f.gano) r.juntos++;
+    rivales[j.uid] = r;
+  }
+  const cambios: Partial<Perfil> = { carrera, estadisticas, rivales };
+  if (f.fechaReto && f.puntaje !== null) cambios.retosDiarios = { ...(p.retosDiarios ?? {}), [f.fechaReto]: f.puntaje };
+  return cambios;
+}
+
+export async function sumarAlPerfil(uid: string, f: FinDePartida) {
+  const ref = doc(db, "jugadores", uid);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const p = (snap.exists() ? snap.data() : {}) as Perfil;
+    tx.set(ref, aplicarFin(p, uid, f), { merge: true });
+  });
+}
+
+/**
+ * Perfiles creados antes de los totales: se calculan una vez desde el historial (y las marcas del
+ * reto del día que haya) y se guardan. Después ya no se relee el historial.
+ */
+export async function completarTotales(uid: string, p: Perfil) {
+  if (p.estadisticas) return;
+  const historial = await leerHistorial(uid, 300);
+  let base: Perfil = { nombre: p.nombre, carrera: p.carrera };
+  for (const h of [...historial].reverse()) {
+    const fin: FinDePartida = {
+      juego: h.juego,
+      tipo: h.tipo,
+      gano: h.gano,
+      empate: h.empate,
+      puntaje: h.puntaje,
+      logros: [],
+      jugadores: h.jugadores,
+      fechaReto: h.id.startsWith("reto-diario-") ? h.id.slice(12) : undefined,
+    };
+    const c = aplicarFin(base, uid, fin);
+    base = { ...base, ...c, carrera: p.carrera }; // la carrera ya estaba sumada: no se toca
+  }
+  await setDoc(
+    doc(db, "jugadores", uid),
+    { estadisticas: base.estadisticas ?? {}, rivales: base.rivales ?? {}, retosDiarios: { ...(base.retosDiarios ?? {}), ...(p.retosDiarios ?? {}) } },
+    { merge: true },
+  );
 }

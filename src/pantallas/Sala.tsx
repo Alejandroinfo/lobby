@@ -4,7 +4,7 @@ import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { actualizarAvatarEnSala, enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
 import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
-import type { Avatar, Mensaje, Sala as TSala } from "../firebase/tipos";
+import type { Avatar, Mensaje, Perfil as TPerfil, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
 import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
@@ -23,10 +23,11 @@ interface Props {
   uid: string;
   nombre: string;
   setNombre: (n: string) => void;
-  avatar?: Avatar;
+  perfil: TPerfil | null | undefined;
 }
 
-export function Sala({ codigo, uid, nombre, setNombre, avatar }: Props) {
+export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
+  const avatar = perfil?.avatar;
   const { t } = useIdioma();
   const { sala, estado, soyMiembro, confirmado } = useSala(codigo, uid);
   const [errorUnirse, setErrorUnirse] = useState("");
@@ -88,10 +89,11 @@ export function Sala({ codigo, uid, nombre, setNombre, avatar }: Props) {
     );
   }
 
-  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} avatar={avatar ?? avatarPorDefecto(uid)} />;
+  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} avatar={avatar ?? avatarPorDefecto(uid)} perfil={perfil} />;
 }
 
-function VistaSala({ sala, uid, nombre, confirmado, avatar }: { sala: TSala; uid: string; nombre: string; confirmado: boolean; avatar: Avatar }) {
+function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado: boolean; avatar: Avatar; perfil: TPerfil | null | undefined }) {
+  const { sala, uid, nombre, confirmado, avatar, perfil } = props;
   const { t } = useIdioma();
   // Si cambiaste de avatar (o la sala aún no lo tiene), se actualiza tu entrada.
   const enSala = sala.miembros?.[uid]?.avatar;
@@ -166,10 +168,10 @@ function VistaSala({ sala, uid, nombre, confirmado, avatar }: { sala: TSala; uid
       <EncuestaPendiente sala={sala.codigo} uid={uid} partidas={partidas} />
 
       <div className="rejilla">
-        <Miembros sala={sala} uid={uid} />
+        <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} />
         <div className="centro-sala">
           <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
-          <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} />
+          <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} retosPropios={perfil === undefined ? undefined : (perfil?.retosDiarios ?? {})} />
           <Catalogo sala={sala} uid={uid} />
         </div>
         <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} miembros={sala.miembros ?? {}} />
@@ -178,7 +180,7 @@ function VistaSala({ sala, uid, nombre, confirmado, avatar }: { sala: TSala; uid
   );
 }
 
-function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
+function Miembros({ sala, uid, rivales }: { sala: TSala; uid: string; rivales: TPerfil["rivales"] }) {
   const { t } = useIdioma();
   const ahora = useAhora();
   const lista = Object.entries(sala.miembros ?? {})
@@ -215,7 +217,7 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
           </li>
         ))}
       </ul>
-      {ficha && <FichaJugador uid={ficha.uid} yo={uid} nombre={ficha.nombre} alCerrar={() => setFicha(null)} />}
+      {ficha && <FichaJugador uid={ficha.uid} nombre={ficha.nombre} record={rivales?.[ficha.uid] ?? null} alCerrar={() => setFicha(null)} />}
     </section>
   );
 }

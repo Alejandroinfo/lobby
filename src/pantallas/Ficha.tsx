@@ -4,40 +4,33 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { logroPorClave } from "../datos/catalogo";
-import { caraACara } from "../datos/perfil";
-import { avatarPorDefecto, leerFicha, leerHistorial } from "../firebase/perfil";
-import type { Ficha as TFicha } from "../firebase/tipos";
+import { avatarPorDefecto, leerFicha } from "../firebase/perfil";
+import type { Ficha as TFicha, RivalGuardado } from "../firebase/tipos";
 import { useIdioma } from "../i18n";
 import { rangoDe } from "./Carrera";
 import { AvatarCirculo } from "./PaginaPerfil";
 
 interface Props {
   uid: string; // de quien es la ficha
-  yo: string;
   nombre: string;
+  /** Tu récord contra esa persona (de tu perfil: no cuesta lecturas). */
+  record: RivalGuardado | null;
   alCerrar: () => void;
 }
 
-export function FichaJugador({ uid, yo, nombre, alCerrar }: Props) {
+export function FichaJugador({ uid, nombre, record, alCerrar }: Props) {
   const { t, idioma } = useIdioma();
   const [ficha, setFicha] = useState<TFicha | null | undefined>(undefined);
-  const [record, setRecord] = useState<{ partidas: number; ganadas: number; perdidas: number } | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     dialogo.current?.showModal();
     let vivo = true;
     leerFicha(uid).then((f) => vivo && setFicha(f));
-    leerHistorial(yo)
-      .then((h) => {
-        const r = caraACara(h, yo).find((x) => x.uid === uid);
-        if (vivo) setRecord(r ? { partidas: r.partidas, ganadas: r.ganadas, perdidas: r.perdidas } : { partidas: 0, ganadas: 0, perdidas: 0 });
-      })
-      .catch(() => vivo && setRecord(null));
     return () => {
       vivo = false;
     };
-  }, [uid, yo]);
+  }, [uid]);
 
   const total = ficha?.partidas ?? 0;
   const logros = Object.entries(ficha?.logros ?? {})
@@ -75,9 +68,7 @@ export function FichaJugador({ uid, yo, nombre, alCerrar }: Props) {
       )}
 
       <h3>{t.contraTi}</h3>
-      {record === null ? (
-        <p className="suave chico-texto">{t.cargando}</p>
-      ) : record.partidas === 0 ? (
+      {!record || record.partidas === 0 ? (
         <p className="suave chico-texto">{t.aunNoJugaron}</p>
       ) : (
         <p>

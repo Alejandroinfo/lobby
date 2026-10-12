@@ -119,7 +119,7 @@ export async function addDoc(c: Coleccion, d: Datos) {
 }
 
 export async function runTransaction<T>(_db: unknown, fn: (tx: any) => Promise<T>): Promise<T> {
-  return fn({ get: async (r: Ref) => snap(r), set: (r: Ref, d: Datos) => escribir(r, d, false) });
+  return fn({ get: async (r: Ref) => snap(r), set: (r: Ref, d: Datos, o?: { merge?: boolean }) => escribir(r, d, Boolean(o?.merge)) });
 }
 
 function resultado(q: Consulta) {

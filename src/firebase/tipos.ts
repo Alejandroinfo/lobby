@@ -107,6 +107,43 @@ export interface Perfil {
   fichaVisible?: boolean;
   /** Pregunta opcional para el playtest: qué tipo de jugador eres. */
   tipoJugador?: TipoJugador;
+  /** Totales por juego (se suman al terminar cada partida o reto; así el perfil no relee el historial). */
+  estadisticas?: Record<string, EstadisticaGuardada>;
+  /** Récord contra cada persona con la que jugaste (uid → totales). */
+  rivales?: Record<string, RivalGuardado>;
+  /** Tus marcas del reto del día (fecha → puntaje): racha, mejor marca y promedio sin lecturas extra. */
+  retosDiarios?: Record<string, number>;
+}
+
+export interface EstadisticaGuardada {
+  partidas: number;
+  victorias: number;
+  empates: number;
+  mejor: number | null;
+  retos: number;
+  mejorReto: number | null;
+  sumaReto: number;
+}
+
+export interface RivalGuardado {
+  /** Su nombre la última vez que jugaron. */
+  n: string;
+  partidas: number;
+  ganadas: number;
+  perdidas: number;
+  juntos: number;
+}
+
+/** Documento `retosDiarios/{fecha}`: el ranking del día en un solo documento (uid → nombre y puntaje). */
+export interface ResumenDia {
+  jugadores?: Record<string, { n: string; p: number }>;
+}
+
+/** Una fila de ranking. */
+export interface FilaRanking {
+  uid: string;
+  nombre: string;
+  puntaje: number;
 }
 
 export type TipoJugador = "estratega" | "social" | "competitivo" | "casual" | "no-dice";

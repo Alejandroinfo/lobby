@@ -1,5 +1,5 @@
 /** Cálculos de la página de perfil a partir de tu historial. */
-import type { EntradaHistorial } from "../firebase/tipos";
+import type { EntradaHistorial, EstadisticaGuardada, RivalGuardado } from "../firebase/tipos";
 
 export interface EstadisticaJuego {
   juego: string;
@@ -76,6 +76,43 @@ export function resumenGeneral(historial: EntradaHistorial[]) {
     victorias,
     porcentaje: partidas.length ? Math.round((victorias / partidas.length) * 100) : null,
     retos: historial.length - partidas.length,
+    favorito: juegos[0]?.juego ?? null,
+  };
+}
+
+// ── Desde los totales guardados en el perfil (sin leer el historial) ──
+
+export function porJuegoGuardado(est: Record<string, EstadisticaGuardada> | undefined): EstadisticaJuego[] {
+  return Object.entries(est ?? {})
+    .map(([juego, e]) => ({
+      juego,
+      partidas: e.partidas,
+      victorias: e.victorias,
+      empates: e.empates,
+      mejorPuntaje: e.mejor,
+      retos: e.retos,
+      mejorReto: e.mejorReto,
+      mediaReto: e.retos ? Math.round(e.sumaReto / e.retos) : null,
+      ultima: 0,
+    }))
+    .sort((a, b) => b.partidas + b.retos - (a.partidas + a.retos));
+}
+
+export function rivalesGuardados(r: Record<string, RivalGuardado> | undefined): Rival[] {
+  return Object.entries(r ?? {})
+    .map(([uid, x]) => ({ uid, nombre: x.n, partidas: x.partidas, ganadas: x.ganadas, perdidas: x.perdidas, juntos: x.juntos }))
+    .sort((a, b) => b.partidas - a.partidas || b.ganadas - a.ganadas);
+}
+
+export function resumenGuardado(est: Record<string, EstadisticaGuardada> | undefined) {
+  const juegos = porJuegoGuardado(est);
+  const partidas = juegos.reduce((a, j) => a + j.partidas, 0);
+  const victorias = juegos.reduce((a, j) => a + j.victorias, 0);
+  return {
+    partidas,
+    victorias,
+    porcentaje: partidas ? Math.round((victorias / partidas) * 100) : null,
+    retos: juegos.reduce((a, j) => a + j.retos, 0),
     favorito: juegos[0]?.juego ?? null,
   };
 }

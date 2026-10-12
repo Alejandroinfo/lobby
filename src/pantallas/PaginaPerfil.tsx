@@ -1,11 +1,12 @@
 /**
  * Página de perfil (`/perfil`): avatar, cuenta, rango y condecoraciones, estadísticas por juego,
- * récord cara a cara y tus últimas partidas. Todo sale de tu historial en Firestore.
+ * récord cara a cara y tus últimas partidas. Los totales vienen de tu perfil (ya cargado); del
+ * historial solo se leen las últimas 15 partidas.
  */
 import { useEffect, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
-import { caraACara, porJuego, resumenGeneral } from "../datos/perfil";
-import { avatarPorDefecto, COLORES, EMOJIS, guardarAvatar, leerHistorial } from "../firebase/perfil";
+import { porJuegoGuardado, resumenGuardado, rivalesGuardados } from "../datos/perfil";
+import { avatarPorDefecto, COLORES, completarTotales, EMOJIS, guardarAvatar, leerHistorial } from "../firebase/perfil";
 import type { Avatar, EntradaHistorial, Perfil as TPerfil } from "../firebase/tipos";
 import type { Usuario } from "../hooks/useUsuario";
 import { SelectorIdioma, useIdioma } from "../i18n";
@@ -39,13 +40,20 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
   useEffect(() => {
     let vivo = true;
     setHistorial(null);
-    leerHistorial(usuario.uid)
+    leerHistorial(usuario.uid, 15)
       .then((h) => vivo && setHistorial(h))
       .catch(() => vivo && setHistorial([]));
     return () => {
       vivo = false;
     };
   }, [usuario.uid]);
+
+  // Perfiles de antes de los totales: se calculan una vez desde el historial.
+  const sinTotales = perfil !== undefined && perfil !== null && !perfil.estadisticas;
+  useEffect(() => {
+    if (sinTotales && perfil) completarTotales(usuario.uid, perfil).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sinTotales, usuario.uid]);
 
   const cambiar = (a: Avatar) => guardarAvatar(usuario.uid, a).catch(() => {});
   const nombreJuego = (id: string) => juegoPorId(id)?.nombre ?? id;
@@ -115,7 +123,7 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
               <p className="suave">{t.historialVacio}</p>
             </section>
           ) : (
-            <Estadisticas historial={historial} uid={usuario.uid} nombreJuego={nombreJuego} fecha={fecha} />
+            <Estadisticas historial={historial} perfil={perfil ?? null} uid={usuario.uid} nombreJuego={nombreJuego} fecha={fecha} />
           )}
         </div>
       </div>
@@ -123,12 +131,13 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
   );
 }
 
-function Estadisticas({ historial, uid, nombreJuego, fecha }: { historial: EntradaHistorial[]; uid: string; nombreJuego: (id: string) => string; fecha: (e: EntradaHistorial) => string }) {
+function Estadisticas(props: { historial: EntradaHistorial[]; perfil: TPerfil | null; uid: string; nombreJuego: (id: string) => string; fecha: (e: EntradaHistorial) => string }) {
+  const { historial, perfil, uid, nombreJuego, fecha } = props;
   const { t } = useIdioma();
-  const r = resumenGeneral(historial);
-  const juegos = porJuego(historial);
-  const rivales = caraACara(historial, uid).slice(0, 8);
-  const recientes = historial.slice(0, 15);
+  const r = resumenGuardado(perfil?.estadisticas);
+  const juegos = porJuegoGuardado(perfil?.estadisticas);
+  const rivales = rivalesGuardados(perfil?.rivales).slice(0, 8);
+  const recientes = historial;
 
   return (
     <>

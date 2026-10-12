@@ -7,9 +7,9 @@
  */
 import { useEffect, useState } from "react";
 import { JUEGOS, type Juego } from "../datos/catalogo";
-import { diasAntes, enlaceReto, fechaHoy, guardarReto, migrarMarcaDiaria, nuevoReto, retoDiario } from "../firebase/retos";
-import type { Marca, Reto } from "../firebase/tipos";
-import { useHistorialRetos, useMarcas, useMarcasDelDia, useRetos, type DiaHistorial } from "../hooks/useRetos";
+import { diasAntes, enlaceReto, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
+import type { FilaRanking, Reto } from "../firebase/tipos";
+import { useHistorialRetos, useMarcas, useRankingDelDia, useRetos, type DiaHistorial } from "../hooks/useRetos";
 import { useIdioma } from "../i18n";
 
 const MOSTRAR = 5;
@@ -30,9 +30,11 @@ interface Props {
   nombre: string;
   miembros: string[];
   confirmado: boolean;
+  /** Tus marcas del reto del día (del perfil): racha, mejor y promedio sin lecturas extra. */
+  retosPropios: Record<string, number> | undefined;
 }
 
-export function Retos({ sala, uid, nombre, miembros, confirmado }: Props) {
+export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }: Props) {
   const { t, idioma } = useIdioma();
   const juego = JUEGOS.find((j) => j.retos && j.url);
   const retos = useRetos(sala, confirmado && Boolean(juego));
@@ -40,10 +42,13 @@ export function Retos({ sala, uid, nombre, miembros, confirmado }: Props) {
   const [ambito, setAmbito] = useState<Ambito>("sala");
   const fecha = fechaHoy();
 
-  // Marca de hoy guardada con la versión anterior (dentro de la sala): pasa al ranking global.
+  // Marcas de hoy y ayer guardadas con versiones anteriores: se ponen al día (una vez por sala abierta).
+  const perfilListo = retosPropios !== undefined;
   useEffect(() => {
-    if (confirmado) migrarMarcaDiaria(sala, fecha, uid).catch(() => {});
-  }, [confirmado, sala, fecha, uid]);
+    if (!confirmado || !perfilListo) return;
+    for (const f of [fecha, diasAntes(fecha, 1)]) ponerAlDiaMarcaDiaria(sala, f, uid, retosPropios).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmado, perfilListo, sala, fecha, uid]);
 
   if (!juego) return null;
   const diario = retoDiario(juego, fecha);
@@ -85,7 +90,7 @@ export function Retos({ sala, uid, nombre, miembros, confirmado }: Props) {
           />
         ))}
       </ul>
-      <Historial hoy={fecha} uid={uid} miembros={miembros} ambito={ambito} setAmbito={setAmbito} confirmado={confirmado} />
+      <Historial hoy={fecha} uid={uid} miembros={miembros} ambito={ambito} setAmbito={setAmbito} confirmado={confirmado} retosPropios={retosPropios ?? {}} />
     </section>
   );
 }
@@ -103,7 +108,7 @@ function SelectorAmbito({ ambito, setAmbito }: { ambito: Ambito; setAmbito: (a: 
   );
 }
 
-function Ranking({ marcas, uid, limite = MOSTRAR }: { marcas: Marca[]; uid: string; limite?: number }) {
+function Ranking({ marcas, uid, limite = MOSTRAR }: { marcas: FilaRanking[]; uid: string; limite?: number }) {
   const { t } = useIdioma();
   const [verTodo, setVerTodo] = useState(false);
   if (!marcas.length) return null;
@@ -131,10 +136,10 @@ function Ranking({ marcas, uid, limite = MOSTRAR }: { marcas: Marca[]; uid: stri
   );
 }
 
-function TarjetaDiaria(props: Props & { juego: Juego; reto: Reto; ambito: Ambito; setAmbito: (a: Ambito) => void }) {
+function TarjetaDiaria(props: Omit<Props, "retosPropios"> & { juego: Juego; reto: Reto; ambito: Ambito; setAmbito: (a: Ambito) => void }) {
   const { sala, uid, nombre, juego, reto, miembros, confirmado, ambito, setAmbito } = props;
   const { t, idioma } = useIdioma();
-  const todas = useMarcasDelDia(reto.id.slice(7), confirmado);
+  const todas = useRankingDelDia(reto.id.slice(7), confirmado);
   const enSala = todas.filter((m) => miembros.includes(m.uid));
   const marcas = ambito === "sala" ? enSala : todas;
   const mia = todas.find((m) => m.uid === uid);
@@ -212,7 +217,7 @@ interface FilaLiga {
 function liga(dias: DiaHistorial[], filtro: (uid: string) => boolean): FilaLiga[] {
   const filas = new Map<string, FilaLiga>();
   for (const d of dias) {
-    for (const m of d.marcas) {
+    for (const m of d.filas) {
       if (!filtro(m.uid)) continue;
       const f = filas.get(m.uid) ?? { uid: m.uid, nombre: m.nombre, total: 0, dias: 0, mejor: 0 };
       f.total += m.puntaje;
@@ -235,11 +240,12 @@ function racha(propias: Record<string, number>, hoy: string, jugadoHoy: boolean)
   return n;
 }
 
-function Historial({ hoy, uid, miembros, ambito, setAmbito, confirmado }: { hoy: string; uid: string; miembros: string[]; ambito: Ambito; setAmbito: (a: Ambito) => void; confirmado: boolean }) {
+function Historial(props: { hoy: string; uid: string; miembros: string[]; ambito: Ambito; setAmbito: (a: Ambito) => void; confirmado: boolean; retosPropios: Record<string, number> }) {
+  const { hoy, uid, miembros, ambito, setAmbito, confirmado, retosPropios } = props;
   const { t, idioma } = useIdioma();
   const [abierto, setAbierto] = useState(false);
-  const deHoy = useMarcasDelDia(hoy, confirmado && abierto);
-  const datos = useHistorialRetos(hoy, uid, confirmado && abierto);
+  const deHoy = useRankingDelDia(hoy, confirmado && abierto);
+  const anteriores = useHistorialRetos(hoy, confirmado && abierto);
 
   const formato = (f: string) => {
     const [a, m, d] = f.split("-").map(Number);
@@ -247,12 +253,12 @@ function Historial({ hoy, uid, miembros, ambito, setAmbito, confirmado }: { hoy:
   };
 
   let cuerpo = <p className="suave chico-texto">{t.cargando}</p>;
-  if (datos) {
-    const dias: DiaHistorial[] = [{ fecha: hoy, marcas: deHoy }, ...datos.dias];
+  if (anteriores) {
+    const dias: DiaHistorial[] = [{ fecha: hoy, filas: deHoy }, ...anteriores];
     const filtro = ambito === "sala" ? (u: string) => miembros.includes(u) : () => true;
     const tabla = liga(dias.slice(0, DIAS_LIGA), filtro);
     const mioHoy = deHoy.find((m) => m.uid === uid);
-    const propias = { ...datos.propias, ...(mioHoy ? { [hoy]: mioHoy.puntaje } : {}) };
+    const propias = { ...retosPropios, ...(mioHoy ? { [hoy]: mioHoy.puntaje } : {}) };
     const valores = Object.values(propias);
     const mejor = valores.length ? Math.max(...valores) : null;
     const media = valores.length ? Math.round(valores.reduce((a, b) => a + b, 0) / valores.length) : null;
@@ -293,8 +299,8 @@ function Historial({ hoy, uid, miembros, ambito, setAmbito, confirmado }: { hoy:
 
         <h3>{t.tusDias}</h3>
         <ul className="tus-dias">
-          {dias.slice(0, Math.max(1, ...dias.map((d, i) => (d.marcas.some((m) => filtro(m.uid)) ? i + 1 : 0)))).map((d) => {
-            const enAmbito = d.marcas.filter((m) => filtro(m.uid));
+          {dias.slice(0, Math.max(1, ...dias.map((d, i) => (d.filas.some((m) => filtro(m.uid)) ? i + 1 : 0)))).map((d) => {
+            const enAmbito = d.filas.filter((m) => filtro(m.uid));
             const mia = enAmbito.find((m) => m.uid === uid);
             const primero = enAmbito[0];
             return (

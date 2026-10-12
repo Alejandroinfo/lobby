@@ -6,8 +6,8 @@
 import { useEffect, useRef } from "react";
 import { ORIGENES_JUEGOS, juegoPorId } from "../datos/catalogo";
 import { guardarResultado } from "../firebase/partidas";
-import { guardarMarca, logrosDe, sumarACarrera } from "../firebase/retos";
-import { registrarEnHistorial } from "../firebase/perfil";
+import { guardarMarca, logrosDe } from "../firebase/retos";
+import { registrarEnHistorial, sumarAlPerfil } from "../firebase/perfil";
 import { useIdioma } from "../i18n";
 import type { Partida, ResultadoJuego } from "../firebase/tipos";
 
@@ -47,7 +47,16 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
         .then((nueva) => {
           if (!nueva || !juego) return;
           return Promise.all([
-            sumarACarrera(uid, juego.id, { gano: false, reto: true, logros: logrosDe(aviso.resultado, 0) }),
+            sumarAlPerfil(uid, {
+              juego: juego.id,
+              tipo: "reto",
+              gano: false,
+              empate: false,
+              puntaje: Number.isFinite(puntaje) ? puntaje : null,
+              logros: logrosDe(aviso.resultado, 0),
+              jugadores: [],
+              fechaReto: retoId.startsWith("diario-") ? retoId.slice(7) : undefined,
+            }),
             registrarEnHistorial(uid, `reto-${retoId}`, {
               tipo: "reto",
               juego: juego.id,
@@ -83,7 +92,15 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
         const gano = ganadores.includes(asiento) && !empate;
         const puntaje = aviso.resultado.puntajes?.[String(asiento)];
         return Promise.all([
-          sumarACarrera(uid, p.juego, { gano, reto: false, logros: logrosDe(aviso.resultado, asiento) }),
+          sumarAlPerfil(uid, {
+            juego: p.juego,
+            tipo: "partida",
+            gano,
+            empate,
+            puntaje: typeof puntaje === "number" && Number.isFinite(puntaje) ? puntaje : null,
+            logros: logrosDe(aviso.resultado, asiento),
+            jugadores: sentados.slice(0, 12).map(([u, i]) => ({ uid: u, nombre: i.nombre, gano: i.asiento !== null && ganadores.includes(i.asiento) && !empate })),
+          }),
           registrarEnHistorial(uid, p.id, {
             tipo: "partida",
             juego: p.juego,

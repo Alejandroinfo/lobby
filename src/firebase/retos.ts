@@ -6,11 +6,11 @@
  *  - Reto directo: alguien de la sala lo crea con una semilla al azar y lo juega primero.
  * Solo cuenta el primer intento de cada persona (la marca se escribe una vez y no se cambia).
  */
-import { collection, doc, getDoc, getDocs, increment, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
 import { enviarMensaje, generarCodigo } from "./salas";
-import type { Marca, ResultadoJuego, Reto } from "./tipos";
+import type { FilaRanking, Marca, ResultadoJuego, ResumenDia, Reto } from "./tipos";
 
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -138,6 +138,8 @@ export async function guardarMarca(
     hora: serverTimestamp(),
     ...(fecha ? { sala } : {}),
   });
+  // Reto del día: tu fila en el resumen del día (el ranking completo en un solo documento).
+  if (fecha) await setDoc(refResumenDia(fecha), { jugadores: { [uid]: { n: nombre, p: puntaje } } }, { merge: true });
   await enviarMensaje(sala, uid, nombre, aviso).catch(() => {});
   return true;
 }
@@ -151,27 +153,24 @@ export function logrosDe(r: ResultadoJuego, asiento: number): string[] {
   return Array.isArray(m) ? m.filter((x): x is string => typeof x === "string").slice(0, 12) : [];
 }
 
-/** Suma una partida (o un reto) a la trayectoria de la persona. */
-export async function sumarACarrera(uid: string, juego: string, opciones: { gano: boolean; reto: boolean; logros: string[] }) {
-  const logros: Record<string, ReturnType<typeof increment>> = {};
-  for (const id of opciones.logros) logros[`${juego}:${id}`] = increment(1);
-  await setDoc(
-    doc(db, "jugadores", uid),
-    {
-      carrera: {
-        partidas: increment(1),
-        ...(opciones.gano ? { victorias: increment(1) } : {}),
-        ...(opciones.reto ? { retos: increment(1) } : {}),
-        ...(opciones.logros.length ? { logros } : {}),
-      },
-    },
-    { merge: true },
-  );
-}
-
 // ── Reto del día: marcas globales e historial ──────────────────────────────────
 
 export const refMarcaDiaria = (fecha: string, uid: string) => doc(db, "retosDiarios", fecha, "marcas", uid);
+/** `retosDiarios/{fecha}`: el ranking del día en un documento. Leer el ranking cuesta 1 lectura. */
+export const refResumenDia = (fecha: string) => doc(db, "retosDiarios", fecha);
+
+/** Filas del ranking de un resumen del día, de mayor a menor. */
+export function filasResumen(r: ResumenDia | undefined | null): FilaRanking[] {
+  return Object.entries(r?.jugadores ?? {})
+    .map(([uid, j]) => ({ uid, nombre: j.n, puntaje: j.p }))
+    .sort((a, b) => b.puntaje - a.puntaje || a.nombre.localeCompare(b.nombre));
+}
+
+/** El ranking de un día ya pasado (1 lectura). */
+export async function rankingDelDia(fecha: string): Promise<FilaRanking[]> {
+  const d = await getDoc(refResumenDia(fecha));
+  return filasResumen(d.exists() ? (d.data() as ResumenDia) : null);
+}
 export const coleccionMarcasDiarias = (fecha: string) => collection(db, "retosDiarios", fecha, "marcas");
 
 export function ordenarMarcas(lista: Marca[]): Marca[] {
@@ -185,14 +184,27 @@ export async function marcasDelDia(fecha: string): Promise<Marca[]> {
 }
 
 /**
- * Antes las marcas del reto del día se guardaban dentro de cada sala. Si esta persona tiene una
- * así y aún no tiene la global, se copia (una vez) para que cuente en el ranking global.
+ * Pone al día lo guardado con versiones anteriores, para hoy y ayer:
+ *  - una marca del reto del día guardada dentro de la sala pasa a la marca global;
+ *  - una marca global sin fila en el resumen del día (o en tu perfil) se agrega.
+ * Cuesta unas pocas lecturas al abrir la sala.
  */
-export async function migrarMarcaDiaria(sala: string, fecha: string, uid: string) {
-  const vieja = await getDoc(doc(db, "salas", sala, "retos", `diario-${fecha}`, "marcas", uid));
-  if (!vieja.exists()) return;
+export async function ponerAlDiaMarcaDiaria(sala: string, fecha: string, uid: string, retosPropios: Record<string, number> | undefined) {
   const global = refMarcaDiaria(fecha, uid);
-  if ((await getDoc(global)).exists()) return;
-  const d = vieja.data() as Omit<Marca, "uid">;
-  await setDoc(global, { nombre: d.nombre, puntaje: d.puntaje, version: d.version ?? null, detalleJson: d.detalleJson ?? "null", hora: serverTimestamp(), sala });
+  let marca = await getDoc(global);
+  if (!marca.exists()) {
+    const vieja = await getDoc(doc(db, "salas", sala, "retos", `diario-${fecha}`, "marcas", uid));
+    if (!vieja.exists()) return;
+    const d = vieja.data() as Omit<Marca, "uid">;
+    await setDoc(global, { nombre: d.nombre, puntaje: d.puntaje, version: d.version ?? null, detalleJson: d.detalleJson ?? "null", hora: serverTimestamp(), sala });
+    marca = await getDoc(global);
+  }
+  const m = marca.data() as Omit<Marca, "uid">;
+  const resumen = await getDoc(refResumenDia(fecha));
+  if (!(resumen.data() as ResumenDia | undefined)?.jugadores?.[uid]) {
+    await setDoc(refResumenDia(fecha), { jugadores: { [uid]: { n: m.nombre, p: m.puntaje } } }, { merge: true });
+  }
+  if (retosPropios && retosPropios[fecha] === undefined) {
+    await setDoc(doc(db, "jugadores", uid), { retosDiarios: { [fecha]: m.puntaje } }, { merge: true });
+  }
 }
