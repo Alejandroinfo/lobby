@@ -14,6 +14,13 @@ service cloud.firestore {
       return n is string && n.size() >= 1 && n.size() <= 24;
     }
 
+    // Avatar: un emoji corto y un color #RRGGBB.
+    function avatarValido(a) {
+      return a is map && a.keys().hasOnly(['emoji', 'color'])
+        && a.emoji is string && a.emoji.size() >= 1 && a.emoji.size() <= 16
+        && a.color is string && a.color.matches('^#[0-9a-fA-F]{6}$');
+    }
+
     // Dueño del lobby: solo esta cuenta de Google (verificada) puede leer el panel de playtest.
     function esAdmin() {
       return request.auth != null
@@ -39,7 +46,8 @@ service cloud.firestore {
     // opcional y por rangos datos de audiencia (país de 2 letras, edad, cómo llegó, experiencia).
     match /jugadores/{uid} {
       function perfilValido(d) {
-        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera'])
+        return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar'])
+          && (!('avatar' in d) || avatarValido(d.avatar))
           && (!('nombre' in d) || nombreValido(d.nombre))
           && (!('pais' in d) || (d.pais is string && d.pais.matches('^[A-Z]{2}$')))
           && (!('rangoEdad' in d) || d.rangoEdad in ['menos-13', '13-17', '18-24', '25-34', '35-44', '45-mas', 'no-dice'])
@@ -51,6 +59,23 @@ service cloud.firestore {
       allow read: if (autenticado() && request.auth.uid == uid) || esAdmin();
       allow delete: if autenticado() && request.auth.uid == uid;
       allow create, update: if autenticado() && request.auth.uid == uid && perfilValido(request.resource.data);
+
+      // Historial personal: una entrada por partida o reto terminado. Solo lo ve y lo escribe su dueño.
+      match /historial/{id} {
+        allow read: if (autenticado() && request.auth.uid == uid) || esAdmin();
+        allow delete: if autenticado() && request.auth.uid == uid;
+        allow create: if autenticado() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['tipo', 'juego', 'sala', 'fecha', 'gano', 'empate', 'puntaje', 'variante', 'jugadores', 'diario'])
+          && request.resource.data.tipo in ['partida', 'reto']
+          && request.resource.data.juego is string && request.resource.data.juego.size() <= 40
+          && request.resource.data.sala is string && request.resource.data.sala.size() <= 8
+          && request.resource.data.gano is bool
+          && request.resource.data.empate is bool
+          && (request.resource.data.puntaje == null || request.resource.data.puntaje is number)
+          && request.resource.data.jugadores is list && request.resource.data.jugadores.size() <= 12
+          && request.resource.data.fecha == request.time;
+        allow update: if false;
+      }
     }
 
     // Reto del día: una marca por persona y por día, igual para todas las salas. Cualquiera con
@@ -76,7 +101,8 @@ service cloud.firestore {
     match /salas/{codigo} {
 
       function miembroValido(m) {
-        return m.keys().hasOnly(['nombre', 'entrada', 'ultimaVez']) && nombreValido(m.nombre);
+        return m.keys().hasOnly(['nombre', 'entrada', 'ultimaVez', 'avatar']) && nombreValido(m.nombre)
+          && (!('avatar' in m) || avatarValido(m.avatar));
       }
 
       function soloMiEntrada() {

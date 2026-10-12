@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { JUEGOS, type Categoria, type Juego } from "../datos/catalogo";
 import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
-import { enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
-import type { Mensaje, Sala as TSala } from "../firebase/tipos";
+import { actualizarAvatarEnSala, enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
+import { avatarPorDefecto } from "../firebase/perfil";
+import { AvatarCirculo } from "./PaginaPerfil";
+import type { Avatar, Mensaje, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
 import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
@@ -20,9 +22,10 @@ interface Props {
   uid: string;
   nombre: string;
   setNombre: (n: string) => void;
+  avatar?: Avatar;
 }
 
-export function Sala({ codigo, uid, nombre, setNombre }: Props) {
+export function Sala({ codigo, uid, nombre, setNombre, avatar }: Props) {
   const { t } = useIdioma();
   const { sala, estado, soyMiembro, confirmado } = useSala(codigo, uid);
   const [errorUnirse, setErrorUnirse] = useState("");
@@ -32,7 +35,7 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
   useEffect(() => {
     if (estado !== "lista" || !nombre || soyMiembro || intentado.current) return;
     intentado.current = true;
-    unirseASala(codigo, uid, nombre).catch((e) => {
+    unirseASala(codigo, uid, nombre, avatar ?? avatarPorDefecto(uid)).catch((e) => {
       console.error(e);
       setErrorUnirse(t.errorUnirseSala);
     });
@@ -84,11 +87,18 @@ export function Sala({ codigo, uid, nombre, setNombre }: Props) {
     );
   }
 
-  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} />;
+  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} avatar={avatar ?? avatarPorDefecto(uid)} />;
 }
 
-function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string; nombre: string; confirmado: boolean }) {
+function VistaSala({ sala, uid, nombre, confirmado, avatar }: { sala: TSala; uid: string; nombre: string; confirmado: boolean; avatar: Avatar }) {
   const { t } = useIdioma();
+  // Si cambiaste de avatar (o la sala aún no lo tiene), se actualiza tu entrada.
+  const enSala = sala.miembros?.[uid]?.avatar;
+  useEffect(() => {
+    if (!confirmado) return;
+    if (enSala?.emoji === avatar.emoji && enSala?.color === avatar.color) return;
+    actualizarAvatarEnSala(sala.codigo, uid, avatar).catch(() => {});
+  }, [confirmado, sala.codigo, uid, avatar.emoji, avatar.color, enSala?.emoji, enSala?.color]);
   const [copiado, setCopiado] = useState(false);
   // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
   const mensajes = useMensajes(sala.codigo, confirmado);
@@ -161,7 +171,7 @@ function VistaSala({ sala, uid, nombre, confirmado }: { sala: TSala; uid: string
           <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} />
           <Catalogo sala={sala} uid={uid} />
         </div>
-        <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} />
+        <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} miembros={sala.miembros ?? {}} />
       </div>
     </main>
   );
@@ -186,7 +196,10 @@ function Miembros({ sala, uid }: { sala: TSala; uid: string }) {
       <ul>
         {lista.map((m) => (
           <li key={m.id} className={m.conectado ? "" : "ausente"}>
-            <span className={`punto ${m.conectado ? "on" : "off"}`} aria-hidden="true" />
+            <span className="avatar-con-punto">
+              <AvatarCirculo avatar={m.avatar ?? avatarPorDefecto(m.id)} tam="sm" />
+              <span className={`punto ${m.conectado ? "on" : "off"}`} aria-hidden="true" />
+            </span>
             <span className="nombre-miembro">{m.nombre}</span>
             {m.id === uid && <span className="insignia">{t.tu}</span>}
             {m.id === sala.anfitrion && <span className="insignia anfitrion">{t.anfitrion}</span>}
@@ -243,7 +256,7 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   );
 }
 
-function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[] }) {
+function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[]; miembros: TSala["miembros"] }) {
   const { t } = useIdioma();
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
@@ -277,7 +290,10 @@ function Chat({ codigo, uid, nombre, mensajes }: { codigo: string; uid: string; 
         {mensajes.length === 0 && <li className="suave vacio">{t.sinMensajes}</li>}
         {mensajes.map((m) => (
           <li key={m.id} className={m.uid === uid ? "mio" : ""}>
-            <span className="autor">{m.uid === uid ? t.tuMayus : m.nombre}</span>
+            <span className="autor">
+              {m.uid !== uid && <AvatarCirculo avatar={miembros[m.uid]?.avatar ?? avatarPorDefecto(m.uid)} tam="xs" />}
+              {m.uid === uid ? t.tuMayus : m.nombre}
+            </span>
             <span className="texto">{m.texto}</span>
             {m.hora && (
               <time className="hora" dateTime={m.hora.toDate().toISOString()}>

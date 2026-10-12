@@ -11,6 +11,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./config";
+import type { Avatar } from "./tipos";
 
 /** Sin I, O, 0 ni 1 para que el código se pueda dictar sin confusiones. */
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -72,15 +73,21 @@ export async function crearSala(uid: string, nombre: string, nombreSala: string)
 export class SalaNoExiste extends Error {}
 
 /** Agrega al jugador a la sala, o actualiza su nombre si ya estaba. */
-export async function unirseASala(codigo: string, uid: string, nombre: string) {
+export async function unirseASala(codigo: string, uid: string, nombre: string, avatar?: Avatar) {
   const sala = await getDoc(refSala(codigo));
   if (!sala.exists()) throw new SalaNoExiste(codigo);
   const yaEstaba = Boolean(sala.data().miembros?.[uid]);
   await updateDoc(refSala(codigo), {
     [`miembros.${uid}.nombre`]: nombre,
     [`miembros.${uid}.ultimaVez`]: serverTimestamp(),
+    ...(avatar ? { [`miembros.${uid}.avatar`]: avatar } : {}),
     ...(yaEstaba ? {} : { [`miembros.${uid}.entrada`]: serverTimestamp() }),
   });
+}
+
+/** Actualiza cómo se te ve en una sala donde ya estás (al cambiar de avatar). */
+export async function actualizarAvatarEnSala(codigo: string, uid: string, avatar: Avatar) {
+  await updateDoc(refSala(codigo), { [`miembros.${uid}.avatar`]: avatar });
 }
 
 /** Marca al jugador como conectado. Se llama periódicamente mientras la sala está abierta. */

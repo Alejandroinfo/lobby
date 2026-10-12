@@ -3,6 +3,7 @@ import type { Timestamp } from "firebase/firestore";
 /** Una persona dentro de una sala. La clave del mapa `miembros` es su uid. */
 export interface Miembro {
   nombre: string;
+  avatar?: Avatar;
   entrada: Timestamp | null;
   /** Se renueva cada pocos segundos mientras la pestaña está abierta. */
   ultimaVez: Timestamp | null;
@@ -101,6 +102,32 @@ export interface Perfil {
   experiencia?: Experiencia;
   salaOrigen?: string;
   carrera?: Carrera;
+  avatar?: Avatar;
+}
+
+/** Emoji y color con los que se te ve en las salas. */
+export interface Avatar {
+  emoji: string;
+  color: string;
+}
+
+/** Documento `jugadores/{uid}/historial/{id}`: una partida o un reto que terminaste. */
+export interface EntradaHistorial {
+  id: string;
+  tipo: "partida" | "reto";
+  juego: string;
+  sala: string;
+  fecha: Timestamp | null;
+  /** Partida: si ganaste (con equipos, si ganó tu equipo). */
+  gano: boolean;
+  /** Partida: todos empataron (no cuenta como victoria de nadie). */
+  empate: boolean;
+  puntaje: number | null;
+  variante: string | null;
+  /** Partida: quienes jugaron (sin espectadores). */
+  jugadores: { uid: string; nombre: string; gano: boolean }[];
+  /** Reto: si fue el reto del día. */
+  diario?: boolean;
 }
 
 /** Trayectoria de la persona en el lobby (todas las partidas y retos que terminó). */

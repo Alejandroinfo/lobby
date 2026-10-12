@@ -1,11 +1,17 @@
 /**
- * Sesión del jugador. Por defecto anónima (sin cuenta), igual que en Astrolabe.
- * Opcionalmente se puede vincular con Google para conservar el perfil en otros dispositivos.
+ * Sesión del jugador. Por defecto anónima (sin cuenta): se puede jugar al instante.
+ * Opcionalmente se crea una cuenta (correo y contraseña, o Google) para conservar el perfil
+ * en otros dispositivos. Crear la cuenta vincula la sesión actual: mismo uid, no se pierde nada.
  */
 import { useEffect, useState } from "react";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
+  linkWithCredential,
   linkWithPopup,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   onIdTokenChanged,
   signInAnonymously,
   signInWithCredential,
@@ -19,10 +25,15 @@ export interface Usuario {
   email: string | null;
   anonimo: boolean;
   nombreGoogle: string | null;
+  /** Cómo entra: con Google, con correo y contraseña, o sin cuenta. */
+  proveedor: "google" | "correo" | null;
+  verificado: boolean;
 }
 
 function aUsuario(u: User): Usuario {
-  return { uid: u.uid, email: u.email, anonimo: u.isAnonymous, nombreGoogle: u.displayName };
+  const ids = (u.providerData ?? []).map((p) => p.providerId);
+  const proveedor = ids.includes("google.com") ? "google" : ids.includes("password") ? "correo" : null;
+  return { uid: u.uid, email: u.email, anonimo: u.isAnonymous, nombreGoogle: u.displayName, proveedor, verificado: u.emailVerified };
 }
 
 export function useUsuario() {
@@ -66,7 +77,30 @@ export async function guardarConGoogle(): Promise<void> {
   }
 }
 
-/** Cierra la sesión de Google; se abre otra anónima nueva. */
+/**
+ * Crea una cuenta con correo y contraseña a partir de la sesión actual (mismo uid: se conserva
+ * todo lo jugado). Manda un correo para verificar la dirección.
+ */
+export async function crearCuentaConCorreo(correo: string, clave: string): Promise<void> {
+  const actual = auth.currentUser;
+  if (!actual) throw new Error("Sin sesión");
+  await linkWithCredential(actual, EmailAuthProvider.credential(correo.trim(), clave));
+  await sendEmailVerification(actual).catch(() => {});
+  await actual.reload();
+  await actual.getIdToken(true); // para que el resto de la app vea el correo nuevo
+}
+
+/** Entra con una cuenta ya creada (p. ej. en otro dispositivo). */
+export async function entrarConCorreo(correo: string, clave: string): Promise<void> {
+  await signInWithEmailAndPassword(auth, correo.trim(), clave);
+}
+
+/** Manda el correo para elegir una contraseña nueva. */
+export async function recuperarClave(correo: string): Promise<void> {
+  await sendPasswordResetEmail(auth, correo.trim());
+}
+
+/** Cierra la sesión; se abre otra anónima nueva. */
 export async function cerrarSesion(): Promise<void> {
   await signOut(auth);
 }

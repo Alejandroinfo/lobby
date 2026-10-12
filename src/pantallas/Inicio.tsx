@@ -11,7 +11,10 @@ import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
 import { Perfil } from "./Perfil";
-import { Carrera } from "./Carrera";
+import { rangoDe } from "./Carrera";
+import { AvatarCirculo } from "./PaginaPerfil";
+import { avatarPorDefecto } from "../firebase/perfil";
+import type { Perfil as TPerfil } from "../firebase/tipos";
 import { SelectorIdioma, useIdioma } from "../i18n";
 import type { Usuario } from "../hooks/useUsuario";
 
@@ -20,9 +23,10 @@ interface Props {
   usuario: Usuario;
   nombre: string;
   setNombre: (n: string) => void;
+  perfil: TPerfil | null | undefined;
 }
 
-export function Inicio({ uid, usuario, nombre, setNombre }: Props) {
+export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
   const { t } = useIdioma();
   const [editando, setEditando] = useState(false);
   const [nombreSala, setNombreSala] = useState("");
@@ -82,8 +86,16 @@ export function Inicio({ uid, usuario, nombre, setNombre }: Props) {
           {t.cambiarNombre}
         </button>
       </p>
+      <button className="tarjeta mini-perfil" onClick={() => irA({ pantalla: "perfil" })}>
+        <AvatarCirculo avatar={perfil?.avatar ?? avatarPorDefecto(uid)} />
+        <span className="mini-perfil-texto">
+          <span className="etiqueta">{t.tuRango}</span>
+          <strong>{t.rangos[rangoDe(perfil?.carrera?.partidas ?? 0).indice]}</strong>
+          <span className="suave chico-texto">{t.carreraResumen((perfil?.carrera?.partidas ?? 0) - (perfil?.carrera?.retos ?? 0), perfil?.carrera?.victorias ?? 0, perfil?.carrera?.retos ?? 0)}</span>
+        </span>
+        <span className="mini-perfil-ir">{t.verPerfil} →</span>
+      </button>
       <Perfil usuario={usuario} />
-      <Carrera uid={usuario.uid} />
       {recientes.length > 0 && (
         <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
           <h2 id="t-recientes">{t.salasRecientes}</h2>

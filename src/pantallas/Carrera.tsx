@@ -22,18 +22,20 @@ export function rangoDe(partidas: number) {
   return { indice: i, ...RANGOS[i], siguiente: RANGOS[i + 1] ?? null };
 }
 
-export function Carrera({ uid }: { uid: string }) {
+export function Carrera({ uid, carreraEnVivo }: { uid: string; carreraEnVivo?: TCarrera }) {
   const { t, idioma } = useIdioma();
-  const [carrera, setCarrera] = useState<TCarrera | null>(null);
+  const [leida, setLeida] = useState<TCarrera | null>(null);
 
   useEffect(() => {
+    if (carreraEnVivo) return;
     let vivo = true;
-    leerPerfil(uid).then((p) => vivo && setCarrera(p?.carrera ?? {}));
+    leerPerfil(uid).then((p) => vivo && setLeida(p?.carrera ?? {}));
     return () => {
       vivo = false;
     };
-  }, [uid]);
+  }, [uid, carreraEnVivo]);
 
+  const carrera = carreraEnVivo ?? leida;
   if (!carrera) return null;
   const partidas = carrera.partidas ?? 0;
   const r = rangoDe(partidas);
@@ -53,7 +55,7 @@ export function Carrera({ uid }: { uid: string }) {
         </div>
       </div>
       <p className="suave chico-texto">
-        {t.carreraResumen(partidas, carrera.victorias ?? 0, carrera.retos ?? 0)}
+        {t.carreraResumen(partidas - (carrera.retos ?? 0), carrera.victorias ?? 0, carrera.retos ?? 0)}
         {r.siguiente && <> · {t.proximoRango(r.siguiente.desde - partidas, t.rangos[r.indice + 1])}</>}
       </p>
       <div

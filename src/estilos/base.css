@@ -325,3 +325,56 @@ textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; border-c
 .tus-dias li { display: grid; grid-template-columns: 7.5rem 1fr auto; gap: 0.5rem; align-items: baseline; padding: 0.2rem 0; border-bottom: 1px dashed var(--linea); }
 .tus-dias .fecha { color: var(--tinta-suave); text-transform: capitalize; }
 @media (max-width: 520px) { .tus-dias li { grid-template-columns: 6rem 1fr; } .tus-dias li > :last-child { grid-column: 1 / -1; } }
+
+/* Avatar */
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex: none; line-height: 1; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25); }
+.avatar-xs { width: 1.2rem; height: 1.2rem; font-size: 0.7rem; margin-right: 0.3rem; vertical-align: -0.2rem; }
+.avatar-sm { width: 1.9rem; height: 1.9rem; font-size: 1rem; }
+.avatar-md { width: 2.8rem; height: 2.8rem; font-size: 1.5rem; }
+.avatar-lg { width: 4.5rem; height: 4.5rem; font-size: 2.4rem; }
+.avatar-con-punto { position: relative; display: inline-flex; }
+.avatar-con-punto .punto { position: absolute; right: -2px; bottom: -2px; border: 2px solid var(--superficie); }
+
+/* Inicio: tarjeta del perfil */
+.mini-perfil { display: flex; align-items: center; gap: 0.9rem; width: 100%; max-width: 760px; margin: 0 auto 0.5rem; text-align: left; cursor: pointer; color: var(--tinta); font: inherit; }
+.mini-perfil:hover { border-color: var(--acento); }
+.mini-perfil-texto { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.mini-perfil-texto .chico-texto { margin: 0; }
+.mini-perfil-ir { color: var(--acento); font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+
+/* Página de perfil */
+.pagina-perfil { max-width: 1100px; margin: 0 auto; padding: 1.5rem 16px 3rem; }
+.perfil-cabeza { display: flex; align-items: center; gap: 1rem; }
+.perfil-cabeza h1 { margin: 0; }
+.boton-avatar { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
+.boton-avatar:focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; }
+.rejilla-perfil { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 1rem; margin-top: 1rem; align-items: start; }
+.col-perfil { display: grid; gap: 1rem; min-width: 0; }
+.col-perfil .carrera { margin: 0; max-width: none; }
+@media (max-width: 860px) { .rejilla-perfil { grid-template-columns: 1fr; } }
+.elegir-avatar { margin-top: 1rem; }
+.rejilla-emojis, .rejilla-colores { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.rejilla-emojis button { font-size: 1.4rem; width: 2.6rem; height: 2.6rem; border-radius: 10px; border: 2px solid var(--linea); background: var(--fondo); padding: 0; }
+.rejilla-colores button { width: 2.2rem; height: 2.2rem; border-radius: 50%; border: 3px solid transparent; padding: 0; }
+.rejilla-emojis button.elegido, .rejilla-colores button.elegido { border-color: var(--tinta); }
+.form-cuenta { display: flex; flex-direction: column; margin-top: 0.75rem; }
+.separador-o { display: flex; align-items: center; gap: 0.75rem; color: var(--tinta-suave); font-size: 0.85rem; margin: 1rem 0; }
+.separador-o::before, .separador-o::after { content: ""; flex: 1; border-top: 1px solid var(--linea); }
+button.ancho { width: 100%; }
+.historial-cifras strong.pequeno { font-size: 1.05rem; line-height: 1.6; }
+.rivales, .recientes-partidas { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.25rem; font-size: 0.9rem; }
+.rivales li { display: grid; grid-template-columns: 1fr auto auto; gap: 0.75rem; align-items: baseline; padding: 0.35rem 0; border-bottom: 1px dashed var(--linea); }
+.rivales .chico-texto { margin: 0; }
+.marcador { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.marcador .g { color: var(--acento); }
+.marcador .p { color: var(--error); }
+.recientes-partidas li { display: grid; grid-template-columns: 7rem 1fr; gap: 0.25rem 0.75rem; padding: 0.35rem 0 0.35rem 0.6rem; border-left: 3px solid var(--linea); }
+.recientes-partidas li.gano { border-left-color: var(--acento); }
+.recientes-partidas li.perdio { border-left-color: var(--error); }
+.recientes-partidas li.es-reto { border-left-color: var(--prueba); }
+.recientes-partidas .fecha { color: var(--tinta-suave); font-size: 0.82rem; }
+.recientes-partidas .chico-texto { grid-column: 2; margin: 0; }
+@media (max-width: 520px) { .recientes-partidas li { grid-template-columns: 1fr; } .recientes-partidas .chico-texto { grid-column: 1; } }
+.pagina-perfil table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.75rem; }
+.pagina-perfil th, .pagina-perfil td { text-align: left; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
+.pagina-perfil th { font-weight: 600; color: var(--tinta-suave); font-size: 0.8rem; }

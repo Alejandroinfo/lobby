@@ -7,6 +7,7 @@ import { useEffect, useRef } from "react";
 import { ORIGENES_JUEGOS, juegoPorId } from "../datos/catalogo";
 import { guardarResultado } from "../firebase/partidas";
 import { guardarMarca, logrosDe, sumarACarrera } from "../firebase/retos";
+import { registrarEnHistorial } from "../firebase/perfil";
 import { useIdioma } from "../i18n";
 import type { Partida, ResultadoJuego } from "../firebase/tipos";
 
@@ -44,7 +45,21 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
       const texto = retoId.startsWith("diario-") ? textos.current.avisoRetoDiario(puntaje) : textos.current.avisoReto(puntaje);
       guardarMarca(sala, retoId, uid, nombre, aviso.resultado, texto)
         .then((nueva) => {
-          if (nueva && juego) return sumarACarrera(uid, juego.id, { gano: false, reto: true, logros: logrosDe(aviso.resultado, 0) });
+          if (!nueva || !juego) return;
+          return Promise.all([
+            sumarACarrera(uid, juego.id, { gano: false, reto: true, logros: logrosDe(aviso.resultado, 0) }),
+            registrarEnHistorial(uid, `reto-${retoId}`, {
+              tipo: "reto",
+              juego: juego.id,
+              sala,
+              gano: false,
+              empate: false,
+              puntaje: Number.isFinite(puntaje) ? puntaje : null,
+              variante: juego.retos?.variante ?? null,
+              jugadores: [],
+              diario: retoId.startsWith("diario-"),
+            }),
+          ]);
         })
         .catch((e) => console.warn("No se pudo guardar la marca del reto", e));
       return;
@@ -62,10 +77,28 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
       .then((nuevo) => {
         if (!nuevo) return;
         const ganadores = aviso.resultado.ganadores;
-        const jugadores = Object.values(p.invitados).filter((i) => i.respuesta === "acepta" && i.rol === "jugador").length;
+        const sentados = Object.entries(p.invitados).filter(([, i]) => i.respuesta === "acepta" && i.rol === "jugador");
         // Un empate de todos no cuenta como victoria.
-        const gano = ganadores.includes(asiento) && ganadores.length < jugadores;
-        return sumarACarrera(uid, p.juego, { gano, reto: false, logros: logrosDe(aviso.resultado, asiento) });
+        const empate = ganadores.length >= sentados.length;
+        const gano = ganadores.includes(asiento) && !empate;
+        const puntaje = aviso.resultado.puntajes?.[String(asiento)];
+        return Promise.all([
+          sumarACarrera(uid, p.juego, { gano, reto: false, logros: logrosDe(aviso.resultado, asiento) }),
+          registrarEnHistorial(uid, p.id, {
+            tipo: "partida",
+            juego: p.juego,
+            sala,
+            gano,
+            empate,
+            puntaje: typeof puntaje === "number" && Number.isFinite(puntaje) ? puntaje : null,
+            variante: p.variante ?? null,
+            jugadores: sentados.slice(0, 12).map(([u, i]) => ({
+              uid: u,
+              nombre: i.nombre,
+              gano: i.asiento !== null && ganadores.includes(i.asiento) && !empate,
+            })),
+          }),
+        ]);
       })
       .catch((e) => console.warn("No se pudo guardar el resultado", e));
   };
