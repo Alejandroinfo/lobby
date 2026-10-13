@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { JUEGOS, type Categoria, type Juego } from "../datos/catalogo";
+import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
 import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { actualizarAvatarEnSala, enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
 import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
-import type { Avatar, Mensaje, Perfil as TPerfil, Sala as TSala } from "../firebase/tipos";
+import type { Avatar, Mensaje, Partida, Perfil as TPerfil, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
 import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
@@ -171,7 +171,7 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
 
       <div className="rejilla">
         <div className="col-izquierda">
-          <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} />
+          <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} partidas={partidas} />
           <PanelAmigos sala={{ codigo: sala.codigo, nombre: sala.nombre, miembros: Object.keys(sala.miembros ?? {}) }} />
         </div>
         <div className="centro-sala">
@@ -185,13 +185,29 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
   );
 }
 
-function Miembros({ sala, uid, rivales }: { sala: TSala; uid: string; rivales: TPerfil["rivales"] }) {
+/**
+ * Quién está jugando ahora una partida de la sala (uid → juego). Mientras juegas, la pestaña del
+ * lobby queda en segundo plano (o cerrada, en la app) y deja de avisar «sigo aquí»: sin esto se te
+ * vería desconectado aunque estés jugando. Una partida abandonada deja de contar a las 4 horas.
+ */
+export function jugandoAhora(partidas: Partida[], ahora: number): Map<string, string> {
+  const jugando = new Map<string, string>();
+  for (const p of partidas) {
+    if (p.estado !== "jugando" || ahora - (p.iniciada?.toMillis() ?? ahora) > 4 * 3600_000) continue;
+    for (const [u, i] of Object.entries(p.invitados)) if (i.respuesta === "acepta") jugando.set(u, juegoPorId(p.juego)?.nombre ?? p.juego);
+  }
+  return jugando;
+}
+
+function Miembros({ sala, uid, rivales, partidas }: { sala: TSala; uid: string; rivales: TPerfil["rivales"]; partidas: Partida[] }) {
   const { t } = useIdioma();
   const ahora = useAhora();
+  const enJuego = jugandoAhora(partidas, ahora);
   const lista = Object.entries(sala.miembros ?? {})
     .map(([id, m]) => {
       const visto = m.ultimaVez?.toMillis() ?? ahora;
-      return { id, ...m, conectado: ahora - visto < DESCONECTADO_MS };
+      const conectado = ahora - visto < DESCONECTADO_MS;
+      return { id, ...m, conectado: conectado || enJuego.has(id), jugando: conectado ? null : (enJuego.get(id) ?? null) };
     })
     .sort((a, b) => Number(b.conectado) - Number(a.conectado) || a.nombre.localeCompare(b.nombre));
   const conectados = lista.filter((m) => m.conectado).length;
@@ -207,7 +223,7 @@ function Miembros({ sala, uid, rivales }: { sala: TSala; uid: string; rivales: T
           <li key={m.id} className={m.conectado ? "" : "ausente"}>
             <span className="avatar-con-punto">
               <AvatarCirculo avatar={m.avatar ?? avatarPorDefecto(m.id)} tam="sm" />
-              <span className={`punto ${m.conectado ? "on" : "off"}`} aria-hidden="true" />
+              <span className={`punto ${m.jugando ? "juega" : m.conectado ? "on" : "off"}`} aria-hidden="true" />
             </span>
             <button
               className="nombre-miembro enlace-nombre"
@@ -218,7 +234,8 @@ function Miembros({ sala, uid, rivales }: { sala: TSala; uid: string; rivales: T
             </button>
             {m.id === uid && <span className="insignia">{t.tu}</span>}
             {m.id === sala.anfitrion && <span className="insignia anfitrion">{t.anfitrion}</span>}
-            <span className="sr-only">{m.conectado ? t.conectado : t.desconectado}</span>
+            {m.jugando && <span className="suave chico-texto">· {t.jugandoA(m.jugando)}</span>}
+            <span className="sr-only">{m.jugando ? "" : m.conectado ? t.conectado : t.desconectado}</span>
           </li>
         ))}
       </ul>

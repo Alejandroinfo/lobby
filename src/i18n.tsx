@@ -72,6 +72,7 @@ const es = {
   anfitrion: "anfitrión",
   conectado: "conectado",
   desconectado: "desconectado",
+  jugandoA: (j: string) => `jugando ${j}`,
   juegos: "Juegos",
   categorias: {
     listo: { titulo: "Listos para jugar", nota: "Reglas estables" },
@@ -494,6 +495,7 @@ const en: Textos = {
   anfitrion: "host",
   conectado: "online",
   desconectado: "offline",
+  jugandoA: (j: string) => `playing ${j}`,
   juegos: "Games",
   categorias: {
     listo: { titulo: "Ready to play", nota: "Stable rules" },

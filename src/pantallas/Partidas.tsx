@@ -190,7 +190,8 @@ function resumenResultado(p: Partida, t: Textos): string | null {
 }
 
 function estadoInvitado(i: Invitado, jugando: boolean, enLinea: boolean, t: Textos): { texto: string; clase: string } {
-  if (i.respuesta === "acepta" && !enLinea) return { texto: t.chipDesconectado, clase: "no-conectado" };
+  // En una partida en juego, quien no tiene el lobby abierto está jugando (no «desconectado»).
+  if (i.respuesta === "acepta" && !enLinea && !jugando) return { texto: t.chipDesconectado, clase: "no-conectado" };
   if (jugando) {
     if (i.rol === "espectador") return { texto: t.chipMira, clase: "neutro" };
     const equipo = i.equipo !== undefined ? ` · ${t.equipos[i.equipo]}` : "";
@@ -218,7 +219,8 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
   const prep = juego ? preparacion(p, juego, conectado) : { puede: false, motivo: { tipo: "desconocido" } as Motivo };
   const conEquipos = Boolean(juego && usaEquipos(p, juego));
   const creador = p.invitados[p.anfitrion]?.nombre ?? t.quienCreo;
-  const puedoTomarControl = !soyCreador && yo?.respuesta === "acepta" && !conectado(p.anfitrion);
+  // Con la partida en juego, el organizador suele estar jugando (sin el lobby abierto): no se ofrece.
+  const puedoTomarControl = !jugando && !soyCreador && yo?.respuesta === "acepta" && !conectado(p.anfitrion);
   const enlace = juego ? enlaceJuego(juego, sala, p, uid, idioma) : null;
 
   const lista = Object.entries(p.invitados)
