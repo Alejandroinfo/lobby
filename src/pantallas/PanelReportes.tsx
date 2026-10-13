@@ -128,6 +128,7 @@ export function PanelReportes() {
                     <button className="secundario chico" onClick={() => bajar(`reporte-${r.id}.json`, JSON.stringify(r, null, 1), "application/json")}>
                       Reporte completo (JSON)
                     </button>
+                    <BotonCorreo id={r.id} />
                     <label className="chico-texto">
                       Estado{" "}
                       <select value={r.estado} onChange={(e) => cambiar(r.id, e.target.value as EstadoReporte)}>
@@ -181,5 +182,25 @@ export function ReabrirSala() {
       </div>
       {mensaje && <p className="chico-texto" role="status">{mensaje}</p>}
     </section>
+  );
+}
+
+/** Manda (otra vez) el reporte por correo, con sus adjuntos. */
+function BotonCorreo({ id }: { id: string }) {
+  const [estado, setEstado] = useState<"" | "enviando" | "ok" | "error" | "sin-configurar">("");
+  const enviar = async () => {
+    setEstado("enviando");
+    try {
+      const r = await fetch("/api/reporte", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, reenviar: true }) });
+      const d = (await r.json().catch(() => ({}))) as { enviado?: boolean; motivo?: string };
+      setEstado(d.enviado ? "ok" : d.motivo === "sin-configurar" ? "sin-configurar" : "error");
+    } catch {
+      setEstado("error");
+    }
+  };
+  return (
+    <button className="secundario chico" disabled={estado === "enviando"} onClick={enviar} title="Te llega con el registro y la captura adjuntos">
+      {estado === "ok" ? "✓ Enviado" : estado === "error" ? "No se pudo enviar" : estado === "sin-configurar" ? "Falta RESEND_API_KEY" : estado === "enviando" ? "Enviando…" : "Enviar por correo"}
+    </button>
   );
 }
