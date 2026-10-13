@@ -5,6 +5,7 @@
  *  - Retos directos que crea alguien de la sala (ranking de la sala).
  * Se juegan en solitario; solo cuenta el primer intento.
  */
+import { abrirJuego } from "../pwa";
 import { useEffect, useState } from "react";
 import { JUEGOS, type Juego } from "../datos/catalogo";
 import { claveDia, diasAntes, enlaceReto, fechaDeClave, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
@@ -19,9 +20,8 @@ const DIAS_LIGA = 7;
 type Ambito = "sala" | "global";
 
 function abrir(url: string) {
-  // Pestaña nueva: la sala sigue abierta y recibe el puntaje al terminar.
-  const w = window.open(url, "_blank");
-  if (!w) window.location.href = url;
+  // Pestaña nueva (o la misma ventana en la app instalada): el puntaje vuelve a la sala al terminar.
+  abrirJuego(url);
 }
 
 interface Props {

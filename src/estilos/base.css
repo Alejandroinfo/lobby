@@ -426,3 +426,19 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .como-se-puntua summary { cursor: pointer; color: var(--acento); }
 .como-se-puntua p { margin-top: 0.25rem; }
 .modo-partida { margin: 0.25rem 0 0.75rem; }
+
+/* Invitación a instalar la app */
+.instalar-app { display: flex; gap: 1rem; align-items: flex-start; }
+.instalar-icono { border-radius: 14px; flex: none; box-shadow: var(--sombra); }
+.instalar-texto { min-width: 0; }
+.instalar-texto h2 { margin-bottom: 0.25rem; }
+.instalar-pasos { margin: 0 0 0.75rem; padding-left: 1.25rem; }
+.instalar-pasos li { margin: 0.2rem 0; }
+.icono-compartir { vertical-align: -3px; color: #0a84ff; }
+.aviso-invitado { background: var(--prueba-suave); border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+@media (max-width: 420px) { .instalar-icono { width: 44px; height: 44px; border-radius: 11px; } }
+
+/* App instalada: respeta la muesca y la barra de gestos del celular */
+@media (display-mode: standalone) {
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+}

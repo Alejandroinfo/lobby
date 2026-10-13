@@ -1,3 +1,4 @@
+import { abrirJuego, esApp } from "../pwa";
 import { useEffect, useRef, useState } from "react";
 import { abrirPartidaSolo } from "./CrearPartida";
 import { juegoPorId } from "../datos/catalogo";
@@ -315,13 +316,14 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
                     className="primario"
                     onClick={() => {
                       // Pestaña nueva: el lobby sigue abierto y recibe el resultado al terminar.
-                      const w = window.open(enlace, `juego-${p.id}`);
-                      if (!w) window.location.href = enlace; // si el navegador bloqueó la pestaña
+                      abrirJuego(enlace, `juego-${p.id}`);
                     }}
                   >
                     {t.abrir(juego.nombre)}
                   </button>
-                  <span className="suave chico-texto">{juego.informaResultado === false ? t.otraPestanaSinResultado : t.otraPestana}</span>
+                  <span className="suave chico-texto">
+                    {juego.informaResultado === false ? t.otraPestanaSinResultado : esApp() ? t.mismaVentanaApp : t.otraPestana}
+                  </span>
                 </div>
               )}
             </>

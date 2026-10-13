@@ -23,10 +23,10 @@ interface Aviso {
 
 const rondaDe = (a: { ronda?: unknown }) => (Number.isInteger(a.ronda) && (a.ronda as number) > 1 ? (a.ronda as number) : 1);
 
-function decodificar(texto: string): Aviso | null {
+function decodificar<T = Aviso>(texto: string): T | null {
   try {
     const bytes = Uint8Array.from(atob(texto), (c) => c.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes)) as Aviso;
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch {
     return null;
   }
@@ -169,11 +169,18 @@ export function useResultados(sala: string, uid: string, nombre: string, partida
     if (!activo) return;
     const url = new URL(window.location.href);
     const texto = url.searchParams.get("resultado");
-    if (!texto) return;
+    // Varias partidas seguidas («Jugar de nuevo») sin la pestaña del lobby abierta (app instalada):
+    // el juego trae todos los resultados juntos.
+    const varios = url.searchParams.get("resultados");
+    if (!texto && !varios) return;
     url.searchParams.delete("resultado");
+    url.searchParams.delete("resultados");
     window.history.replaceState(null, "", url.pathname + url.search);
-    const aviso = decodificar(texto);
-    if (aviso) procesar(aviso);
+    const avisos = [...(texto ? [decodificar(texto)] : []), ...(varios ? (decodificar<Aviso[]>(varios) ?? []) : [])];
+    // Uno tras otro (y no a la vez): cada uno suma al mismo perfil.
+    avisos
+      .filter((a): a is Aviso => Boolean(a && typeof a === "object"))
+      .forEach((a, i) => window.setTimeout(() => procesar(a), i * 1200));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activo]);
 

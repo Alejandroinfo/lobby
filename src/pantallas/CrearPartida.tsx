@@ -1,3 +1,4 @@
+import { esApp } from "../pwa";
 import { useState, type FormEvent } from "react";
 import type { Juego } from "../datos/catalogo";
 import { crearPartida, crearPartidaSolo, enlaceJuego, type Invitacion } from "../firebase/partidas";
@@ -24,7 +25,8 @@ export async function abrirPartidaSolo(
   nivel: "hard" | "easy",
   idioma: "es" | "en",
 ) {
-  const pestana = window.open("", "_blank");
+  // En la app instalada el juego se abre en la misma ventana (ver abrirJuego).
+  const pestana = esApp() ? null : window.open("", "_blank");
   try {
     const { id, codigoJuego } = await crearPartidaSolo(sala, yo, juego, variante, nivel);
     const p = {
@@ -156,12 +158,20 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
 
       {solo && juego.solo ? (
         <>
-          <label htmlFor="nivel">{t.rival}</label>
-          <select id="nivel" value={nivel} onChange={(e) => setNivel(e.target.value as "hard" | "easy")}>
-            {juego.solo.niveles.map((n) => (
-              <option key={n.id} value={n.id}>{idioma === "en" ? n.en : n.es}</option>
-            ))}
-          </select>
+          {juego.solo.niveles.length > 1 ? (
+            <>
+              <label htmlFor="nivel">{t.rival}</label>
+              <select id="nivel" value={nivel} onChange={(e) => setNivel(e.target.value as "hard" | "easy")}>
+                {juego.solo.niveles.map((n) => (
+                  <option key={n.id} value={n.id}>{idioma === "en" ? n.en : n.es}</option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <p className="suave">
+              {t.rival}: <strong>{idioma === "en" ? juego.solo.niveles[0].en : juego.solo.niveles[0].es}</strong>
+            </p>
+          )}
           <p className="suave chico-texto">{t.soloTexto}</p>
           {error && <p className="error">{error}</p>}
           <button type="button" className="primario" disabled={enviando} onClick={jugarSolo}>

@@ -81,8 +81,8 @@ export const JUEGOS: Juego[] = [
     url: env.VITE_URL_SPLIT_LOYALTY ?? "https://split-loyalty.vercel.app/app/online.html",
     solo: {
       niveles: [
-        { id: "hard", es: "Oficial de Contrainteligencia (difícil)", en: "Counter-Intel Officer (hard)" },
-        { id: "easy", es: "Vetting de rutina (fácil)", en: "Routine vetting (easy)" },
+        // Desde la v2026.10.29 Split Loyalty en solitario es solo contra Contrainteligencia automática.
+        { id: "hard", es: "Contrainteligencia", en: "Counter-Intel" },
       ],
     },
     retos: {

@@ -4,6 +4,9 @@ import { Analytics } from "@vercel/analytics/react";
 import { App } from "./App";
 import { IdiomaProvider } from "./i18n";
 import "./estilos/base.css";
+import { registrarServiceWorker } from "./pwa";
+
+registrarServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

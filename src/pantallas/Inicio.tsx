@@ -10,6 +10,7 @@ import {
 import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
+import { InstalarApp } from "./InstalarApp";
 import { Perfil } from "./Perfil";
 import { PanelAmigos } from "./Amigos";
 import { rangoDe } from "./Carrera";
@@ -96,6 +97,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
         </span>
         <span className="mini-perfil-ir">{t.verPerfil} →</span>
       </button>
+      <InstalarApp invitado={usuario.anonimo} />
       <Perfil usuario={usuario} />
       <div className="amigos-inicio"><PanelAmigos /></div>
       {recientes.length > 0 && (
