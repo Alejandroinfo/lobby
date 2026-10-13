@@ -209,6 +209,32 @@ service cloud.firestore {
 
     // Una sala por grupo. Cualquiera con sesión puede leerla (el código hace de invitación),
     // pero cada miembro solo toca su propia entrada; el anfitrión puede cambiar el resto.
+    // Reportes de problemas («Reportar un problema» en el lobby y en los juegos). Cualquiera crea
+    // el suyo; solo el panel los lee, les cambia el estado o los borra.
+    match /reportes/{id} {
+      function textoHasta(v, n) {
+        return v is string && v.size() <= n;
+      }
+      allow create: if autenticado()
+        && request.resource.data.keys().hasOnly(['uid', 'nombre', 'tipo', 'que', 'esperaba', 'juego', 'version', 'donde',
+                                                 'dispositivo', 'errores', 'registro', 'nombreRegistro', 'captura', 'estado', 'creado'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.tipo in ['reglas', 'trabado', 'visual', 'otro']
+        && textoHasta(request.resource.data.que, 2000) && request.resource.data.que.size() >= 1
+        && textoHasta(request.resource.data.esperaba, 2000)
+        && textoHasta(request.resource.data.nombre, 40)
+        && (request.resource.data.juego == null || textoHasta(request.resource.data.juego, 40))
+        && (request.resource.data.registro == null || textoHasta(request.resource.data.registro, 650000))
+        && (request.resource.data.captura == null || textoHasta(request.resource.data.captura, 350000))
+        && request.resource.data.errores is list && request.resource.data.errores.size() <= 10
+        && request.resource.data.estado == 'nuevo'
+        && request.resource.data.creado == request.time;
+      allow read, delete: if esAdmin();
+      allow update: if esAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
+        && request.resource.data.estado in ['nuevo', 'visto', 'resuelto'];
+    }
+
     match /salas/{codigo} {
 
       function miembroValido(m) {

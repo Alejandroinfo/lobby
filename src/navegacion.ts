@@ -7,6 +7,7 @@ export type Ruta =
   | { pantalla: "panel" }
   | { pantalla: "perfil" }
   | { pantalla: "en-este-celular" }
+  | { pantalla: "reportar" }
   | { pantalla: "sala"; codigo: string };
 
 export function leerRuta(path = window.location.pathname): Ruta {
@@ -15,6 +16,7 @@ export function leerRuta(path = window.location.pathname): Ruta {
   if (/^\/panel\/?$/i.test(path)) return { pantalla: "panel" };
   if (/^\/perfil\/?$/i.test(path)) return { pantalla: "perfil" };
   if (/^\/en-este-celular\/?$/i.test(path)) return { pantalla: "en-este-celular" };
+  if (/^\/reportar\/?$/i.test(path)) return { pantalla: "reportar" };
   return { pantalla: "inicio" };
 }
 

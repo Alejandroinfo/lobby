@@ -2,7 +2,7 @@
 type Datos = Record<string, any>;
 type Ref = { ruta: string; id: string };
 type Coleccion = { coleccion: string };
-type Consulta = { coleccion: string; orden?: string; ultimos?: number };
+type Consulta = { coleccion: string; orden?: string; desc?: boolean; ultimos?: number; primeros?: number };
 
 const CLAVE = "lobby_local_db";
 const SERVER = { __servidor: true };
@@ -59,7 +59,8 @@ export const doc = (base: any, ...partes: string[]): Ref => {
   return { ruta: partes.join("/"), id: partes[partes.length - 1] };
 };
 export const collection = (_db: unknown, ...partes: string[]): Coleccion => ({ coleccion: partes.join("/") });
-export const orderBy = (campo: string) => ({ orden: campo });
+export const orderBy = (campo: string, dir?: "asc" | "desc") => ({ orden: campo, desc: dir === "desc" });
+export const limit = (n: number) => ({ primeros: n });
 export const limitToLast = (n: number) => ({ ultimos: n });
 export const query = (c: Coleccion, ...mods: any[]): Consulta => Object.assign({ coleccion: c.coleccion }, ...mods);
 
@@ -138,8 +139,9 @@ function resultado(q: Consulta) {
   let docs = Object.keys(db)
     .filter((k) => k.startsWith(prefijo) && !k.slice(prefijo.length).includes("/"))
     .map((k) => ({ id: k.slice(prefijo.length), d: db[k] }));
-  if (q.orden) docs.sort((a, b) => (a.d[q.orden!]?.__ms ?? 0) - (b.d[q.orden!]?.__ms ?? 0));
+  if (q.orden) docs.sort((a, b) => ((a.d[q.orden!]?.__ms ?? 0) - (b.d[q.orden!]?.__ms ?? 0)) * (q.desc ? -1 : 1));
   if (q.ultimos) docs = docs.slice(-q.ultimos);
+  if (q.primeros) docs = docs.slice(0, q.primeros);
   return { docs: docs.map((x) => ({ id: x.id, data: () => revivir(x.d) })) };
 }
 
