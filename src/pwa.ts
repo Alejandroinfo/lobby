@@ -3,6 +3,7 @@
  * de instalación que ofrecen Chrome/Edge/Samsung Internet (en iPhone no existe: se explica a mano).
  */
 import { useEffect, useState } from "react";
+import { presenciaAlJugar } from "./firebase/amigos";
 
 interface AvisoInstalacion extends Event {
   prompt: () => Promise<void>;
@@ -79,9 +80,12 @@ export function useAvisoInstalacion() {
  * En la app instalada, en la misma ventana: así "Volver a la sala" regresa a la app (otra pestaña
  * se abriría fuera de ella, en el navegador) y el resultado vuelve en la dirección.
  */
-export function abrirJuego(url: string, ventana = "_blank"): void {
+export function abrirJuego(url: string, ventana = "_blank", juego?: string): void {
+  // Tus amigos ven «jugando …» aunque el lobby quede en segundo plano o se cierre (en la app).
+  const aviso = juego && presenciaAlJugar.publicar ? presenciaAlJugar.publicar(juego).catch(() => {}) : null;
   if (esApp()) {
-    window.location.assign(url);
+    // Se espera un momento al aviso: al cambiar de página, lo pendiente se pierde.
+    Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]).then(() => window.location.assign(url));
     return;
   }
   const w = window.open(url, ventana);

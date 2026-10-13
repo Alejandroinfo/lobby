@@ -8,6 +8,8 @@ import {
   descartarInvitacion,
   enLinea,
   formatoCodigoAmigo,
+  jugandoAhora,
+  presenciaAlJugar,
   invitarASala,
   LATIDO_PRESENCIA_MS,
   normalizarCodigoAmigo,
@@ -40,6 +42,8 @@ interface Social {
   solicitudes: Solicitud[] | null;
   /** La sala que tienes abierta (se comparte con tus amigos en tu presencia). */
   setSalaActual: (s: { codigo: string; nombre: string } | null) => void;
+  /** El juego que estás jugando desde esa sala (también se comparte). */
+  setJugando: (juego: string | null) => void;
 }
 const Contexto = createContext<Social | null>(null);
 export const useSocial = () => useContext(Contexto);
@@ -48,20 +52,28 @@ export function SocialProvider({ uid, nombre, perfil, children }: { uid: string;
   const amigos = useAmigos(uid);
   const solicitudes = useSolicitudes(uid);
   const [salaActual, setSalaActual] = useState<{ codigo: string; nombre: string } | null>(null);
+  const [jugando, setJugando] = useState<string | null>(null);
   const avatar = perfil?.avatar ?? avatarPorDefecto(uid);
   const yo = { uid, nombre, avatar };
 
   // Presencia: solo si tienes amigos (si no, nadie la vería). Se renueva cada pocos minutos y al
   // cambiar de sala o volver a la pestaña.
   const tieneAmigos = (amigos?.length ?? 0) > 0;
-  const clave = `${tieneAmigos}|${nombre}|${avatar.emoji}|${avatar.color}|${salaActual?.codigo ?? ""}|${salaActual?.nombre ?? ""}`;
+  const clave = `${tieneAmigos}|${nombre}|${avatar.emoji}|${avatar.color}|${salaActual?.codigo ?? ""}|${salaActual?.nombre ?? ""}|${jugando ?? ""}`;
   useEffect(() => {
-    if (!tieneAmigos || !nombre) return;
-    const publicar = () => {
-      if (document.visibilityState !== "visible") return;
-      publicarPresencia(uid, { nombre, avatar, sala: salaActual?.codigo ?? null, nombreSala: salaActual?.nombre ?? null }).catch(() => {});
+    if (!tieneAmigos || !nombre) {
+      presenciaAlJugar.publicar = null;
+      return;
+    }
+    const datos = (j: string | null) => ({ nombre, avatar, sala: salaActual?.codigo ?? null, nombreSala: salaActual?.nombre ?? null, jugando: j });
+    presenciaAlJugar.publicar = (j) => publicarPresencia(uid, datos(j));
+    const publicar = (forzar?: unknown) => {
+      // En segundo plano no se renueva (salvo al cambiar algo, como empezar a jugar): así «en línea»
+      // significa que tiene el lobby a la vista.
+      if (forzar !== true && document.visibilityState !== "visible") return;
+      publicarPresencia(uid, datos(jugando)).catch(() => {});
     };
-    publicar();
+    publicar(true);
     const id = window.setInterval(publicar, LATIDO_PRESENCIA_MS);
     document.addEventListener("visibilitychange", publicar);
     return () => {
@@ -72,11 +84,22 @@ export function SocialProvider({ uid, nombre, perfil, children }: { uid: string;
   }, [uid, clave]);
 
   return (
-    <Contexto.Provider value={{ uid, yo, codigo: perfil?.codigoAmigo, amigos, solicitudes, setSalaActual }}>
+    <Contexto.Provider value={{ uid, yo, codigo: perfil?.codigoAmigo, amigos, solicitudes, setSalaActual, setJugando }}>
       {children}
       <AvisosSociales />
     </Contexto.Provider>
   );
+}
+
+/** Marca en tu presencia el juego que estás jugando desde la sala (null: ninguno). */
+export function useJugandoEnPresencia(juego: string | null) {
+  const s = useSocial();
+  useEffect(() => {
+    if (!s) return;
+    s.setJugando(juego);
+    return () => s.setJugando(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [juego]);
 }
 
 /** Marca la sala abierta en tu presencia mientras el componente está montado. */
@@ -217,11 +240,12 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
     }
   };
 
+  const presente = (p: (typeof presencias)[string]) => enLinea(p) || !!jugandoAhora(p);
   const ordenados = [...amigos].sort((a, b) => {
     const pa = presencias[a.uid], pb = presencias[b.uid];
-    return Number(enLinea(pb)) - Number(enLinea(pa)) || a.nombre.localeCompare(b.nombre);
+    return Number(presente(pb)) - Number(presente(pa)) || a.nombre.localeCompare(b.nombre);
   });
-  const conectados = amigos.filter((a) => enLinea(presencias[a.uid])).length;
+  const conectados = amigos.filter((a) => presente(presencias[a.uid])).length;
 
   return (
     <section className="panel amigos" aria-labelledby="t-amigos">
@@ -248,6 +272,7 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
         <ul className="lista-amigos">
           {ordenados.map((a) => {
             const p = presencias[a.uid];
+            const juega = jugandoAhora(p);
             const linea = enLinea(p);
             const nombre = p?.nombre ?? a.nombre;
             const enMiSala = sala && sala.miembros.includes(a.uid);
@@ -256,12 +281,20 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
               <li key={a.uid}>
                 <span className="avatar-con-punto">
                   <AvatarCirculo avatar={p?.avatar ?? a.avatar ?? avatarPorDefecto(a.uid)} tam="sm" />
-                  <span className={`punto ${linea ? "on" : "off"}`} aria-hidden="true" />
+                  <span className={`punto ${juega ? "juega" : linea ? "on" : "off"}`} aria-hidden="true" />
                 </span>
                 <span className="quien">
                   {nombre}
                   <span className="suave chico-texto estado-amigo">
-                    {enMiSala ? t.enEstaSala : suSala ? t.enLaSalaDe(suSala.nombreSala ?? suSala.sala ?? "") : linea ? t.enLinea : t.desconectado}
+                    {juega
+                      ? `${t.jugandoA(juega)}${p?.nombreSala && !enMiSala ? ` · ${t.enLaSalaDe(p.nombreSala)}` : ""}`
+                      : enMiSala
+                        ? t.enEstaSala
+                        : suSala
+                          ? t.enLaSalaDe(suSala.nombreSala ?? suSala.sala ?? "")
+                          : linea
+                            ? t.enLinea
+                            : t.desconectado}
                   </span>
                 </span>
                 {sala && !enMiSala && (

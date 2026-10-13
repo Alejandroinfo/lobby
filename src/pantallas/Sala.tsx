@@ -15,7 +15,7 @@ import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
 import { Retos } from "./Retos";
 import { FichaJugador } from "./Ficha";
-import { PanelAmigos, useSalaActual } from "./Amigos";
+import { PanelAmigos, useJugandoEnPresencia, useSalaActual } from "./Amigos";
 import { olvidarSala, recordarSala } from "../datos/recientes";
 import { guardarAudiencia, leerPerfil, registrarPais } from "../firebase/encuestas";
 
@@ -108,6 +108,8 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
   // Chat y partidas se escuchan solo cuando el servidor ya confirmó mi entrada a la sala.
   const mensajes = useMensajes(sala.codigo, confirmado);
   const partidas = usePartidas(sala.codigo, confirmado);
+  // Si estás jugando una partida de esta sala, tus amigos lo ven («jugando Split Loyalty»).
+  useJugandoEnPresencia(jugandoAhora(partidas, Date.now()).get(uid) ?? null);
   useResultados(sala.codigo, uid, nombre, partidas, confirmado);
 
   // Recordar esta sala en "Tus salas recientes" y, una vez confirmada la entrada, anotar el país

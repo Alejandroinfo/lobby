@@ -1,4 +1,5 @@
 import { esApp } from "../pwa";
+import { presenciaAlJugar } from "../firebase/amigos";
 import { useState, type FormEvent } from "react";
 import type { Juego } from "../datos/catalogo";
 import { crearPartida, crearPartidaSolo, enlaceJuego, type Invitacion } from "../firebase/partidas";
@@ -38,9 +39,14 @@ export async function abrirPartidaSolo(
       invitados: { [yo.uid]: { nombre: yo.nombre, rol: "jugador", respuesta: "acepta", listo: true, respondio: null, asiento: 0 } },
     } as unknown as Partida;
     const enlace = enlaceJuego(juego, sala, p, yo.uid, idioma);
+    // Tus amigos ven «jugando …» (en la app, el lobby se cierra al abrir el juego: se avisa antes).
+    const aviso = presenciaAlJugar.publicar?.(juego.nombre).catch(() => {});
     if (!enlace) pestana?.close();
     else if (pestana) pestana.location.href = enlace;
-    else window.location.href = enlace;
+    else {
+      await Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]);
+      window.location.href = enlace;
+    }
   } catch (e) {
     pestana?.close();
     throw e;

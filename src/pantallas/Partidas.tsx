@@ -318,7 +318,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
                     className="primario"
                     onClick={() => {
                       // Pestaña nueva: el lobby sigue abierto y recibe el resultado al terminar.
-                      abrirJuego(enlace, `juego-${p.id}`);
+                      abrirJuego(enlace, `juego-${p.id}`, juego.nombre);
                     }}
                   >
                     {t.abrir(juego.nombre)}

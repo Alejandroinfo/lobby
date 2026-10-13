@@ -4,7 +4,7 @@
  *  codigosAmigo/{codigo}            → { uid }                       (para agregar con un código)
  *  solicitudes/{para}/de/{de}       → { nombre, avatar, hora }       (solicitud pendiente)
  *  jugadores/{uid}/amigos/{amigo}   → { nombre, avatar, desde }      (cada lado guarda su lista)
- *  presencia/{uid}                  → { nombre, avatar, sala, nombreSala, ultimaVez } (solo la ven tus amigos)
+ *  presencia/{uid}                  → { nombre, avatar, sala, nombreSala, jugando, ultimaVez } (solo la ven tus amigos)
  *  invitaciones/{para}/de/{de}      → { nombre, avatar, sala, nombreSala, hora } (solo entre amigos)
  */
 import { useEffect, useState } from "react";
@@ -40,6 +40,8 @@ export interface Presencia {
   avatar?: Avatar;
   sala: string | null;
   nombreSala: string | null;
+  /** Nombre del juego que está jugando (desde una sala). */
+  jugando?: string | null;
   ultimaVez: Timestamp | null;
 }
 export interface Invitacion {
@@ -139,12 +141,16 @@ export async function solicitudEnviada(yo: string, para: string): Promise<boolea
 
 // ── Presencia ──────────────────────────────────────────────────────────────────
 
-export async function publicarPresencia(uid: string, p: { nombre: string; avatar?: Avatar; sala: string | null; nombreSala: string | null }) {
+export async function publicarPresencia(
+  uid: string,
+  p: { nombre: string; avatar?: Avatar; sala: string | null; nombreSala: string | null; jugando?: string | null },
+) {
   await setDoc(doc(db, "presencia", uid), {
     nombre: p.nombre,
     ...(p.avatar ? { avatar: p.avatar } : {}),
     sala: p.sala,
     nombreSala: p.nombreSala,
+    jugando: p.jugando?.slice(0, 40) ?? null,
     ultimaVez: serverTimestamp(),
   });
 }
@@ -152,6 +158,18 @@ export async function publicarPresencia(uid: string, p: { nombre: string; avatar
 export function enLinea(p: Presencia | null | undefined, ahora = Date.now()): boolean {
   return Boolean(p?.ultimaVez && ahora - p.ultimaVez.toMillis() < EN_LINEA_MS);
 }
+
+/** Mientras juega, el lobby deja de avisar (pestaña en segundo plano o cerrada): lo último que dijo vale 4 h. */
+const JUGANDO_MS = 4 * 3600_000;
+export function jugandoAhora(p: Presencia | null | undefined, ahora = Date.now()): string | null {
+  return p?.jugando && p.ultimaVez && ahora - p.ultimaVez.toMillis() < JUGANDO_MS ? p.jugando : null;
+}
+
+/**
+ * Avisar a tus amigos «estoy jugando X» justo al abrir un juego (lo usa abrirJuego antes de dejar
+ * el lobby). Lo conecta SocialProvider; sin amigos no hace nada.
+ */
+export const presenciaAlJugar: { publicar: ((juego: string) => Promise<void>) | null } = { publicar: null };
 
 // ── Invitaciones a sala ────────────────────────────────────────────────────────
 

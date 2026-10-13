@@ -132,7 +132,9 @@ service cloud.firestore {
       allow read: if autenticado() && (request.auth.uid == uid || sonAmigos(request.auth.uid, uid));
       allow delete: if autenticado() && request.auth.uid == uid;
       allow create, update: if autenticado() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'ultimaVez'])
+        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'jugando', 'ultimaVez'])
+        && (!('jugando' in request.resource.data) || request.resource.data.jugando == null
+            || (request.resource.data.jugando is string && request.resource.data.jugando.size() <= 40))
         && nombreValido(request.resource.data.nombre)
         && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
         && (request.resource.data.sala == null || (request.resource.data.sala is string && request.resource.data.sala.size() <= 8))
