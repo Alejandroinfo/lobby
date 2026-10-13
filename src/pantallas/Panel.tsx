@@ -2,7 +2,7 @@
  * Panel de playtest (`/panel`): solo lo puede leer la cuenta de Google del dueño del lobby
  * (lo verifican las reglas de Firestore). Resume partidas, resultados, encuestas y audiencia.
  */
-import { PanelReportes } from "./PanelReportes";
+import { PanelReportes, ReabrirSala } from "./PanelReportes";
 import { useEffect, useMemo, useState } from "react";
 import { collection, collectionGroup, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
@@ -168,6 +168,7 @@ export function Panel({ usuario }: { usuario: Usuario }) {
       </header>
 
       <PanelReportes />
+      <ReabrirSala />
 
       <div className="filtros" role="group" aria-label="Filtros">
         <div className="segmentado" role="radiogroup" aria-label="Juego">

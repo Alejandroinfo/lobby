@@ -250,6 +250,8 @@ service cloud.firestore {
         let entradas = request.resource.data.miembros.diff(resource.data.miembros).affectedKeys();
         return cambios.hasOnly(['miembros'])
           && entradas.hasOnly([yo])
+          // En una sala cerrada ya no entra nadie nuevo (quien estaba puede salir).
+          && (yo in resource.data.miembros || !('cerrada' in resource.data) || resource.data.cerrada == null)
           && (!(yo in request.resource.data.miembros) || miembroValido(request.resource.data.miembros[yo]));
       }
 
@@ -262,6 +264,13 @@ service cloud.firestore {
 
       function esMiembro() {
         return request.auth.uid in get(/databases/$(database)/documents/salas/$(codigo)).data.miembros;
+      }
+
+      // Cerrada por quien la creó: no se chatea, no se crean partidas ni retos (lo que ya estaba en
+      // juego puede terminar y guardar su resultado).
+      function salaAbierta() {
+        let s = get(/databases/$(database)/documents/salas/$(codigo)).data;
+        return !('cerrada' in s) || s.cerrada == null;
       }
 
       allow read: if autenticado();
@@ -277,13 +286,19 @@ service cloud.firestore {
         && request.resource.data.miembros.keys().hasOnly([request.auth.uid])
         && miembroValido(request.resource.data.miembros[request.auth.uid]);
 
-      allow update: if autenticado() && (soloMiEntrada() || soyAnfitrion());
+      // El administrador (panel) solo puede reabrirla.
+      function reabre() {
+        return esAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cerrada', 'reabierta'])
+          && request.resource.data.cerrada == null && request.resource.data.reabierta == request.time;
+      }
+
+      allow update: if autenticado() && (soloMiEntrada() || soyAnfitrion() || reabre());
       allow delete: if false;
 
       // Chat de la sala: solo los miembros leen y escriben; nadie edita ni borra.
       match /mensajes/{id} {
         allow read: if autenticado() && esMiembro();
-        allow create: if autenticado() && esMiembro()
+        allow create: if autenticado() && esMiembro() && salaAbierta()
           && request.resource.data.keys().hasOnly(['uid', 'nombre', 'texto', 'hora'])
           && request.resource.data.uid == request.auth.uid
           && nombreValido(request.resource.data.nombre)
@@ -298,7 +313,7 @@ service cloud.firestore {
       // (El reto del día no tiene documento: solo existen sus marcas, en retos/diario-AAAA-MM-DD/marcas.)
       match /retos/{reto} {
         allow read: if autenticado() && esMiembro();
-        allow create: if autenticado() && esMiembro()
+        allow create: if autenticado() && esMiembro() && salaAbierta()
           && request.resource.data.keys().hasOnly(['juego', 'tipo', 'semilla', 'variante', 'dificultad', 'creador', 'creadorNombre', 'creado'])
           && request.resource.data.tipo == 'directo'
           && request.resource.data.juego in ['split-loyalty', 'astrolabe']
@@ -406,7 +421,7 @@ service cloud.firestore {
             && d.estado == 'jugando';
         }
 
-        allow create: if autenticado() && esMiembro()
+        allow create: if autenticado() && esMiembro() && salaAbierta()
           && request.resource.data.keys().hasOnly(['juego', 'variante', 'nivel', 'anfitrion', 'estado', 'invitados',
                                                    'codigoJuego', 'creada', 'iniciada', 'terminada', 'equipos',
                                                    'revanchaDe', 'ronda'])

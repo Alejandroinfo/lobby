@@ -16,6 +16,10 @@ export interface Sala {
   anfitrion: string;
   miembros: Record<string, Miembro>;
   creada: Timestamp | null;
+  /** La cerró quien la creó: nadie más entra ni crea partidas (los datos se conservan). */
+  cerrada?: Timestamp | null;
+  /** La reabrió el administrador desde el panel (cuenta como actividad). */
+  reabierta?: Timestamp | null;
 }
 
 export type Rol = "jugador" | "espectador";

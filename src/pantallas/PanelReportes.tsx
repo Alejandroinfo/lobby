@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
 import { cambiarEstado, leerReportes, type EstadoReporte, type Reporte } from "../firebase/reportes";
+import { getDoc } from "firebase/firestore";
+import { codigoValido, motivoCierre, normalizarCodigo, reabrirSala, refSala } from "../firebase/salas";
+import type { Sala } from "../firebase/tipos";
 
 const TIPOS: Record<string, string> = { trabado: "Se trabó", reglas: "Reglas", visual: "Se ve mal", otro: "Otro" };
 const ESTADOS: EstadoReporte[] = ["nuevo", "visto", "resuelto"];
@@ -142,6 +145,41 @@ export function PanelReportes() {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** Reabrir una sala cerrada (por quien la creó o por inactividad), por si se cerró por error. */
+export function ReabrirSala() {
+  const [codigo, setCodigo] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const reabrir = async () => {
+    const c = normalizarCodigo(codigo);
+    if (!codigoValido(c)) return setMensaje("Ese código no es válido.");
+    try {
+      const snap = await getDoc(refSala(c));
+      if (!snap.exists()) return setMensaje(`No existe la sala ${c}.`);
+      const sala = snap.data() as Sala;
+      const motivo = motivoCierre(sala);
+      if (!motivo) return setMensaje(`«${sala.nombre}» (${c}) está abierta.`);
+      await reabrirSala(c);
+      setMensaje(`«${sala.nombre}» (${c}) quedó abierta de nuevo (estaba cerrada ${motivo === "anfitrion" ? "por quien la creó" : "por inactividad"}).`);
+    } catch (e) {
+      console.warn(e);
+      setMensaje("No se pudo reabrir (¿publicaste las reglas nuevas?).");
+    }
+  };
+  return (
+    <section className="panel ancho reabrir-sala" aria-labelledby="t-reabrir">
+      <h2 id="t-reabrir">Reabrir una sala</h2>
+      <p className="suave chico-texto">Si alguien cerró una sala por error (o se cerró por inactividad), escribe su código.</p>
+      <div className="fila-reabrir">
+        <input aria-label="Código de la sala" className="codigo" maxLength={7} value={codigo} placeholder="K7Q2M" onChange={(e) => (setCodigo(e.target.value.toUpperCase()), setMensaje(""))} />
+        <button className="secundario" onClick={reabrir}>
+          Reabrir
+        </button>
+      </div>
+      {mensaje && <p className="chico-texto" role="status">{mensaje}</p>}
     </section>
   );
 }

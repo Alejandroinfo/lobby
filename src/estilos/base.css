@@ -483,3 +483,4 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .reporte-detalle { margin-top: 0.6rem; }
 .reporte-captura { max-width: 240px; max-height: 320px; border-radius: 8px; border: 1px solid var(--linea); display: block; margin: 0.5rem 0; }
 .reporte-errores { font-size: 0.75rem; white-space: pre-wrap; background: var(--fondo); padding: 0.5rem; border-radius: 6px; max-height: 200px; overflow: auto; }
+.reabrir-sala { margin-bottom: 1rem; } .fila-reabrir { display: flex; gap: 0.5rem; max-width: 320px; }

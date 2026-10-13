@@ -11,7 +11,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./config";
-import type { Avatar } from "./tipos";
+import type { Avatar, Sala } from "./tipos";
 
 /** Sin I, O, 0 ni 1 para que el código se pueda dictar sin confusiones. */
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -36,7 +36,7 @@ export function limpiarNombre(texto: string): string {
   return texto.replace(/\s+/g, " ").trim().slice(0, LARGO_NOMBRE);
 }
 
-const refSala = (codigo: string) => doc(db, "salas", codigo);
+export const refSala = (codigo: string) => doc(db, "salas", codigo);
 
 /** Guarda el perfil del jugador (`jugadores/{uid}`). */
 export async function guardarPerfil(uid: string, nombre: string) {
@@ -115,4 +115,33 @@ export async function enviarMensaje(codigo: string, uid: string, nombre: string,
     texto: texto.slice(0, LARGO_MENSAJE),
     hora: serverTimestamp(),
   });
+}
+
+// ── Cerrar salas ───────────────────────────────────────────────────────────────
+
+/** Sin nadie en la sala durante este tiempo, se considera cerrada (al abrirla se ve «cerrada»). */
+export const DIAS_INACTIVIDAD = 60;
+
+/** Lo último que pasó en la sala: alguien la tuvo abierta, se creó o se reabrió. */
+export function ultimaActividad(sala: Sala): number {
+  const vistas = Object.values(sala.miembros ?? {}).map((m) => m.ultimaVez?.toMillis() ?? 0);
+  return Math.max(sala.creada?.toMillis() ?? 0, sala.reabierta?.toMillis() ?? 0, ...vistas);
+}
+
+/** Por qué está cerrada (o null si está abierta). */
+export function motivoCierre(sala: Sala, ahora = Date.now()): "anfitrion" | "inactividad" | null {
+  if (sala.cerrada) return "anfitrion";
+  const ultima = ultimaActividad(sala);
+  if (ultima && ahora - ultima > DIAS_INACTIVIDAD * 86_400_000) return "inactividad";
+  return null;
+}
+
+/** Solo quien creó la sala. No se puede deshacer desde la sala (sí desde el panel). */
+export async function cerrarSala(codigo: string) {
+  await updateDoc(refSala(codigo), { cerrada: serverTimestamp() });
+}
+
+/** Solo el administrador (panel): vuelve a abrirla y cuenta como actividad. */
+export async function reabrirSala(codigo: string) {
+  await updateDoc(refSala(codigo), { cerrada: null, reabierta: serverTimestamp() });
 }

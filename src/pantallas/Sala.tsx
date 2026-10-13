@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
 import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
-import { actualizarAvatarEnSala, enviarMensaje, guardarPerfil, LARGO_MENSAJE, salirDeSala, unirseASala } from "../firebase/salas";
+import { actualizarAvatarEnSala, cerrarSala, DIAS_INACTIVIDAD, enviarMensaje, guardarPerfil, LARGO_MENSAJE, motivoCierre, salirDeSala, unirseASala } from "../firebase/salas";
 import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
 import type { Avatar, Mensaje, Partida, Perfil as TPerfil, Sala as TSala } from "../firebase/tipos";
@@ -34,15 +34,22 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
   const [errorUnirse, setErrorUnirse] = useState("");
   const intentado = useRef(false);
 
-  // Abrir el enlace de una sala con nombre ya elegido = entrar automáticamente.
+  const cierre = sala ? motivoCierre(sala) : null;
+
+  // Abrir el enlace de una sala con nombre ya elegido = entrar automáticamente (si no está cerrada).
   useEffect(() => {
-    if (estado !== "lista" || !nombre || soyMiembro || intentado.current) return;
+    if (estado !== "lista" || !nombre || soyMiembro || intentado.current || cierre) return;
     intentado.current = true;
     unirseASala(codigo, uid, nombre, avatar ?? avatarPorDefecto(uid)).catch((e) => {
       console.error(e);
       setErrorUnirse(t.errorUnirseSala);
     });
-  }, [estado, nombre, soyMiembro, codigo, uid, t]);
+  }, [estado, nombre, soyMiembro, codigo, uid, t, cierre]);
+
+  // Una sala cerrada sale de «Tus salas recientes».
+  useEffect(() => {
+    if (cierre) olvidarSala(codigo);
+  }, [cierre, codigo]);
 
   if (estado === "no-existe") {
     return (
@@ -53,6 +60,23 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
           <button className="primario" onClick={() => irA({ pantalla: "inicio" })}>
             {t.volverInicio}
           </button>
+        </div>
+      </main>
+    );
+  }
+  if (sala && cierre) {
+    return (
+      <main className="centro">
+        <div className="tarjeta" style={{ maxWidth: 460 }}>
+          <p className="etiqueta">{t.sala}</p>
+          <h2>{sala.nombre}</h2>
+          <p>{cierre === "anfitrion" ? t.salaCerradaAnfitrion(sala.cerrada?.toDate().toLocaleDateString() ?? "") : t.salaCerradaInactiva(DIAS_INACTIVIDAD)}</p>
+          <p className="suave chico-texto">{t.salaCerradaNota}</p>
+          <div className="botones">
+            <button className="primario" onClick={() => irA({ pantalla: "inicio" })}>
+              {t.crearOtraSala}
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -140,6 +164,11 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
     }
   };
 
+  const cerrar = async () => {
+    if (!window.confirm(t.confirmarCerrarSala)) return;
+    await cerrarSala(sala.codigo).catch((e) => console.warn("No se pudo cerrar la sala", e));
+  };
+
   const salir = async () => {
     if (!window.confirm(t.confirmarSalir)) return;
     await salirDeSala(sala.codigo, uid).catch(() => {});
@@ -162,6 +191,11 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
           <button className="primario" onClick={copiar}>
             {copiado ? t.enlaceCopiado : t.invitar}
           </button>
+          {sala.anfitrion === uid && (
+            <button className="secundario" onClick={cerrar}>
+              {t.cerrarSala}
+            </button>
+          )}
           <button className="secundario" onClick={salir}>
             {t.salir}
           </button>
