@@ -5,7 +5,15 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/juegos/split-loyalty/:ruta*",
+      "destination": "https://split-loyalty.vercel.app/app/:ruta*"
+    },
+    {
+      "source": "/juegos/astrolabe/:ruta*",
+      "destination": "https://astrolabebg.vercel.app/:ruta*"
+    },
+    {
+      "source": "/((?!api/|juegos/).*)",
       "destination": "/index.html"
     }
   ]

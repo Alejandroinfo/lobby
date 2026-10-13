@@ -442,3 +442,8 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 @media (display-mode: standalone) {
   body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 }
+
+/* Jugar en este celular / sin conexión */
+.juegos-locales { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 1rem; }
+.juego-local h2 { margin-bottom: 0.25rem; }
+.en-este-celular { margin-top: 1rem; }

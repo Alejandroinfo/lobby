@@ -100,6 +100,14 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
       <InstalarApp invitado={usuario.anonimo} />
       <Perfil usuario={usuario} />
       <div className="amigos-inicio"><PanelAmigos /></div>
+      <button className="tarjeta mini-perfil en-este-celular" onClick={() => irA({ pantalla: "en-este-celular" })}>
+        <span aria-hidden="true" className="carrera-icono">📱</span>
+        <span className="mini-perfil-texto">
+          <strong>{t.enEsteCelularTitulo}</strong>
+          <span className="suave chico-texto">{t.enEsteCelularResumen}</span>
+        </span>
+        <span className="mini-perfil-ir">→</span>
+      </button>
       {recientes.length > 0 && (
         <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
           <h2 id="t-recientes">{t.salasRecientes}</h2>

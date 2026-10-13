@@ -160,6 +160,16 @@ const es = {
   abrir: (j: string) => `Abrir ${j}`,
   otraPestana: "Se abre en otra pestaña. El resultado llega solo al terminar.",
   mismaVentanaApp: "Se abre aquí mismo. Al terminar, toca «Volver a la sala» para que se guarde el resultado.",
+  sinConexionTitulo: "Sin conexión",
+  enEsteCelularTitulo: "Jugar en este celular",
+  enEsteCelularResumen: "Sin salas ni internet: en solitario o pasándose el celular.",
+  sinConexionTexto: "Estos juegos funcionan sin internet. La partida se juega y se guarda solo en este celular.",
+  juegoLocalTexto: (id: string): string =>
+    id === "split-loyalty"
+      ? "En solitario contra Contrainteligencia, o de 2 a 4 jugadores pasándose el celular."
+      : "En solitario contra el ordenador, con el modo y el nivel que elijas.",
+  juegoLocalFalta: "Todavía no está guardado en este celular. Abre la app una vez con internet y quedará listo para jugar sin conexión.",
+  sinConexionNota: "Estas partidas no pasan por las salas: no suman a tu perfil ni a los rankings.",
   instalarTitulo: "Lleva el lobby en tu celular",
   instalarTexto: "Instálalo como app: un ícono en tu pantalla de inicio, a pantalla completa y con tu usuario siempre a mano.",
   instalar: "Instalar app",
@@ -550,6 +560,16 @@ const en: Textos = {
   abrir: (j: string) => `Open ${j}`,
   otraPestana: "Opens in another tab. The result comes back automatically when you finish.",
   mismaVentanaApp: "Opens right here. When you finish, tap “Back to the room” so the result is saved.",
+  sinConexionTitulo: "Offline",
+  enEsteCelularTitulo: "Play on this phone",
+  enEsteCelularResumen: "No rooms, no internet: solo or passing the phone around.",
+  sinConexionTexto: "These games work without internet. The game is played and saved only on this phone.",
+  juegoLocalTexto: (id: string) =>
+    id === "split-loyalty"
+      ? "Solo against Counter-Intel, or 2 to 4 players passing the phone around."
+      : "Solo against the computer, with the mode and level you choose.",
+  juegoLocalFalta: "Not saved on this phone yet. Open the app once with internet and it'll be ready to play offline.",
+  sinConexionNota: "These games don't go through rooms: they don't count toward your profile or rankings.",
   instalarTitulo: "Take the lobby on your phone",
   instalarTexto: "Install it as an app: an icon on your home screen, full screen, with your account always at hand.",
   instalar: "Install app",

@@ -2,13 +2,19 @@
 import { useEffect, useState } from "react";
 import { normalizarCodigo } from "./firebase/salas";
 
-export type Ruta = { pantalla: "inicio" } | { pantalla: "panel" } | { pantalla: "perfil" } | { pantalla: "sala"; codigo: string };
+export type Ruta =
+  | { pantalla: "inicio" }
+  | { pantalla: "panel" }
+  | { pantalla: "perfil" }
+  | { pantalla: "en-este-celular" }
+  | { pantalla: "sala"; codigo: string };
 
 export function leerRuta(path = window.location.pathname): Ruta {
   const m = path.match(/^\/s\/([^/]+)\/?$/i);
   if (m) return { pantalla: "sala", codigo: normalizarCodigo(decodeURIComponent(m[1])) };
   if (/^\/panel\/?$/i.test(path)) return { pantalla: "panel" };
   if (/^\/perfil\/?$/i.test(path)) return { pantalla: "perfil" };
+  if (/^\/en-este-celular\/?$/i.test(path)) return { pantalla: "en-este-celular" };
   return { pantalla: "inicio" };
 }
 

@@ -9,6 +9,7 @@ import { SocialProvider } from "./pantallas/Amigos";
 import { publicarFicha, usePerfil } from "./firebase/perfil";
 import { useEffect } from "react";
 import { useIdioma } from "./i18n";
+import { precargarJuegos, SinConexion, useEnLinea } from "./pantallas/SinConexion";
 
 export function App() {
   const { t } = useIdioma();
@@ -16,6 +17,12 @@ export function App() {
   const [nombre, setNombre] = useNombre();
   const ruta = useRuta();
   const perfil = usePerfil(uid);
+  const enLinea = useEnLinea();
+
+  // Con conexión, la app guarda en el celular los juegos que se pueden jugar sin internet.
+  useEffect(() => {
+    if (enLinea) precargarJuegos();
+  }, [enLinea]);
 
   // Tu ficha visible para otros se mantiene al día con tu perfil (o se oculta).
   useEffect(() => {
@@ -27,6 +34,9 @@ export function App() {
     if (perfil?.nombre && perfil.nombre !== nombre) setNombre(perfil.nombre);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil?.nombre]);
+
+  // Sin internet no hay salas ni perfil: lo que se puede jugar en este celular.
+  if (!enLinea || ruta.pantalla === "en-este-celular") return <SinConexion enLinea={enLinea} />;
 
   if (error) {
     return (
