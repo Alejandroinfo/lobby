@@ -7,7 +7,8 @@ import { Panel } from "./pantallas/Panel";
 import { PaginaPerfil } from "./pantallas/PaginaPerfil";
 import { SocialProvider } from "./pantallas/Amigos";
 import { publicarFicha, usePerfil } from "./firebase/perfil";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { subirResultadosLocales } from "./firebase/resultadosLocales";
 import { useIdioma } from "./i18n";
 import { precargarJuegos, SinConexion, useEnLinea } from "./pantallas/SinConexion";
 
@@ -23,6 +24,35 @@ export function App() {
   useEffect(() => {
     if (enLinea) precargarJuegos();
   }, [enLinea]);
+
+  // …y sube a tu perfil las partidas que se jugaron en este celular (con o sin internet).
+  const [subidas, setSubidas] = useState(0);
+  useEffect(() => {
+    if (!enLinea || !uid) return;
+    const subir = () =>
+      subirResultadosLocales(uid).then((n) => {
+        if (n > 0) setSubidas(n);
+      });
+    subir();
+    // Al volver de jugar (misma ventana o desde otra pestaña): lo que se haya guardado entretanto.
+    const alVolver = () => document.visibilityState === "visible" && subir();
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("pageshow", alVolver);
+    return () => {
+      document.removeEventListener("visibilitychange", alVolver);
+      window.removeEventListener("pageshow", alVolver);
+    };
+  }, [enLinea, uid]);
+  useEffect(() => {
+    if (!subidas) return;
+    const id = window.setTimeout(() => setSubidas(0), 7000);
+    return () => window.clearTimeout(id);
+  }, [subidas]);
+  const aviso = subidas > 0 && (
+    <div className="aviso-subidas" role="status">
+      {t.partidasLocalesSubidas(subidas)}
+    </div>
+  );
 
   // Tu ficha visible para otros se mantiene al día con tu perfil (o se oculta).
   useEffect(() => {
@@ -60,6 +90,7 @@ export function App() {
   if (ruta.pantalla === "panel") return <Panel usuario={usuario!} />;
   return (
     <SocialProvider uid={uid} nombre={nombre} perfil={perfil}>
+      {aviso}
       {ruta.pantalla === "perfil" ? <PaginaPerfil usuario={usuario!} nombre={nombre} perfil={perfil} /> : ruta.pantalla === "sala" ? (
     <Sala key={ruta.codigo} codigo={ruta.codigo} uid={uid} nombre={nombre} setNombre={setNombre} perfil={perfil} />
   ) : (

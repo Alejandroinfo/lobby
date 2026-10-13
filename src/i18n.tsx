@@ -169,7 +169,9 @@ const es = {
       ? "En solitario contra Contrainteligencia, o de 2 a 4 jugadores pasándose el celular."
       : "En solitario contra el ordenador, con el modo y el nivel que elijas.",
   juegoLocalFalta: "Todavía no está guardado en este celular. Abre la app una vez con internet y quedará listo para jugar sin conexión.",
-  sinConexionNota: "Estas partidas no pasan por las salas: no suman a tu perfil ni a los rankings.",
+  sinConexionNota: "Estas partidas no pasan por las salas. Se suman a tu perfil (carrera, estadísticas y medallas) en cuanto haya conexión; no cuentan para los rankings.",
+  partidasLocalesSubidas: (n: number) =>
+    n === 1 ? "Se sumó a tu perfil 1 partida jugada en este celular." : `Se sumaron a tu perfil ${n} partidas jugadas en este celular.`,
   instalarTitulo: "Lleva el lobby en tu celular",
   instalarTexto: "Instálalo como app: un ícono en tu pantalla de inicio, a pantalla completa y con tu usuario siempre a mano.",
   instalar: "Instalar app",
@@ -569,7 +571,9 @@ const en: Textos = {
       ? "Solo against Counter-Intel, or 2 to 4 players passing the phone around."
       : "Solo against the computer, with the mode and level you choose.",
   juegoLocalFalta: "Not saved on this phone yet. Open the app once with internet and it'll be ready to play offline.",
-  sinConexionNota: "These games don't go through rooms: they don't count toward your profile or rankings.",
+  sinConexionNota: "These games don't go through rooms. They're added to your profile (career, stats and medals) as soon as you're online; they don't count for rankings.",
+  partidasLocalesSubidas: (n: number) =>
+    n === 1 ? "1 game played on this phone was added to your profile." : `${n} games played on this phone were added to your profile.`,
   instalarTitulo: "Take the lobby on your phone",
   instalarTexto: "Install it as an app: an icon on your home screen, full screen, with your account always at hand.",
   instalar: "Install app",

@@ -447,3 +447,8 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .juegos-locales { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 1rem; }
 .juego-local h2 { margin-bottom: 0.25rem; }
 .en-este-celular { margin-top: 1rem; }
+.aviso-subidas {
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60;
+  background: var(--acento); color: var(--acento-texto); padding: 0.6rem 1rem; border-radius: 999px;
+  box-shadow: var(--sombra); font-size: 0.9rem; max-width: calc(100% - 32px); text-align: center;
+}
