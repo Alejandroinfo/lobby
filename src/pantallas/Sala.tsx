@@ -6,6 +6,7 @@ import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
 import type { Avatar, Mensaje, Partida, Perfil as TPerfil, Sala as TSala } from "../firebase/tipos";
 import { usePartidas } from "../hooks/usePartidas";
+import { useEsCelular } from "../hooks/useEsCelular";
 import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
 import { enlaceSala, irA } from "../navegacion";
@@ -504,16 +505,3 @@ function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid
   );
 }
 
-/** ¿Pantalla de celular? (el chat pasa a ser un botón que se abre a pantalla completa) */
-function useEsCelular() {
-  const consulta = "(max-width: 640px)";
-  const [es, setEs] = useState(() => window.matchMedia?.(consulta).matches ?? false);
-  useEffect(() => {
-    const mq = window.matchMedia?.(consulta);
-    if (!mq) return;
-    const f = () => setEs(mq.matches);
-    mq.addEventListener("change", f);
-    return () => mq.removeEventListener("change", f);
-  }, []);
-  return es;
-}

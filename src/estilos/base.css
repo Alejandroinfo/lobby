@@ -120,6 +120,9 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 }
 @media (max-width: 640px) {
   .rejilla { grid-template-columns: 1fr; }
+  /* En el celular, primero las partidas (invitaciones, «Estoy listo», «Abrir»); quién está y los amigos, después. */
+  .centro-sala { order: 1; }
+  .col-izquierda { order: 2; }
 }
 
 .contador { font-family: var(--texto); font-size: 0.8rem; font-weight: 400; color: var(--tinta-suave); margin-left: 0.35rem; }
@@ -535,3 +538,11 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .insignia.te-toca, .chip.turno { background: var(--acento); color: var(--acento-texto); }
 .te-toca-texto { color: var(--acento); font-weight: 700; margin: 0 0 0.25rem; }
 .tarjeta-avisos .listo-texto { margin: 0; }
+
+/* Amigos plegado (en la sala, en el celular) */
+.amigos.plegable > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.amigos.plegable > summary::-webkit-details-marker { display: none; }
+.amigos.plegable > summary::after { content: "▾"; color: var(--tinta-suave); font-size: 0.9rem; }
+.amigos.plegable[open] > summary::after { content: "▴"; }
+.amigos.plegable > summary h2 { margin: 0; }
+.amigos.plegable[open] > summary { margin-bottom: 0.6rem; }

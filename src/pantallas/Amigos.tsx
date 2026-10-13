@@ -29,6 +29,7 @@ import {
 } from "../firebase/amigos";
 import { avatarPorDefecto } from "../firebase/perfil";
 import type { Avatar, Perfil } from "../firebase/tipos";
+import { useEsCelular } from "../hooks/useEsCelular";
 import { useIdioma } from "../i18n";
 import { irA } from "../navegacion";
 import { AvatarCirculo } from "./PaginaPerfil";
@@ -188,6 +189,7 @@ function AvisosSociales() {
 export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string; miembros: string[] } }) {
   const s = useSocial();
   const { t } = useIdioma();
+  const celular = useEsCelular();
   const [codigo, setCodigo] = useState("");
   const [mensaje, setMensaje] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [miCodigo, setMiCodigo] = useState<string | undefined>(s?.codigo);
@@ -247,11 +249,14 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
   });
   const conectados = amigos.filter((a) => presente(presencias[a.uid])).length;
 
-  return (
-    <section className="panel amigos" aria-labelledby="t-amigos">
-      <h2 id="t-amigos">
-        {t.amigos} {amigos.length > 0 && <span className="contador">{t.conectados(conectados)}</span>}
-      </h2>
+  const cabeza = (
+    <h2 id="t-amigos">
+      {t.amigos} {amigos.length > 0 && <span className="contador">{t.conectados(conectados)}</span>}
+      {(s.solicitudes ?? []).length > 0 && <span className="insignia te-toca">{(s.solicitudes ?? []).length}</span>}
+    </h2>
+  );
+  const cuerpo = (
+    <>
 
       {(s.solicitudes ?? []).length > 0 && (
         <ul className="lista-amigos solicitudes">
@@ -345,6 +350,21 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
           <button className="enlace" onClick={verCodigo}>{t.verMiCodigo}</button>
         )}
       </p>
+    </>
+  );
+  // En la sala, en el celular, Amigos va plegado al final: lo primero son las partidas.
+  if (sala && celular) {
+    return (
+      <details className="panel amigos plegable" aria-labelledby="t-amigos">
+        <summary>{cabeza}</summary>
+        {cuerpo}
+      </details>
+    );
+  }
+  return (
+    <section className="panel amigos" aria-labelledby="t-amigos">
+      {cabeza}
+      {cuerpo}
     </section>
   );
 }
