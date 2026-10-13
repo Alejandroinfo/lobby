@@ -11,6 +11,7 @@ import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
 import { InstalarApp } from "./InstalarApp";
+import { PartidasEnCurso, TarjetaAvisos } from "./EnCurso";
 import { Perfil } from "./Perfil";
 import { PanelAmigos } from "./Amigos";
 import { rangoDe } from "./Carrera";
@@ -97,7 +98,9 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
         </span>
         <span className="mini-perfil-ir">{t.verPerfil} →</span>
       </button>
+      <PartidasEnCurso perfil={perfil} />
       <InstalarApp invitado={usuario.anonimo} />
+      <TarjetaAvisos uid={uid} />
       <Perfil usuario={usuario} />
       <div className="amigos-inicio"><PanelAmigos /></div>
       <button className="tarjeta mini-perfil en-este-celular" onClick={() => irA({ pantalla: "en-este-celular" })}>

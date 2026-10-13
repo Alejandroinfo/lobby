@@ -88,6 +88,39 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// ── Avisos (Web Push): «te toca», invitaciones, solicitudes ──────────────────────
+self.addEventListener("push", (e) => {
+  let d = {};
+  try {
+    d = e.data ? e.data.json() : {};
+  } catch {
+    d = { titulo: "Lobby", cuerpo: e.data ? e.data.text() : "" };
+  }
+  e.waitUntil(
+    self.registration.showNotification(d.titulo || "Lobby de juegos", {
+      body: d.cuerpo || "",
+      icon: "/icono-192.png",
+      badge: "/icono-192.png",
+      tag: d.etiqueta || undefined,
+      renotify: Boolean(d.etiqueta),
+      data: { url: d.url || "/" },
+    }),
+  );
+});
+
+// Al tocar el aviso: a la sala (si la app ya está abierta, se usa esa ventana).
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const destino = new URL(e.notification.data?.url || "/", self.location.origin).href;
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
+      const propia = ventanas.find((v) => new URL(v.url).origin === self.location.origin && !new URL(v.url).pathname.startsWith("/juegos/"));
+      if (propia) return propia.navigate(destino).then((v) => (v || propia).focus());
+      return self.clients.openWindow(destino);
+    }),
+  );
+});
+
 // La app pide poner al día los juegos sin internet al abrirse con conexión.
 self.addEventListener("message", (e) => {
   if (e.data === "precargar-juegos") e.waitUntil(precargarJuegos());

@@ -113,7 +113,9 @@ export const JUEGOS: Juego[] = [
     jugadores: { min: 2, max: 4 },
     duracion: "Por medir",
     espectadores: true,
-    variantes: [{ id: "normal", nombre: "Normal (4 estrellas)" }, { id: "corto", nombre: "Corto (3 estrellas)" }, { id: "extendido", nombre: "Extendido (5 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
+    // Los modos que Astrolabe ofrece ahora (MODOS_DISPONIBLES en src/game/orbitas.ts de Astrolabe):
+    // normal y extendido quedaron ocultos mientras se prueba el mazo nuevo.
+    variantes: [{ id: "corto", nombre: "Corto (3 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
     equiposCon: [4],
     preguntas: [
       { id: "bitacora-clara", texto: "¿Se entendió bien la bitácora por paradas?", tipo: "si-no" },

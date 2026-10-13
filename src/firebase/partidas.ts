@@ -4,6 +4,7 @@ import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
 import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
+import { avisarFinDePartida, pedirAviso } from "./avisos";
 
 const refPartida = (sala: string, id: string) => doc(db, "salas", sala, "partidas", id);
 
@@ -46,6 +47,8 @@ export async function crearPartida(
     iniciada: null,
     terminada: null,
   });
+  // Aviso al celular de cada invitado (si los activó).
+  for (const inv of invitaciones) if (inv.uid !== creador) pedirAviso({ tipo: "partida", sala, partida: ref.id, para: inv.uid });
   return ref.id;
 }
 
@@ -257,10 +260,12 @@ export async function lanzar(sala: string, p: Partida, juego: Juego) {
 
 export async function terminar(sala: string, id: string) {
   await updateDoc(refPartida(sala, id), { estado: "terminada", terminada: serverTimestamp() });
+  avisarFinDePartida(sala, id);
 }
 
 export async function cancelar(sala: string, id: string) {
   await updateDoc(refPartida(sala, id), { estado: "cancelada", terminada: serverTimestamp() });
+  avisarFinDePartida(sala, id);
 }
 
 /**
@@ -320,6 +325,7 @@ export async function guardarResultado(sala: string, id: string, uid: string, as
       terminada: serverTimestamp(),
       resultado: { ganadores, puntajes },
     });
+    avisarFinDePartida(sala, id); // fuera de «Tus partidas en curso» de todos
   }
   return true;
 }

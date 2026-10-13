@@ -63,6 +63,8 @@ export interface Partida {
   /** «Jugar de nuevo» dentro del juego: la partida original y el número de esta (2, 3…). */
   revanchaDe?: string;
   ronda?: number;
+  /** De quién es el turno (lo informa el juego a api/turno.js): asientos que tienen que jugar ahora. */
+  turno?: { asientos: number[]; hora: Timestamp | null };
 }
 
 /** Documento `salas/{codigo}/mensajes/{id}`. */
@@ -124,6 +126,8 @@ export interface Perfil {
   retosDiarios?: Record<string, number>;
   /** Tu código para que te agreguen como amigo (8 caracteres). */
   codigoAmigo?: string;
+  /** Tus partidas en curso de todas las salas (las escribe api/turno.js al cambiar el turno). */
+  enCurso?: Record<string, EnCurso>;
   /** Última vez que se te invitó a la encuesta de playtest (como mucho una vez por semana). */
   encuestaOfrecida?: Timestamp;
 }
@@ -232,4 +236,16 @@ export interface Marca {
   hora: Timestamp | null;
   /** Reto del día: sala desde la que se jugó. */
   sala?: string;
+}
+
+/** Una partida tuya en curso (en el perfil, para «Tus partidas en curso» y «Te toca»). */
+export interface EnCurso {
+  sala: string;
+  nombreSala: string;
+  juego: string;
+  miTurno: boolean;
+  /** A quién le toca ahora. */
+  esperando: string[];
+  /** Cuándo cambió el turno (ms). */
+  hora: number;
 }

@@ -142,6 +142,9 @@ export async function borrarMisDatos(uid: string) {
   await Promise.all(fechas.map((f) => setDoc(doc(db, "retosDiarios", f), { jugadores: { [uid]: deleteField() } }, { merge: true }).catch(() => {})));
   await Promise.all(historial.map((e) => deleteDoc(doc(db, "jugadores", uid, "historial", e.id)).catch(() => {})));
   await borrarDatosSociales(uid, perfil?.codigoAmigo).catch(() => {});
+  // Los avisos al celular de todos tus aparatos.
+  const avisos = await getDocs(collection(db, "jugadores", uid, "avisos")).catch(() => null);
+  await Promise.all((avisos?.docs ?? []).map((d) => deleteDoc(d.ref).catch(() => {})));
   await deleteDoc(doc(db, "perfiles", uid)).catch(() => {});
   await deleteDoc(doc(db, "jugadores", uid));
   ultimaFicha = "";

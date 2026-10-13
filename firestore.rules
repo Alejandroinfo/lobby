@@ -47,7 +47,8 @@ service cloud.firestore {
     match /jugadores/{uid} {
       function perfilValido(d) {
         return d.keys().hasOnly(['nombre', 'ultimaVez', 'pais', 'rangoEdad', 'comoLlego', 'experiencia', 'salaOrigen', 'carrera', 'avatar', 'fichaVisible', 'tipoJugador',
-                                'estadisticas', 'rivales', 'retosDiarios', 'codigoAmigo', 'encuestaOfrecida'])
+                                'estadisticas', 'rivales', 'retosDiarios', 'codigoAmigo', 'encuestaOfrecida', 'enCurso'])
+          && (!('enCurso' in d) || d.enCurso is map)
           && (!('encuestaOfrecida' in d) || d.encuestaOfrecida is timestamp)
           && (!('codigoAmigo' in d) || (d.codigoAmigo is string && d.codigoAmigo.matches('^[A-Z0-9]{8}$')))
           && (!('estadisticas' in d) || d.estadisticas is map)
@@ -83,6 +84,19 @@ service cloud.firestore {
           && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
           && request.resource.data.desde == request.time;
         allow update: if false;
+      }
+
+      // Avisos al celular (Web Push): una suscripción por aparato. Solo su dueño; las lee el servidor.
+      match /avisos/{id} {
+        allow read, delete: if autenticado() && request.auth.uid == uid;
+        allow create, update: if autenticado() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['suscripcion', 'idioma', 'aparato', 'creado'])
+          && request.resource.data.suscripcion is map
+          && request.resource.data.suscripcion.endpoint is string
+          && request.resource.data.suscripcion.endpoint.size() <= 1000
+          && request.resource.data.idioma in ['es', 'en']
+          && (!('aparato' in request.resource.data) || (request.resource.data.aparato is string && request.resource.data.aparato.size() <= 200))
+          && request.resource.data.creado == request.time;
       }
 
       // Historial personal: una entrada por partida o reto terminado. Solo lo ve y lo escribe su dueño.

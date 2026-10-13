@@ -21,6 +21,7 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
+import { pedirAviso } from "./avisos";
 import type { Avatar } from "./tipos";
 
 export interface Amigo {
@@ -106,6 +107,7 @@ export async function pedirAmistad(yo: { uid: string; nombre: string; avatar?: A
     ...(yo.avatar ? { avatar: yo.avatar } : {}),
     hora: serverTimestamp(),
   });
+  pedirAviso({ tipo: "solicitud", de: yo.uid, para });
   return "enviada";
 }
 
@@ -181,6 +183,7 @@ export async function invitarASala(yo: { uid: string; nombre: string; avatar?: A
     nombreSala: nombreSala.slice(0, 40),
     hora: serverTimestamp(),
   });
+  pedirAviso({ tipo: "sala", de: yo.uid, para: amigo, sala });
 }
 
 export async function descartarInvitacion(yo: string, de: string) {

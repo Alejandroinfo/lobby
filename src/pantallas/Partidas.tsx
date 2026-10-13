@@ -241,7 +241,8 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
 
       <ul className="invitados">
         {lista.map(([id, i]) => {
-          const e = estadoInvitado(i, jugando, conectado(id), t);
+          const leToca = jugando && i.asiento !== null && !!p.turno?.asientos.includes(i.asiento);
+          const e = leToca ? { texto: t.chipLeToca, clase: "turno" } : estadoInvitado(i, jugando, conectado(id), t);
           return (
             <li key={id}>
               <span>
@@ -306,6 +307,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         <div className="lanzar">
           {yo?.respuesta === "acepta" && (
             <>
+              {yo.rol === "jugador" && yo.asiento !== null && p.turno?.asientos.includes(yo.asiento) && <p className="te-toca-texto">{t.teToca}</p>}
               <p>
                 {yo.rol === "jugador"
                   ? t.juegasAsiento((yo.asiento ?? 0) + 1, yo.equipo !== undefined ? t.equipos[yo.equipo] : null)
