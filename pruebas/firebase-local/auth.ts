@@ -32,7 +32,7 @@ function usuario(): Usuario {
     emailVerified: false,
     providerData: correo ? [{ providerId: "password" }] : [],
     reload: async () => {},
-    getIdToken: async () => "token",
+    getIdToken: async () => `token-${uid}`, // en las pruebas, la «sesión» lleva el uid
   };
 }
 

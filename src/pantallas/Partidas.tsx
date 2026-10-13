@@ -1,4 +1,5 @@
 import { abrirJuego, esApp } from "../pwa";
+import { conLlave } from "../firebase/llaveJuego";
 import { useEffect, useRef, useState } from "react";
 import { abrirPartidaSolo } from "./CrearPartida";
 import { juegoPorId } from "../datos/catalogo";
@@ -320,7 +321,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
                     className="primario"
                     onClick={() => {
                       // Pestaña nueva: el lobby sigue abierto y recibe el resultado al terminar.
-                      abrirJuego(enlace, `juego-${p.id}`, juego.nombre);
+                      abrirJuego(conLlave(juego.id, enlace), `juego-${p.id}`, juego.nombre);
                     }}
                   >
                     {t.abrir(juego.nombre)}

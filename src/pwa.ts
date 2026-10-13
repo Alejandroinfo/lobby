@@ -80,14 +80,24 @@ export function useAvisoInstalacion() {
  * En la app instalada, en la misma ventana: así "Volver a la sala" regresa a la app (otra pestaña
  * se abriría fuera de ella, en el navegador) y el resultado vuelve en la dirección.
  */
-export function abrirJuego(url: string, ventana = "_blank", juego?: string): void {
+export function abrirJuego(url: string | Promise<string>, ventana = "_blank", juego?: string): void {
   // Tus amigos ven «jugando …» aunque el lobby quede en segundo plano o se cierre (en la app).
   const aviso = juego && presenciaAlJugar.publicar ? presenciaAlJugar.publicar(juego).catch(() => {}) : null;
   if (esApp()) {
     // Se espera un momento al aviso: al cambiar de página, lo pendiente se pierde.
-    Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]).then(() => window.location.assign(url));
+    Promise.all([url, Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))])]).then(([u]) => window.location.assign(u));
     return;
   }
-  const w = window.open(url, ventana);
-  if (!w) window.location.href = url; // el navegador bloqueó la pestaña
+  if (typeof url === "string") {
+    const w = window.open(url, ventana);
+    if (!w) window.location.href = url; // el navegador bloqueó la pestaña
+    return;
+  }
+  // El enlace aún se está armando (p. ej. con la llave del juego): la pestaña se abre ya, dentro del
+  // clic (si no, el navegador la bloquea), y se completa cuando el enlace está listo.
+  const w = window.open("", ventana);
+  url.then((u) => {
+    if (w) w.location.href = u;
+    else window.location.href = u;
+  });
 }

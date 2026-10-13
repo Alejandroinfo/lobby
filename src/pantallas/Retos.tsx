@@ -6,6 +6,7 @@
  * Se juegan en solitario; solo cuenta el primer intento.
  */
 import { abrirJuego } from "../pwa";
+import { conLlave } from "../firebase/llaveJuego";
 import { useEffect, useState } from "react";
 import { JUEGOS, type Juego } from "../datos/catalogo";
 import { claveDia, diasAntes, enlaceReto, fechaDeClave, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
@@ -19,9 +20,10 @@ const DIAS_LIGA = 7;
 
 type Ambito = "sala" | "global";
 
-function abrir(url: string) {
+function abrir(url: string, juego: string) {
   // Pestaña nueva (o la misma ventana en la app instalada): el puntaje vuelve a la sala al terminar.
-  abrirJuego(url);
+  // Con la llave del juego, el reto se retoma desde cualquier aparato de tu cuenta.
+  abrirJuego(conLlave(juego, url));
 }
 
 interface Props {
@@ -77,7 +79,7 @@ export function Retos({ sala, uid, nombre, miembros, confirmado, retosPropios }:
     const r = nuevoReto(sala, juego, uid, nombre);
     const url = enlaceReto(juego, sala, r, nombre, idioma);
     if (!url) return;
-    abrir(url);
+    abrir(url, juego.id);
     guardarReto(sala, r).catch((e) => {
       console.error(e);
       setError(t.errorCrearReto);
@@ -190,7 +192,7 @@ function TarjetaDiaria(props: Omit<Props, "retosPropios"> & { juego: Juego; reto
           <span className="mono suave chico-texto"> · {t.operacion} {reto.semilla}</span>
         </div>
         {url && (
-          <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url)}>
+          <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url, juego.id)}>
             {mia ? t.jugarDeNuevo : t.jugarReto}
           </button>
         )}
@@ -226,7 +228,7 @@ function TarjetaReto(props: { sala: string; uid: string; nombre: string; juego: 
           <span className="mono suave chico-texto"> · {t.operacion} {reto.semilla}</span>
         </div>
         {url && (
-          <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url)}>
+          <button className={mia ? "secundario" : "primario"} onClick={() => abrir(url, juego.id)}>
             {mia ? t.jugarDeNuevo : lider ? t.superarlo(lider.puntaje) : t.jugarReto}
           </button>
         )}
