@@ -120,7 +120,6 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 }
 @media (max-width: 640px) {
   .rejilla { grid-template-columns: 1fr; }
-  .chat { order: 2; }
 }
 
 .contador { font-family: var(--texto); font-size: 0.8rem; font-weight: 400; color: var(--tinta-suave); margin-left: 0.35rem; }
@@ -148,15 +147,60 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 .juego .datos { color: var(--tinta-suave); font-size: 0.8rem; }
 .juego button { margin-top: auto; align-self: flex-start; font-size: 0.85rem; padding: 0.4rem 0.8rem; }
 
-.chat { display: flex; flex-direction: column; }
-.mensajes { list-style: none; margin: 0 0 0.75rem; padding: 0; height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
-.mensajes li { background: var(--fondo); border-radius: 10px; padding: 0.45rem 0.7rem; max-width: 90%; align-self: flex-start; overflow-wrap: anywhere; }
-.mensajes li.mio { align-self: flex-end; background: var(--acento-suave); }
-.mensajes li.vacio { background: none; align-self: center; margin: auto; }
-.autor { display: block; font-size: 0.75rem; font-weight: 600; color: var(--tinta-suave); }
-.hora { display: block; font-size: 0.7rem; color: var(--tinta-suave); text-align: right; }
-.escribir { display: flex; gap: 0.5rem; }
-.escribir input { flex: 1; }
+/* Chat con globos. En computadora queda fijo a la vista mientras bajas por la sala. */
+.chat { display: flex; flex-direction: column; position: sticky; top: 1rem; height: min(calc(100vh - 2rem), 760px); min-height: 360px; }
+.chat-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.chat-cuerpo { position: relative; flex: 1; min-height: 0; display: flex; }
+.mensajes { list-style: none; margin: 0 -0.25rem 0.6rem; padding: 0.25rem; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; overscroll-behavior: contain; }
+.mensajes li.vacio { align-self: center; margin: auto; text-align: center; }
+.dia-chat { align-self: center; margin: 0.6rem 0 0.4rem; font-size: 0.72rem; color: var(--tinta-suave); }
+.dia-chat span { background: var(--fondo); border: 1px solid var(--linea); border-radius: 999px; padding: 0.15rem 0.6rem; text-transform: capitalize; }
+.globo-fila { display: flex; align-items: flex-end; gap: 0.4rem; max-width: 100%; }
+.globo-fila.primero { margin-top: 0.45rem; }
+.globo-fila.mio { justify-content: flex-end; }
+.globo-avatar { width: 24px; flex: none; display: flex; align-items: flex-end; }
+.globo {
+  position: relative; max-width: min(78%, 34rem); padding: 0.4rem 0.65rem 0.3rem; border-radius: 16px;
+  background: var(--fondo); border: 1px solid var(--linea); overflow-wrap: anywhere; line-height: 1.35;
+}
+.globo-fila.mio .globo { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+/* Esquina "de cola" solo en el último globo de cada bloque */
+.globo-fila.otro.ultimo .globo { border-bottom-left-radius: 4px; }
+.globo-fila.mio.ultimo .globo { border-bottom-right-radius: 4px; }
+.globo-autor { display: block; font-size: 0.72rem; font-weight: 700; color: var(--acento); margin-bottom: 0.1rem; }
+.globo-texto { white-space: pre-wrap; }
+.globo-hora { float: right; margin: 0.35rem 0 -0.1rem 0.6rem; font-size: 0.66rem; opacity: 0.7; line-height: 1; }
+.ir-abajo {
+  position: absolute; right: 0.5rem; bottom: 1rem; width: 36px; height: 36px; border-radius: 50%; padding: 0;
+  background: var(--superficie); border: 1px solid var(--linea); box-shadow: var(--sombra);
+}
+.escribir { display: flex; gap: 0.5rem; align-items: center; }
+.escribir input { flex: 1; border-radius: 999px; padding-left: 1rem; }
+.enviar-chat { width: 44px; height: 44px; border-radius: 50%; padding: 0; font-size: 1.1rem; flex: none; }
+.enviar-chat:disabled { opacity: 0.45; }
+
+/* Celular: el chat es un botón 💬 que lo abre a pantalla completa */
+.boton-chat {
+  position: fixed; right: calc(14px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 45;
+  width: 56px; height: 56px; border-radius: 50%; padding: 0; font-size: 1.5rem;
+  background: var(--acento); color: var(--acento-texto); border: none; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.globo-contador {
+  position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  background: var(--error); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 22px; text-align: center;
+  border: 2px solid var(--superficie);
+}
+body.sin-scroll { overflow: hidden; }
+@media (max-width: 640px) {
+  .chat { display: none; }
+  .chat.abierto {
+    display: flex; position: fixed; inset: 0; z-index: 70; height: 100dvh; min-height: 0; border-radius: 0; margin: 0;
+    padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  }
+  .globo { max-width: 82%; }
+  /* El botón de reportar pasa a la izquierda para dejarle la esquina al chat */
+  .boton-reportar { right: auto; left: calc(12px + env(safe-area-inset-left)); }
+}
 
 /* Paso 2: partidas e invitaciones */
 select {

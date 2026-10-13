@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
-import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
+import { SelectorIdioma, textosJuego, useIdioma, type Textos } from "../i18n";
 import { actualizarAvatarEnSala, cerrarSala, DIAS_INACTIVIDAD, enviarMensaje, guardarPerfil, LARGO_MENSAJE, motivoCierre, salirDeSala, unirseASala } from "../firebase/salas";
 import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
@@ -325,16 +325,72 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   );
 }
 
+/** «Hoy», «Ayer» o la fecha, para separar los mensajes por día. */
+function etiquetaDia(fecha: Date, t: Textos, idioma: string): string {
+  const hoy = new Date();
+  const ayer = new Date(hoy);
+  ayer.setDate(hoy.getDate() - 1);
+  if (fecha.toDateString() === hoy.toDateString()) return t.hoy;
+  if (fecha.toDateString() === ayer.toDateString()) return t.ayer;
+  return fecha.toLocaleDateString(idioma, { weekday: "long", day: "numeric", month: "long" });
+}
+
+const AGRUPAR_MS = 5 * 60_000; // mensajes seguidos de la misma persona: un solo bloque
+
+/**
+ * Chat de la sala con globos (los tuyos a la derecha). En computadora queda fijo a la vista; en el
+ * celular es un botón 💬 con los no leídos que lo abre a pantalla completa.
+ */
 function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[]; miembros: TSala["miembros"] }) {
-  const { t } = useIdioma();
+  const { t, idioma } = useIdioma();
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
+  const [abierto, setAbierto] = useState(false); // solo en el celular
+  const [abajo, setAbajo] = useState(true); // ¿se está viendo lo último?
   const lista = useRef<HTMLOListElement>(null);
+  const campo = useRef<HTMLInputElement>(null);
+  const claveLeido = `lobby_chat_leido:${codigo}`;
+  const [leido, setLeido] = useState(() => {
+    try {
+      return Number(localStorage.getItem(claveLeido) ?? 0);
+    } catch {
+      return 0;
+    }
+  });
+  const celular = useEsCelular();
+  const visible = !celular || abierto;
 
+  const ultimo = mensajes.at(-1);
+  const ultimaHora = ultimo?.hora?.toMillis() ?? 0;
+  const noLeidos = mensajes.filter((m) => m.uid !== uid && (m.hora?.toMillis() ?? 0) > leido).length;
+
+  // Lo que está a la vista cuenta como leído.
   useEffect(() => {
+    if (!visible || !ultimaHora || ultimaHora <= leido) return;
+    setLeido(ultimaHora);
+    try {
+      localStorage.setItem(claveLeido, String(ultimaHora));
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [visible, ultimaHora, leido, claveLeido]);
+
+  // Bajar al último mensaje si ya estabas abajo o si lo mandaste tú (no si estabas leyendo arriba).
+  const irAbajo = (suave = false) => {
     const el = lista.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? "smooth" : "auto" });
+  };
+  useEffect(() => {
+    if (abajo || ultimo?.uid === uid) irAbajo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mensajes.length]);
+  useEffect(() => {
+    if (!abierto) return;
+    irAbajo();
+    // En el celular el chat ocupa toda la pantalla: la página de atrás no se mueve.
+    document.body.classList.add("sin-scroll");
+    return () => document.body.classList.remove("sin-scroll");
+  }, [abierto]);
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
@@ -344,6 +400,7 @@ function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid
       return;
     }
     setTexto("");
+    campo.current?.focus();
     try {
       await enviarMensaje(codigo, uid, nombre, limpio);
     } catch {
@@ -352,47 +409,111 @@ function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid
     }
   };
 
+  const filas: ReactNode[] = [];
+  mensajes.forEach((m, i) => {
+    const antes = mensajes[i - 1];
+    const fecha = m.hora?.toDate() ?? new Date();
+    const fechaAntes = antes?.hora?.toDate();
+    const nuevoDia = !antes || !fechaAntes || fechaAntes.toDateString() !== fecha.toDateString();
+    if (nuevoDia) filas.push(<li key={`dia-${m.id}`} className="dia-chat"><span>{etiquetaDia(fecha, t, idioma)}</span></li>);
+    const mio = m.uid === uid;
+    const primero = nuevoDia || antes.uid !== m.uid || fecha.getTime() - (fechaAntes?.getTime() ?? 0) > AGRUPAR_MS;
+    const siguiente = mensajes[i + 1];
+    const ultimoDelGrupo = !siguiente || siguiente.uid !== m.uid || (siguiente.hora?.toMillis() ?? Date.now()) - fecha.getTime() > AGRUPAR_MS;
+    filas.push(
+      <li key={m.id} className={`globo-fila ${mio ? "mio" : "otro"} ${primero ? "primero" : ""} ${ultimoDelGrupo ? "ultimo" : ""}`}>
+        {!mio && (
+          <span className="globo-avatar" aria-hidden="true">
+            {ultimoDelGrupo && <AvatarCirculo avatar={miembros[m.uid]?.avatar ?? avatarPorDefecto(m.uid)} tam="xs" />}
+          </span>
+        )}
+        <div className="globo">
+          {!mio && primero && <span className="globo-autor">{m.nombre}</span>}
+          <span className="globo-texto">{m.texto}</span>
+          {m.hora && (
+            <time className="globo-hora" dateTime={fecha.toISOString()}>
+              {fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </time>
+          )}
+        </div>
+      </li>,
+    );
+  });
+
   return (
-    <section className="panel chat" aria-labelledby="t-chat">
-      <h2 id="t-chat">{t.chat}</h2>
-      <ol ref={lista} className="mensajes" aria-live="polite">
-        {mensajes.length === 0 && <li className="suave vacio">{t.sinMensajes}</li>}
-        {mensajes.map((m) => (
-          <li key={m.id} className={m.uid === uid ? "mio" : ""}>
-            <span className="autor">
-              {m.uid !== uid && <AvatarCirculo avatar={miembros[m.uid]?.avatar ?? avatarPorDefecto(m.uid)} tam="xs" />}
-              {m.uid === uid ? t.tuMayus : m.nombre}
-            </span>
-            <span className="texto">{m.texto}</span>
-            {m.hora && (
-              <time className="hora" dateTime={m.hora.toDate().toISOString()}>
-                {m.hora.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </time>
-            )}
-          </li>
-        ))}
-      </ol>
-      <form className="escribir" onSubmit={enviar} noValidate>
-        <label htmlFor="mensaje" className="sr-only">
-          {t.mensaje}
-        </label>
-        <input
-          id="mensaje"
-          autoComplete="off"
-          maxLength={LARGO_MENSAJE}
-          value={texto}
-          placeholder={t.escribeMensaje}
-          aria-invalid={Boolean(error)}
-          onChange={(e) => {
-            setTexto(e.target.value);
-            setError("");
-          }}
-        />
-        <button type="submit" className="primario">
-          {t.enviar}
+    <>
+      {celular && !abierto && (
+        <button className="boton-chat" onClick={() => setAbierto(true)} aria-label={noLeidos ? t.abrirChatNoLeidos(noLeidos) : t.abrirChat}>
+          💬
+          {noLeidos > 0 && <span className="globo-contador">{noLeidos > 9 ? "9+" : noLeidos}</span>}
         </button>
-      </form>
-      {error && <p className="error">{error}</p>}
-    </section>
+      )}
+      <section className={`panel chat ${abierto ? "abierto" : ""}`} aria-labelledby="t-chat">
+        <div className="chat-cabeza">
+          <h2 id="t-chat">{t.chat}</h2>
+          {abierto && (
+            <button className="secundario chico cerrar-chat" onClick={() => setAbierto(false)} aria-label={t.cerrar}>
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="chat-cuerpo">
+          <ol
+            ref={lista}
+            className="mensajes"
+            aria-live="polite"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              setAbajo(el.scrollHeight - el.scrollTop - el.clientHeight < 60);
+            }}
+          >
+            {mensajes.length === 0 && <li className="suave vacio">{t.sinMensajes}</li>}
+            {filas}
+          </ol>
+          {!abajo && (
+            <button className="ir-abajo" onClick={() => irAbajo(true)} aria-label={t.irAlFinal}>
+              ↓
+            </button>
+          )}
+        </div>
+        <form className="escribir" onSubmit={enviar} noValidate>
+          <label htmlFor="mensaje" className="sr-only">
+            {t.mensaje}
+          </label>
+          <input
+            id="mensaje"
+            ref={campo}
+            autoComplete="off"
+            enterKeyHint="send"
+            maxLength={LARGO_MENSAJE}
+            value={texto}
+            placeholder={t.escribeMensaje}
+            aria-invalid={Boolean(error)}
+            onChange={(e) => {
+              setTexto(e.target.value);
+              setError("");
+            }}
+          />
+          <button type="submit" className="primario enviar-chat" aria-label={t.enviar} disabled={!texto.trim()}>
+            ➤
+          </button>
+        </form>
+        {error && <p className="error">{error}</p>}
+      </section>
+    </>
   );
+}
+
+/** ¿Pantalla de celular? (el chat pasa a ser un botón que se abre a pantalla completa) */
+function useEsCelular() {
+  const consulta = "(max-width: 640px)";
+  const [es, setEs] = useState(() => window.matchMedia?.(consulta).matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia?.(consulta);
+    if (!mq) return;
+    const f = () => setEs(mq.matches);
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, []);
+  return es;
 }
