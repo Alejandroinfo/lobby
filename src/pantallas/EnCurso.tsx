@@ -53,8 +53,11 @@ function haceCuanto(ms: number, t: ReturnType<typeof useIdioma>["t"]): string {
   return t.haceDias(Math.round(h / 24));
 }
 
-/** Activar o apagar los avisos en este aparato. */
-export function TarjetaAvisos({ uid }: { uid: string }) {
+/**
+ * Activar o apagar los avisos en este aparato. En el inicio solo aparece mientras no están
+ * activados (después estorba); para apagarlos, la misma tarjeta está en tu perfil (`enPerfil`).
+ */
+export function TarjetaAvisos({ uid, enPerfil = false }: { uid: string; enPerfil?: boolean }) {
   const { t, idioma } = useIdioma();
   const [estado, setEstado] = useState<EstadoAvisos | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -63,6 +66,7 @@ export function TarjetaAvisos({ uid }: { uid: string }) {
     estadoAvisos().then(setEstado, () => setEstado("sin-soporte"));
   }, []);
   if (!estado || estado === "sin-soporte") return null;
+  if (estado === "activos" && !enPerfil) return null;
 
   const cambiar = async (activar: boolean) => {
     setOcupado(true);
@@ -81,6 +85,7 @@ export function TarjetaAvisos({ uid }: { uid: string }) {
     <section className="tarjeta tarjeta-avisos" aria-labelledby="t-avisos">
       <h2 id="t-avisos">🔔 {t.avisosTitulo}</h2>
       <p className="suave chico-texto">{t.avisosTexto}</p>
+      {!enPerfil && <p className="suave chico-texto">{t.avisosDondeApagar}</p>}
       {estado === "activos" ? (
         <p className="listo-texto">
           {t.avisosActivos}{" "}

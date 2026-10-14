@@ -14,6 +14,7 @@ import { irA } from "../navegacion";
 import { Carrera } from "./Carrera";
 import { CompletarEnlace, Cuenta } from "./Perfil";
 import { Privacidad } from "./Privacidad";
+import { TarjetaAvisos } from "./EnCurso";
 
 const ADMIN = "alejandro.armasb@gmail.com";
 
@@ -113,6 +114,7 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
           <Cuenta usuario={usuario} />
           <Carrera uid={usuario.uid} carreraEnVivo={perfil?.carrera} />
           <Privacidad uid={usuario.uid} perfil={perfil} />
+          <TarjetaAvisos uid={usuario.uid} enPerfil />
         </div>
         <div className="col-perfil">
           {historial === null ? (
