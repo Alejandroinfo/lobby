@@ -300,6 +300,24 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string,
 }
 
 /**
+ * Enlace para volver a entrar a una partida en curso sin pasar por la sala (desde «Tus partidas en
+ * curso» del inicio). Si la partida ya no está en juego o no se puede abrir, lleva a la sala.
+ */
+export async function enlaceDePartida(juego: Juego, sala: string, id: string, uid: string, idioma: "es" | "en"): Promise<string> {
+  const aLaSala = `${window.location.origin}/s/${sala}`;
+  try {
+    const snap = await getDoc(doc(db, "salas", sala, "partidas", id));
+    if (!snap.exists()) return aLaSala;
+    const p = { id: snap.id, ...snap.data() } as Partida;
+    if (p.estado !== "jugando") return aLaSala;
+    return enlaceJuego(juego, sala, p, uid, idioma) ?? aLaSala;
+  } catch (e) {
+    console.warn(e);
+    return aLaSala;
+  }
+}
+
+/**
  * Guarda el resultado que informó el juego (uno por persona) y, si la partida seguía en juego,
  * la da por terminada con ese resultado.
  */

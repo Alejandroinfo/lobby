@@ -534,7 +534,13 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 
 /* Partidas en curso y turnos */
 .lista-en-curso { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
-.lista-en-curso li.mi-turno .enlace-sala { border-color: var(--acento); background: var(--acento-suave); }
+.lista-en-curso li { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap;
+  border: 1px solid var(--linea); border-radius: var(--radio); padding: 0.55rem 0.7rem; background: var(--superficie); }
+.lista-en-curso li.mi-turno { border-color: var(--acento); background: var(--acento-suave); }
+.lista-en-curso .en-curso-info { flex: 1 1 12rem; min-width: 0; }
+.lista-en-curso .en-curso-info .enlace { padding: 0; font: inherit; }
+.lista-en-curso li > button { flex: 0 0 auto; }
+@media (max-width: 520px) { .lista-en-curso li > button { flex: 1 1 100%; } }
 .insignia.te-toca, .chip.turno { background: var(--acento); color: var(--acento-texto); }
 .te-toca-texto { color: var(--acento); font-weight: 700; margin: 0 0 0.25rem; }
 .tarjeta-avisos .listo-texto { margin: 0; }

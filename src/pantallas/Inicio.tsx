@@ -98,7 +98,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
         </span>
         <span className="mini-perfil-ir">{t.verPerfil} →</span>
       </button>
-      <PartidasEnCurso perfil={perfil} />
+      <PartidasEnCurso perfil={perfil} uid={uid} />
       <InstalarApp invitado={usuario.anonimo} />
       <TarjetaAvisos uid={uid} />
       <Perfil usuario={usuario} />

@@ -5,14 +5,17 @@
 import { useEffect, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
 import { activarAvisos, desactivarAvisos, estadoAvisos, type EstadoAvisos } from "../firebase/avisos";
+import { conLlave } from "../firebase/llaveJuego";
+import { enlaceDePartida } from "../firebase/partidas";
 import type { Perfil } from "../firebase/tipos";
+import { abrirJuego } from "../pwa";
 import { irA } from "../navegacion";
 import { useIdioma } from "../i18n";
 
 const VIGENCIA_MS = 30 * 86_400_000; // una partida sin jugadas en 30 días ya no se muestra
 
-export function PartidasEnCurso({ perfil }: { perfil: Perfil | null | undefined }) {
-  const { t } = useIdioma();
+export function PartidasEnCurso({ perfil, uid }: { perfil: Perfil | null | undefined; uid: string }) {
+  const { t, idioma } = useIdioma();
   const ahora = Date.now();
   const lista = Object.entries(perfil?.enCurso ?? {})
     .filter(([, e]) => e && ahora - e.hora < VIGENCIA_MS)
@@ -27,16 +30,29 @@ export function PartidasEnCurso({ perfil }: { perfil: Perfil | null | undefined 
       <ul className="lista-en-curso">
         {lista.map(([id, e]) => (
           <li key={id} className={e.miTurno ? "mi-turno" : ""}>
-            <button className="enlace-sala" onClick={() => irA({ pantalla: "sala", codigo: e.sala })}>
-              <span>
-                <strong>{juegoPorId(e.juego)?.nombre ?? e.juego}</strong> <span className="suave">· {e.nombreSala}</span>
-                <br />
-                <span className={e.miTurno ? "te-toca-texto" : "suave chico-texto"}>
-                  {e.miTurno ? t.teToca : e.esperando.length ? t.leTocaA(e.esperando.join(", ")) : t.enJuego}
-                </span>
-              </span>
-              <span className="suave chico-texto">{haceCuanto(ahora - e.hora, t)}</span>
-            </button>
+            <div className="en-curso-info">
+              <strong>{juegoPorId(e.juego)?.nombre ?? e.juego}</strong>{" "}
+              <button className="enlace suave" onClick={() => irA({ pantalla: "sala", codigo: e.sala })}>
+                · {e.nombreSala}
+              </button>
+              <br />
+              <span className={e.miTurno ? "te-toca-texto" : "suave chico-texto"}>
+                {e.miTurno ? t.teToca : e.esperando.length ? t.leTocaA(e.esperando.join(", ")) : t.enJuego}
+              </span>{" "}
+              <span className="suave chico-texto">· {haceCuanto(ahora - e.hora, t)}</span>
+            </div>
+            {(() => {
+              const juego = juegoPorId(e.juego);
+              if (!juego?.url) return null;
+              return (
+                <button
+                  className={e.miTurno ? "primario" : "secundario"}
+                  onClick={() => abrirJuego(enlaceDePartida(juego, e.sala, id, uid, idioma).then((u) => (u.includes("/s/") ? u : conLlave(juego.id, u))), `juego-${id}`, juego.nombre)}
+                >
+                  ▶ {e.miTurno ? t.jugarMiTurno : t.entrarPartida}
+                </button>
+              );
+            })()}
           </li>
         ))}
       </ul>
