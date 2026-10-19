@@ -18,6 +18,8 @@ const BASICOS = ["/", "/manifest.webmanifest", "/icono.svg", "/icono-192.png"];
 const SIN_CONEXION = [
   { base: "/juegos/split-loyalty/", entrada: "index.html" },
   { base: "/juegos/astrolabe/offline/", entrada: "index.html", lista: "archivos.json" },
+  // Double Cross se pide como carpeta («/»): su sitio redirige /index.html a / (cleanUrls).
+  { base: "/juegos/double-cross/", entrada: "", lista: "archivos.json" },
 ];
 
 function referenciasLocales(html) {
@@ -48,11 +50,13 @@ async function precargarJuegos() {
       } else {
         archivos = referenciasLocales(await entrada.clone().text());
       }
-      const nuevos = new Set([juego.entrada, ...archivos].map((f) => new URL(juego.base + f, self.location.origin).href));
-      await cache.put(juego.base + juego.entrada, entrada);
+      // La página se guarda como …/index.html (así la busca el fetch de abajo para «…/»).
+      const clave = new URL(juego.base + (juego.entrada || "index.html"), self.location.origin).href;
+      const nuevos = new Set([clave, ...archivos.map((f) => new URL(juego.base + f, self.location.origin).href)]);
+      await cache.put(clave, entrada);
       await Promise.all(
         [...nuevos]
-          .filter((u) => !u.endsWith("/" + juego.entrada))
+          .filter((u) => u !== clave)
           .map(async (u) => cache.put(u, await bajar(u))),
       );
       for (const pedido of await cache.keys()) {

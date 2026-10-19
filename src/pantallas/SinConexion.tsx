@@ -19,6 +19,8 @@ interface JuegoLocal {
 export const JUEGOS_LOCALES: JuegoLocal[] = [
   { id: "split-loyalty", nombre: "Split Loyalty", url: "/juegos/split-loyalty/index.html" },
   { id: "astrolabe", nombre: "Astrolabe", url: "/juegos/astrolabe/offline/index.html" },
+  // Como carpeta: su sitio redirige /index.html a / (cleanUrls de Vercel).
+  { id: "double-cross", nombre: "Split Loyalty: Double Cross", url: "/juegos/double-cross/" },
 ];
 
 /** ¿Hay conexión? (lo que dice el navegador; se actualiza al perderla o recuperarla). */
@@ -43,7 +45,7 @@ function useGuardados() {
   useEffect(() => {
     if (!("caches" in window)) return;
     let vivo = true;
-    Promise.all(JUEGOS_LOCALES.map(async (j) => [j.id, Boolean(await caches.match(j.url))] as const))
+    Promise.all(JUEGOS_LOCALES.map(async (j) => [j.id, Boolean(await caches.match(j.url.endsWith("/") ? j.url + "index.html" : j.url))] as const))
       .then((lista) => vivo && setGuardados(Object.fromEntries(lista)))
       .catch(() => {});
     return () => {

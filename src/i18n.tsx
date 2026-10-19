@@ -233,7 +233,9 @@ const es = {
   juegoLocalTexto: (id: string): string =>
     id === "split-loyalty"
       ? "En solitario contra Contrainteligencia, o de 2 a 4 jugadores pasándose el celular."
-      : "En solitario contra el ordenador, con el modo y el nivel que elijas.",
+      : id === "double-cross"
+        ? "Contra bots o de 2 a 4 agencias pasándose el celular. Pon tu nombre en una agencia para que cuente en tu perfil."
+        : "En solitario contra el ordenador, con el modo y el nivel que elijas.",
   juegoLocalFalta: "Todavía no está guardado en este celular. Abre la app una vez con internet y quedará listo para jugar sin conexión.",
   sinConexionNota: "Estas partidas no pasan por las salas. Se suman a tu perfil (carrera, estadísticas y medallas) en cuanto haya conexión; no cuentan para los rankings.",
   partidasLocalesSubidas: (n: number) =>
@@ -731,7 +733,9 @@ const en: Textos = {
   juegoLocalTexto: (id: string) =>
     id === "split-loyalty"
       ? "Solo against Counter-Intel, or 2 to 4 players passing the phone around."
-      : "Solo against the computer, with the mode and level you choose.",
+      : id === "double-cross"
+        ? "Against bots or 2 to 4 agencies passing the phone around. Put your name on an agency so it counts in your profile."
+        : "Solo against the computer, with the mode and level you choose.",
   juegoLocalFalta: "Not saved on this phone yet. Open the app once with internet and it'll be ready to play offline.",
   sinConexionNota: "These games don't go through rooms. They're added to your profile (career, stats and medals) as soon as you're online; they don't count for rankings.",
   partidasLocalesSubidas: (n: number) =>

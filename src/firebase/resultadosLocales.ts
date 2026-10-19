@@ -15,7 +15,7 @@ import { logrosDe } from "./retos";
 import type { ResultadoJuego } from "./tipos";
 
 export const CLAVE_RESULTADOS_LOCALES = "lobby_resultados_locales";
-const JUEGOS = new Set(["split-loyalty", "astrolabe"]);
+const JUEGOS = new Set(["split-loyalty", "astrolabe", "double-cross"]);
 
 export interface ResultadoLocal {
   id: string;
