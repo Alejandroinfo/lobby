@@ -495,7 +495,7 @@ service cloud.firestore {
                                                    'revanchaDe', 'ronda', 'porEnlace'])
           && (!('porEnlace' in request.resource.data) || request.resource.data.porEnlace is bool)
           && (!('nivel' in request.resource.data) || request.resource.data.nivel in ['hard', 'easy'])
-          && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals']
+          && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals', 'double-cross']
           && request.auth.uid in request.resource.data.invitados
           && request.resource.data.invitados.size() <= 12
           && request.resource.data.creada == request.time

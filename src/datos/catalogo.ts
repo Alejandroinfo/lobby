@@ -158,6 +158,44 @@ export const JUEGOS: Juego[] = [
     },
   },
   {
+    id: "double-cross",
+    nombre: "Split Loyalty: Double Cross",
+    descripcion: "Recluta agentes con dados, archívalos en tu dossier y cobra objetivos antes que las demás agencias.",
+    categoria: "prueba",
+    jugadores: { min: 2, max: 4 },
+    duracion: "Por medir",
+    espectadores: false,
+    variantes: [
+      { id: "1", nombre: "Dossier 1 · Corredor (primera partida)" },
+      { id: "2", nombre: "Dossier 2 · Espejo (para enseñar)" },
+      { id: "3", nombre: "Dossier 3 · Triángulo (perdona más)" },
+      { id: "4", nombre: "Dossier 4 · Puerto (variedad)" },
+      { id: "5", nombre: "Dossier 5 · Cruce (con experiencia)" },
+    ],
+    preguntas: [
+      { id: "quemar-red", texto: "¿Quemar la red se sintió tentador o demasiado arriesgado? ¿Por qué?", tipo: "texto" },
+      { id: "puentes", texto: "¿Los puentes cambiaron cómo armabas tu dossier?", tipo: "si-no" },
+    ],
+    en: {
+      descripcion: "Recruit agents with dice, file them in your dossier and claim objectives before the other agencies.",
+      duracion: "Not measured yet",
+      variantes: {
+        "1": "Dossier 1 · Corridor (first game)",
+        "2": "Dossier 2 · Mirror (for teaching)",
+        "3": "Dossier 3 · Triangle (more forgiving)",
+        "4": "Dossier 4 · Harbor (variety)",
+        "5": "Dossier 5 · Crossing (experienced)",
+      },
+      preguntas: {
+        "quemar-red": "Did burning the network feel tempting or too risky? Why?",
+        puentes: "Did the bridges change how you built your dossier?",
+      },
+    },
+    url: env.VITE_URL_DOUBLE_CROSS ?? "https://split-loyalty-double-cross.vercel.app/",
+    // En solitario: tú contra un bot (el juego no tiene niveles; «hard» es solo el identificador).
+    solo: { niveles: [{ id: "hard", es: "Un bot", en: "One bot" }] },
+  },
+  {
     id: "blindspot",
     nombre: "Blindspot",
     descripcion: "Todos ven tu personalidad menos tú. Descúbrela antes del Soulmate.",
