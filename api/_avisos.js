@@ -138,7 +138,7 @@ export async function procesarAviso({ db, enviar }, d) {
       titulo: `${inv.nombre} te invita a su sala`,
       cuerpo: `«${inv.nombreSala}»: toca para entrar.`,
       en: { titulo: `${inv.nombre} invites you to their room`, cuerpo: `“${inv.nombreSala}”: tap to join.` },
-      url: `/s/${d.sala}`,
+      url: inv.partida && ID.test(inv.partida) ? `/s/${d.sala}?unirse=${inv.partida}` : `/s/${d.sala}`,
       etiqueta: `sala-${d.sala}`,
     });
     return { estado: 200 };

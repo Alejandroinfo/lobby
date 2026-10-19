@@ -78,11 +78,45 @@ export function TarjetaAvisos({ uid, enPerfil = false }: { uid: string; enPerfil
   const [estado, setEstado] = useState<EstadoAvisos | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState("");
+  const [descartada, setDescartada] = useState(() => {
+    try {
+      return Date.now() - Number(localStorage.getItem("lobby_avisos_ahora_no") ?? 0) < 14 * 86_400_000;
+    } catch {
+      return false;
+    }
+  });
+  const descartar = () => {
+    try {
+      localStorage.setItem("lobby_avisos_ahora_no", String(Date.now()));
+    } catch {
+      /* sin almacenamiento */
+    }
+    setDescartada(true);
+  };
   useEffect(() => {
     estadoAvisos().then(setEstado, () => setEstado("sin-soporte"));
   }, []);
   if (!estado || estado === "sin-soporte") return null;
   if (estado === "activos" && !enPerfil) return null;
+  // En el inicio, una franja delgada que se puede cerrar (vuelve a ofrecerse a las dos semanas).
+  if (!enPerfil) {
+    if (descartada || estado === "bloqueados") return null;
+    return (
+      <div className="franja-avisos" role="region" aria-label={t.avisosTitulo}>
+        <span aria-hidden="true">🔔</span>
+        <span className="franja-texto">{estado === "falta-instalar" ? t.avisosFaltaInstalar : t.avisosFranja}</span>
+        {estado === "apagados" && (
+          <button className="primario chico" disabled={ocupado} onClick={() => cambiar(true)}>
+            {t.avisosActivarCorto}
+          </button>
+        )}
+        <button className="enlace chico cerrar-franja" onClick={descartar} aria-label={t.ahoraNo}>
+          ✕
+        </button>
+        {error && <span className="error">{error}</span>}
+      </div>
+    );
+  }
 
   const cambiar = async (activar: boolean) => {
     setOcupado(true);
@@ -101,7 +135,6 @@ export function TarjetaAvisos({ uid, enPerfil = false }: { uid: string; enPerfil
     <section className="tarjeta tarjeta-avisos" aria-labelledby="t-avisos">
       <h2 id="t-avisos">🔔 {t.avisosTitulo}</h2>
       <p className="suave chico-texto">{t.avisosTexto}</p>
-      {!enPerfil && <p className="suave chico-texto">{t.avisosDondeApagar}</p>}
       {estado === "activos" ? (
         <p className="listo-texto">
           {t.avisosActivos}{" "}

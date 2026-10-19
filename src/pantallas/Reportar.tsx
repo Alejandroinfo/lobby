@@ -132,17 +132,37 @@ function DialogoReporte({ uid, nombre, inicial, alCerrar }: { uid: string | null
   );
 }
 
-/** Botón fijo «Reportar un problema» y el aviso cuando la página falla. */
+/** Abre el formulario de reporte desde cualquier lugar (menú de la sala, pie del inicio…). */
+export function pedirReporte() {
+  window.dispatchEvent(new Event("lobby:abrir-reporte"));
+}
+
+/** Enlace «Reportar un problema» para los pies de página. */
+export function EnlaceReportar() {
+  const { t } = useIdioma();
+  return (
+    <button className="enlace suave chico-texto" onClick={pedirReporte}>
+      ⚠️ {t.reporteTitulo}
+    </button>
+  );
+}
+
+/**
+ * Formulario de reporte (se abre con `pedirReporte`) y el aviso cuando la página falla. Ya no hay
+ * botón flotante: tapaba contenido. Está en el menú ⋯ de la sala y al pie del inicio.
+ */
 export function Reportes({ uid, nombre }: { uid: string | null; nombre: string }) {
   const { t } = useIdioma();
   const [abierto, setAbierto] = useState<null | { inicial?: string }>(null);
   const [fallo, setFallo] = useState<string | null>(null);
   useEffect(() => alFallar(setFallo), []);
+  useEffect(() => {
+    const abrir = () => setAbierto({});
+    window.addEventListener("lobby:abrir-reporte", abrir);
+    return () => window.removeEventListener("lobby:abrir-reporte", abrir);
+  }, []);
   return (
     <>
-      <button className="boton-reportar" onClick={() => setAbierto({})} aria-label={t.reporteTitulo} title={t.reporteTitulo}>
-        ⚠️
-      </button>
       {fallo && !abierto && (
         <div className="aviso-fallo" role="alert">
           <span>{t.reporteFallo}</span>

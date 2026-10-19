@@ -9,9 +9,11 @@ import { usePartidas } from "../hooks/usePartidas";
 import { useEsCelular } from "../hooks/useEsCelular";
 import { useResultados } from "../hooks/useResultados";
 import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSala";
-import { enlaceSala, irA } from "../navegacion";
+import { irA } from "../navegacion";
 import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
+import { HojaInvitar, type PartidaAInvitar } from "./HojaInvitar";
+import { pedirReporte } from "./Reportar";
 import { unirmePorEnlace } from "../firebase/partidas";
 import { filasDeGlobos } from "./Globos";
 import { EncuestaPendiente } from "./Encuesta";
@@ -207,18 +209,14 @@ function VistaSala(props: {
     });
   }, [confirmado, uid, sala.codigo, nombre]);
 
-  const copiar = async () => {
-    const enlace = enlaceSala(sala.codigo);
+  // Copiar el código de la sala (el chip de la cabecera).
+  const copiarCodigo = async () => {
     try {
-      if (navigator.share && matchMedia("(pointer: coarse)").matches) {
-        await navigator.share({ title: sala.nombre, text: t.uneteA(sala.nombre), url: enlace });
-        return;
-      }
-      await navigator.clipboard.writeText(enlace);
+      await navigator.clipboard.writeText(sala.codigo);
       setCopiado(true);
-      window.setTimeout(() => setCopiado(false), 2000);
+      window.setTimeout(() => setCopiado(false), 1800);
     } catch {
-      window.prompt(t.copiaEnlace, enlace);
+      window.prompt(t.copiaEnlace, sala.codigo);
     }
   };
 
@@ -234,31 +232,45 @@ function VistaSala(props: {
     irA({ pantalla: "inicio" });
   };
 
+  // Hoja «Invitar»: de la sala o de una partida. «Partida rápida» (desde el inicio) llega con
+  // ?invitar=<partida> y la abre sola en cuanto la partida aparece.
+  const [hoja, setHoja] = useState<{ partida: PartidaAInvitar | null } | null>(null);
+  const [invitarA, setInvitarA] = useState(() => new URLSearchParams(window.location.search).get("invitar"));
+  useEffect(() => {
+    if (!invitarA) return;
+    const p = partidas.find((x) => x.id === invitarA);
+    if (!p) return;
+    setInvitarA(null);
+    window.history.replaceState(null, "", window.location.pathname);
+    setHoja({ partida: { id: p.id, juego: juegoPorId(p.juego)?.nombre ?? p.juego, quien: p.invitados[p.anfitrion]?.nombre ?? nombre } });
+  }, [invitarA, partidas, nombre]);
+  const [verMiembros, setVerMiembros] = useState(false);
+  const miembrosLista = Object.keys(sala.miembros ?? {});
+
   return (
     <main className="sala">
-      <header className="cabecera">
-        <div>
-          <p className="etiqueta">{t.sala}</p>
-          <h1>{sala.nombre}</h1>
-          <p className="codigo-sala">
-            {t.codigo} <strong>{sala.codigo}</strong>
-          </p>
-        </div>
-        <div className="acciones">
-          <SelectorIdioma />
-          <button className="primario" onClick={copiar}>
-            {copiado ? t.enlaceCopiado : t.invitar}
-          </button>
-          {sala.anfitrion === uid && (
-            <button className="secundario" onClick={cerrar}>
-              {t.cerrarSala}
+      <header className="cabecera-sala">
+        <div className="cabecera-fila">
+          <div className="cabecera-titulo">
+            <h1>{sala.nombre}</h1>
+            <button className="chip-codigo" onClick={copiarCodigo} title={t.copiarCodigo} aria-label={`${t.codigo} ${sala.codigo}. ${t.copiarCodigo}`}>
+              <span className="mono">{sala.codigo}</span> <span aria-hidden="true">{copiado ? "✓" : "⧉"}</span>
             </button>
-          )}
-          <button className="secundario" onClick={salir}>
-            {t.salir}
-          </button>
+          </div>
+          <div className="cabecera-acciones">
+            <button className="primario" onClick={() => setHoja({ partida: null })}>
+              ➕ {t.invitar}
+            </button>
+            <MenuSala esAnfitrion={sala.anfitrion === uid} alCerrar={cerrar} alSalir={salir} />
+          </div>
         </div>
+        <FilaMiembros sala={sala} partidas={partidas} abierta={verMiembros} alTocar={() => setVerMiembros((v) => !v)} />
       </header>
+      {verMiembros && (
+        <div className="miembros-desplegados">
+          <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} partidas={partidas} />
+        </div>
+      )}
 
       {avisoEnlace && (
         <div className={`aviso-enlace ${avisoEnlace.ok ? "ok" : ""}`} role="status">
@@ -274,16 +286,94 @@ function VistaSala(props: {
       <div className="rejilla">
         <div className="col-izquierda">
           <Miembros sala={sala} uid={uid} rivales={perfil?.rivales} partidas={partidas} />
-          <PanelAmigos sala={{ codigo: sala.codigo, nombre: sala.nombre, miembros: Object.keys(sala.miembros ?? {}) }} />
+          <PanelAmigos sala={{ codigo: sala.codigo, nombre: sala.nombre, miembros: miembrosLista }} />
         </div>
         <div className="centro-sala">
-          <ListaPartidas sala={sala} uid={uid} partidas={partidas} />
-          <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={Object.keys(sala.miembros ?? {})} confirmado={confirmado} retosPropios={perfil === undefined ? undefined : (perfil?.retosDiarios ?? {})} />
+          <ListaPartidas sala={sala} uid={uid} partidas={partidas} alInvitar={(x) => setHoja({ partida: x })} />
           <Catalogo sala={sala} uid={uid} />
+          <details className="panel plegable-retos">
+            <summary>
+              <h2>🏆 {t.retosPlegados}</h2>
+              <span className="suave chico-texto">{t.retosPlegadosNota}</span>
+            </summary>
+            <Retos sala={sala.codigo} uid={uid} nombre={nombre} miembros={miembrosLista} confirmado={confirmado} retosPropios={perfil === undefined ? undefined : (perfil?.retosDiarios ?? {})} />
+          </details>
         </div>
-        <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} miembros={sala.miembros ?? {}} />
+        <Chat codigo={sala.codigo} uid={uid} nombre={nombre} mensajes={mensajes} miembros={sala.miembros ?? {}} alInvitar={() => setHoja({ partida: null })} />
       </div>
+      {hoja && (
+        <HojaInvitar sala={{ codigo: sala.codigo, nombre: sala.nombre, miembros: miembrosLista }} partida={hoja.partida} alCerrar={() => setHoja(null)} />
+      )}
     </main>
+  );
+}
+
+/** Menú ⋯ de la sala: idioma, reportar un problema, cerrar la sala (quien la creó) y salir. */
+function MenuSala({ esAnfitrion, alCerrar, alSalir }: { esAnfitrion: boolean; alCerrar: () => void; alSalir: () => void }) {
+  const { t } = useIdioma();
+  const ref = useRef<HTMLDetailsElement>(null);
+  const cerrarMenu = () => ref.current?.removeAttribute("open");
+  // Un toque fuera lo cierra.
+  useEffect(() => {
+    const fuera = (e: PointerEvent) => {
+      if (ref.current?.open && !ref.current.contains(e.target as Node)) cerrarMenu();
+    };
+    document.addEventListener("pointerdown", fuera);
+    return () => document.removeEventListener("pointerdown", fuera);
+  }, []);
+  return (
+    <details ref={ref} className="menu-sala">
+      <summary className="boton-menu" aria-label={t.masOpciones}>
+        ⋯
+      </summary>
+      <div className="menu-lista" role="menu">
+        <div className="menu-idioma">
+          <SelectorIdioma />
+        </div>
+        <button role="menuitem" onClick={() => (cerrarMenu(), pedirReporte())}>
+          ⚠️ {t.reporteTitulo}
+        </button>
+        {esAnfitrion && (
+          <button role="menuitem" onClick={() => (cerrarMenu(), alCerrar())}>
+            🔒 {t.cerrarSala}
+          </button>
+        )}
+        <button role="menuitem" className="peligro" onClick={() => (cerrarMenu(), alSalir())}>
+          🚪 {t.salir}
+        </button>
+      </div>
+    </details>
+  );
+}
+
+/** Quién está en la sala, en una fila de avatares (en el celular reemplaza la lista). */
+function FilaMiembros({ sala, partidas, abierta, alTocar }: { sala: TSala; partidas: Partida[]; abierta: boolean; alTocar: () => void }) {
+  const { t } = useIdioma();
+  const ahora = useAhora();
+  const enJuego = jugandoAhora(partidas, ahora);
+  const lista = Object.entries(sala.miembros ?? {})
+    .map(([id, m]) => {
+      const conectado = ahora - (m.ultimaVez?.toMillis() ?? ahora) < DESCONECTADO_MS;
+      return { id, ...m, conectado: conectado || enJuego.has(id), juega: !conectado && enJuego.has(id) };
+    })
+    .sort((a, b) => Number(b.conectado) - Number(a.conectado) || a.nombre.localeCompare(b.nombre));
+  const conectados = lista.filter((m) => m.conectado).length;
+  const MAX = 7;
+  return (
+    <button className="fila-miembros" onClick={alTocar} aria-expanded={abierta}>
+      <span className="avatares">
+        {lista.slice(0, MAX).map((m) => (
+          <span key={m.id} className={`avatar-con-punto ${m.conectado ? "" : "ausente"}`} title={m.nombre}>
+            <AvatarCirculo avatar={m.avatar ?? avatarPorDefecto(m.id)} tam="xs" />
+            <span className={`punto ${m.juega ? "juega" : m.conectado ? "on" : "off"}`} aria-hidden="true" />
+          </span>
+        ))}
+        {lista.length > MAX && <span className="mas-avatares">+{lista.length - MAX}</span>}
+      </span>
+      <span className="suave chico-texto">
+        {t.enLaSalaN(lista.length)} · {t.conectados(conectados)} {abierta ? "▴" : "▾"}
+      </span>
+    </button>
   );
 }
 
@@ -350,17 +440,18 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   const { t, idioma } = useIdioma();
   const grupos: Categoria[] = ["listo", "prueba"];
   const [elegido, setElegido] = useState<Juego | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   if (elegido) {
     return (
-      <section className="panel catalogo" aria-label={t.nuevaPartidaDe(elegido.nombre)}>
+      <section id="catalogo" className="panel catalogo" aria-label={t.nuevaPartidaDe(elegido.nombre)}>
         <CrearPartida juego={elegido} sala={sala} uid={uid} alCerrar={() => setElegido(null)} />
       </section>
     );
   }
 
   return (
-    <section className="panel catalogo" aria-labelledby="t-juegos">
+    <section id="catalogo" className="panel catalogo" aria-labelledby="t-juegos">
       <h2 id="t-juegos">{t.juegos}</h2>
       {grupos.map((cat) => (
         <div key={cat} className={`grupo grupo-${cat}`}>
@@ -370,18 +461,25 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
           <ul className="juegos">
             {JUEGOS.filter((j) => j.categoria === cat).map((j) => (
               <li key={j.id} className="juego">
-                <div className="juego-cabeza">
-                  <strong>{j.nombre}</strong>
-                  {cat === "prueba" && <span className="insignia prueba">{t.enPrueba}</span>}
-                </div>
-                <p>{textosJuego(j, idioma).descripcion}</p>
-                <p className="datos">
-                  {t.jugadores(j.jugadores.min, j.jugadores.max)} · {textosJuego(j, idioma).duracion}
-                  {j.espectadores ? ` · ${t.conEspectadores}` : ""}
-                </p>
-                <button className="secundario" onClick={() => setElegido(j)}>
-                  {t.crearPartida}
+                <button className="juego-info" onClick={() => setInfo((x) => (x === j.id ? null : j.id))} aria-expanded={info === j.id}>
+                  <span className="juego-cabeza">
+                    <strong>{j.nombre}</strong>
+                    {cat === "prueba" && <span className="insignia prueba">{t.enPrueba}</span>}
+                  </span>
+                  <span className="datos">
+                    {t.jugadores(j.jugadores.min, j.jugadores.max)} · {textosJuego(j, idioma).duracion}
+                    <span className="ver-info" aria-hidden="true"> ⓘ</span>
+                  </span>
                 </button>
+                <button className="primario jugar-juego" onClick={() => setElegido(j)}>
+                  {t.jugar}
+                </button>
+                {info === j.id && (
+                  <p className="juego-desc">
+                    {textosJuego(j, idioma).descripcion}
+                    {j.espectadores ? ` · ${t.conEspectadores}` : ""}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -395,7 +493,8 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
  * Chat de la sala con globos (los tuyos a la derecha). En computadora queda fijo a la vista; en el
  * celular es un botón 💬 con los no leídos que lo abre a pantalla completa.
  */
-function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[]; miembros: TSala["miembros"] }) {
+function Chat(props: { codigo: string; uid: string; nombre: string; mensajes: Mensaje[]; miembros: TSala["miembros"]; alInvitar: () => void }) {
+  const { codigo, uid, nombre, mensajes, miembros, alInvitar } = props;
   const { t, idioma } = useIdioma();
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
@@ -467,11 +566,24 @@ function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid
 
   return (
     <>
+      {/* Celular: barra fija abajo (juegos, chat, invitar) en lugar de botones flotantes que tapaban contenido. */}
       {celular && !abierto && (
-        <button className="boton-chat" onClick={() => setAbierto(true)} aria-label={noLeidos ? t.abrirChatNoLeidos(noLeidos) : t.abrirChat}>
-          💬
-          {noLeidos > 0 && <span className="globo-contador">{noLeidos > 9 ? "9+" : noLeidos}</span>}
-        </button>
+        <nav className="barra-sala" aria-label={t.sala}>
+          <button onClick={() => document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            <span aria-hidden="true">🎲</span>
+            {t.juegos}
+          </button>
+          <button onClick={() => setAbierto(true)} aria-label={noLeidos ? t.abrirChatNoLeidos(noLeidos) : t.abrirChat}>
+            <span aria-hidden="true" className="icono-con-contador">
+              💬{noLeidos > 0 && <span className="globo-contador">{noLeidos > 9 ? "9+" : noLeidos}</span>}
+            </span>
+            {t.chat}
+          </button>
+          <button onClick={alInvitar}>
+            <span aria-hidden="true">➕</span>
+            {t.invitar}
+          </button>
+        </nav>
       )}
       <section className={`panel chat ${abierto ? "abierto" : ""}`} aria-labelledby="t-chat">
         <div className="chat-cabeza">

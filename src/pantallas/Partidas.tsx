@@ -8,7 +8,6 @@ import {
   cancelar,
   crearPartida,
   definirEquipos,
-  enlaceInvitacion,
   enlaceJuego,
   habilitarEnlace,
   HORAS_ENLACE,
@@ -18,12 +17,14 @@ import {
   preparacion,
   quitarInvitado,
   responder,
+  unirmePorEnlace,
   terminar,
   tomarControl,
   usaEquipos,
   type Motivo,
 } from "../firebase/partidas";
 import type { Invitado, Partida, Sala } from "../firebase/tipos";
+import type { PartidaAInvitar } from "./HojaInvitar";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 
 /**
@@ -128,7 +129,7 @@ export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: strin
 }
 
 /** Partidas en curso de la sala y las últimas terminadas. */
-export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string; partidas: Partida[] }) {
+export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; uid: string; partidas: Partida[]; alInvitar: (x: PartidaAInvitar) => void }) {
   const { t } = useIdioma();
   const ahora = useAhora();
   const enCurso = partidas.filter(activa);
@@ -144,7 +145,7 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
     <section className="panel partidas" aria-labelledby="t-partidas">
       <h2 id="t-partidas">{t.partidas}</h2>
       {enCurso.map((p) => (
-        <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} nombreSala={sala.nombre} />
+        <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} nombreMio={sala.miembros?.[uid]?.nombre ?? ""} alInvitar={alInvitar} />
       ))}
       {recientes.length > 0 && (
         <div className="recientes">
@@ -211,10 +212,11 @@ interface PropsTarjeta {
   uid: string;
   p: Partida;
   conectado: (uid: string) => boolean;
-  nombreSala: string;
+  nombreMio: string;
+  alInvitar: (x: PartidaAInvitar) => void;
 }
 
-function TarjetaPartida({ sala, uid, p, conectado, nombreSala }: PropsTarjeta) {
+function TarjetaPartida({ sala, uid, p, conectado, nombreMio, alInvitar }: PropsTarjeta) {
   const { t, idioma } = useIdioma();
   const juego = juegoPorId(p.juego);
   const yo = p.invitados[uid];
@@ -276,6 +278,14 @@ function TarjetaPartida({ sala, uid, p, conectado, nombreSala }: PropsTarjeta) {
         </div>
       )}
 
+      {!jugando && p.porEnlace && (!yo || yo.respuesta === "rechaza") && (
+        <div className="botones">
+          <button className="primario" onClick={() => unirmePorEnlace(sala, p.id, uid, nombreMio).catch(() => {})}>
+            {t.unirmeAPartida}
+          </button>
+        </div>
+      )}
+
       {!jugando && yo?.respuesta === "acepta" && (
         <div className="botones">
           <button
@@ -293,7 +303,7 @@ function TarjetaPartida({ sala, uid, p, conectado, nombreSala }: PropsTarjeta) {
       )}
 
       {!jugando && juego && (soyCreador || (p.porEnlace && yo?.respuesta === "acepta")) && (
-        <EnlacePartida sala={sala} p={p} juego={juego.nombre} quien={creador} nombreSala={nombreSala} soyCreador={soyCreador} />
+        <EnlacePartida sala={sala} p={p} juego={juego.nombre} quien={creador} soyCreador={soyCreador} alInvitar={alInvitar} />
       )}
 
       {!jugando && conEquipos && <Equipos sala={sala} p={p} editable={soyCreador} />}
@@ -369,18 +379,14 @@ export async function compartirEnlace(url: string, titulo: string, texto: string
 }
 
 /**
- * Invitar con enlace: quien lo abre entra a la sala y a esta partida, ya listo. Quien organiza lo
- * habilita; después cualquiera que ya está en la partida puede compartirlo.
+ * Invitar a esta partida: abre la hoja «Invitar» (enlace, WhatsApp, QR, amigos). Quien organiza
+ * habilita el enlace al abrirla por primera vez; después cualquiera que ya está dentro puede usarla.
  */
-export function EnlacePartida(props: { sala: string; p: Partida; juego: string; quien: string; nombreSala: string; soyCreador: boolean }) {
-  const { sala, p, juego, quien, nombreSala, soyCreador } = props;
+function EnlacePartida(props: { sala: string; p: Partida; juego: string; quien: string; soyCreador: boolean; alInvitar: (x: PartidaAInvitar) => void }) {
+  const { sala, p, juego, quien, soyCreador, alInvitar } = props;
   const { t } = useIdioma();
-  const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState(false);
-  const url = enlaceInvitacion(sala, p.id);
-  const texto = t.textoEnlacePartida(quien, juego);
-
-  const compartir = async () => {
+  const abrir = async () => {
     setError(false);
     try {
       if (!p.porEnlace) await habilitarEnlace(sala, p.id);
@@ -389,35 +395,14 @@ export function EnlacePartida(props: { sala: string; p: Partida; juego: string; 
       setError(true);
       return;
     }
-    if ((await compartirEnlace(url, `${juego} · ${nombreSala}`, texto)) === "copiado") {
-      setCopiado(true);
-      window.setTimeout(() => setCopiado(false), 2500);
-    }
+    alInvitar({ id: p.id, juego, quien });
   };
-
-  // Para quien ya está dentro (no organiza), solo un botón discreto.
-  if (!soyCreador)
-    return (
-      <div className="botones">
-        <button className="secundario chico" onClick={compartir}>
-          🔗 {copiado ? t.enlaceCopiado : t.compartirEnlacePartida}
-        </button>
-      </div>
-    );
   return (
-    <div className={`enlace-partida ${p.porEnlace ? "activo" : ""}`}>
-      <div className="botones">
-        <button className={p.porEnlace ? "primario" : "secundario"} onClick={compartir}>
-          🔗 {copiado ? t.enlaceCopiado : p.porEnlace ? t.compartirEnlacePartida : t.invitarConEnlace}
-        </button>
-        {p.porEnlace && (
-          <a className="boton-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(`${texto} ${url}`)}`} target="_blank" rel="noopener noreferrer">
-            WhatsApp
-          </a>
-        )}
-      </div>
-      <p className="suave chico-texto">{t.enlacePartidaExplica}</p>
-      {error && <p className="error">{t.errCuenta}</p>}
+    <div className="botones invitar-partida">
+      <button className={soyCreador && p.porEnlace ? "primario" : "secundario"} onClick={abrir}>
+        ➕ {t.invitarAPartidaCorto}
+      </button>
+      {error && <span className="error">{t.errCuenta}</span>}
     </div>
   );
 }

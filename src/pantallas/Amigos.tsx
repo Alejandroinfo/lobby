@@ -178,7 +178,10 @@ function AvisosSociales() {
             className="primario"
             onClick={() => {
               descartarInvitacion(s.uid, i.uid).catch(() => {});
-              irA({ pantalla: "sala", codigo: i.sala });
+              if (i.partida) {
+                window.history.pushState(null, "", `/s/${i.sala}?unirse=${encodeURIComponent(i.partida)}`);
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              } else irA({ pantalla: "sala", codigo: i.sala });
             }}
           >
             {t.ir}

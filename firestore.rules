@@ -196,7 +196,8 @@ service cloud.firestore {
     match /invitaciones/{para}/de/{de} {
       allow read, delete: if autenticado() && (request.auth.uid == para || request.auth.uid == de);
       allow create, update: if autenticado() && request.auth.uid == de && sonAmigos(para, de)
-        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'hora'])
+        && request.resource.data.keys().hasOnly(['nombre', 'avatar', 'sala', 'nombreSala', 'partida', 'hora'])
+        && (!('partida' in request.resource.data) || (request.resource.data.partida is string && request.resource.data.partida.size() <= 48))
         && nombreValido(request.resource.data.nombre)
         && (!('avatar' in request.resource.data) || avatarValido(request.resource.data.avatar))
         && request.resource.data.sala is string && request.resource.data.sala.matches('^[A-HJ-NP-Z2-9]{5}$')

@@ -1,12 +1,8 @@
 import { useState, type FormEvent } from "react";
-import {
-  codigoValido,
-  crearSala,
-  guardarPerfil,
-  LARGO_CODIGO,
-  limpiarNombre,
-  normalizarCodigo,
-} from "../firebase/salas";
+import { codigoValido, crearSala, guardarPerfil, LARGO_CODIGO, normalizarCodigo } from "../firebase/salas";
+import { crearPartida } from "../firebase/partidas";
+import { JUEGOS, type Juego } from "../datos/catalogo";
+import { EnlaceReportar } from "./Reportar";
 import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
@@ -18,7 +14,7 @@ import { rangoDe } from "./Carrera";
 import { AvatarCirculo } from "./PaginaPerfil";
 import { avatarPorDefecto } from "../firebase/perfil";
 import type { Perfil as TPerfil } from "../firebase/tipos";
-import { SelectorIdioma, useIdioma } from "../i18n";
+import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import type { Usuario } from "../hooks/useUsuario";
 
 interface Props {
@@ -30,13 +26,12 @@ interface Props {
 }
 
 export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
-  const { t } = useIdioma();
+  const { t, idioma } = useIdioma();
   const [editando, setEditando] = useState(false);
-  const [nombreSala, setNombreSala] = useState("");
   const [codigo, setCodigo] = useState("");
   const [errorCodigo, setErrorCodigo] = useState("");
   const [errorCrear, setErrorCrear] = useState("");
-  const [creando, setCreando] = useState(false);
+  const [creando, setCreando] = useState<string | null>(null);
   const [recientes] = useState(leerRecientes);
 
   if (!nombre || editando) {
@@ -56,17 +51,32 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
     );
   }
 
-  const crear = async (e: FormEvent) => {
-    e.preventDefault();
+  const crearVacia = async () => {
     setErrorCrear("");
-    setCreando(true);
+    setCreando("vacia");
     try {
-      const nuevo = await crearSala(uid, nombre, limpiarNombre(nombreSala) || t.salaDe(nombre));
+      const nuevo = await crearSala(uid, nombre, t.salaDe(nombre));
       irA({ pantalla: "sala", codigo: nuevo });
     } catch (err) {
       setErrorCrear(t.errorCrearSala);
       console.error(err);
-      setCreando(false);
+      setCreando(null);
+    }
+  };
+
+  // Partida rápida: sala + partida con enlace en un toque; la sala abre la hoja «Invitar».
+  const rapida = async (juego: Juego) => {
+    setErrorCrear("");
+    setCreando(juego.id);
+    try {
+      const sala = await crearSala(uid, nombre, t.salaDe(nombre));
+      const id = await crearPartida(sala, uid, juego, juego.variantes[0]?.id ?? null, [{ uid, nombre, rol: "jugador" }], undefined, true);
+      window.history.pushState(null, "", `/s/${sala}?invitar=${encodeURIComponent(id)}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    } catch (err) {
+      setErrorCrear(t.errorCrearSala);
+      console.error(err);
+      setCreando(null);
     }
   };
 
@@ -80,94 +90,114 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
     irA({ pantalla: "sala", codigo: limpio });
   };
 
+  const avatar = perfil?.avatar ?? avatarPorDefecto(uid);
+  const rango = t.rangos[rangoDe(perfil?.carrera?.partidas ?? 0).indice];
+
   return (
     <main className="inicio">
-      <Portada />
+      <header className="barra-inicio">
+        <h1>{t.nombreApp}</h1>
+        <SelectorIdioma />
+        <button className="boton-avatar" onClick={() => irA({ pantalla: "perfil" })} aria-label={t.verMiPerfil} title={t.verMiPerfil}>
+          <AvatarCirculo avatar={avatar} tam="sm" />
+        </button>
+      </header>
       <p className="saludo">
-        {t.hola} <strong>{nombre}</strong>.{" "}
-        <button type="button" className="enlace" onClick={() => setEditando(true)}>
+        {t.hola} <strong>{nombre}</strong> · <span className="suave">{rango}</span>{" "}
+        <button type="button" className="enlace chico-texto" onClick={() => setEditando(true)}>
           {t.cambiarNombre}
         </button>
       </p>
-      <button className="tarjeta mini-perfil" onClick={() => irA({ pantalla: "perfil" })}>
-        <AvatarCirculo avatar={perfil?.avatar ?? avatarPorDefecto(uid)} />
-        <span className="mini-perfil-texto">
-          <span className="etiqueta">{t.tuRango}</span>
-          <strong>{t.rangos[rangoDe(perfil?.carrera?.partidas ?? 0).indice]}</strong>
-          <span className="suave chico-texto">{t.carreraResumen((perfil?.carrera?.partidas ?? 0) - (perfil?.carrera?.retos ?? 0), perfil?.carrera?.victorias ?? 0, perfil?.carrera?.retos ?? 0)}</span>
-        </span>
-        <span className="mini-perfil-ir">{t.verPerfil} →</span>
-      </button>
-      <PartidasEnCurso perfil={perfil} uid={uid} />
-      <InstalarApp invitado={usuario.anonimo} />
       <TarjetaAvisos uid={uid} />
-      <Perfil usuario={usuario} />
-      <div className="amigos-inicio"><PanelAmigos /></div>
-      <button className="tarjeta mini-perfil en-este-celular" onClick={() => irA({ pantalla: "en-este-celular" })}>
-        <span aria-hidden="true" className="carrera-icono">📱</span>
-        <span className="mini-perfil-texto">
-          <strong>{t.enEsteCelularTitulo}</strong>
-          <span className="suave chico-texto">{t.enEsteCelularResumen}</span>
-        </span>
-        <span className="mini-perfil-ir">→</span>
-      </button>
-      {recientes.length > 0 && (
-        <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
-          <h2 id="t-recientes">{t.salasRecientes}</h2>
-          <ul>
-            {recientes.map((r) => (
-              <li key={r.codigo}>
-                <button className="enlace-sala" onClick={() => irA({ pantalla: "sala", codigo: r.codigo })}>
-                  <span>{r.nombre}</span>
-                  <span className="mono suave">{r.codigo}</span>
+      <InstalarApp invitado={usuario.anonimo} />
+
+      <div className="inicio-cuerpo">
+        <div className="inicio-principal">
+          <section className="tarjeta jugar-ya" aria-labelledby="t-jugar-ya">
+            <h2 id="t-jugar-ya">{t.aQueJugamos}</h2>
+            <p className="suave chico-texto">{t.aQueJugamosNota}</p>
+            <ul className="juegos-rapidos">
+              {JUEGOS.filter((j) => j.url).map((j) => (
+                <li key={j.id}>
+                  <button className={`juego-rapido ${j.categoria}`} disabled={creando !== null} onClick={() => rapida(j)}>
+                    <strong>{j.nombre}</strong>
+                    <span className="suave chico-texto">
+                      {creando === j.id
+                        ? t.creandoPartida
+                        : `${t.jugadores(j.jugadores.min, j.jugadores.max)} · ${textosJuego(j, idioma).duracion}`}
+                    </span>
+                    {j.categoria === "prueba" && <span className="insignia prueba">{t.enPrueba}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {errorCrear && <p className="error">{errorCrear}</p>}
+            <form className="tengo-codigo" onSubmit={unirse} noValidate>
+              <label htmlFor="codigo">{t.tengoCodigo}</label>
+              <div className="fila">
+                <input
+                  id="codigo"
+                  className="codigo"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  maxLength={LARGO_CODIGO + 2}
+                  value={codigo}
+                  placeholder="K7Q2M"
+                  aria-invalid={Boolean(errorCodigo)}
+                  onChange={(e) => {
+                    setCodigo(normalizarCodigo(e.target.value));
+                    setErrorCodigo("");
+                  }}
+                />
+                <button type="submit" className="secundario">
+                  {t.entrar}
                 </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <div className="opciones">
-        <form className="tarjeta" onSubmit={crear} noValidate>
-          <h2>{t.crearSala}</h2>
-          <p className="suave">{t.crearSalaTexto}</p>
-          <label htmlFor="nombre-sala">{t.nombreSalaLabel}</label>
-          <input
-            id="nombre-sala"
-            maxLength={40}
-            value={nombreSala}
-            placeholder={t.salaDe(nombre)}
-            onChange={(e) => setNombreSala(e.target.value)}
-          />
-          {errorCrear && <p className="error">{errorCrear}</p>}
-          <button type="submit" className="primario" disabled={creando}>
-            {creando ? t.creando : t.botonCrearSala}
+              </div>
+              {errorCodigo && <p className="error">{errorCodigo}</p>}
+            </form>
+            <button className="enlace chico-texto sala-vacia" disabled={creando !== null} onClick={crearVacia}>
+              {creando === "vacia" ? t.creando : t.salaVacia}
+            </button>
+          </section>
+
+          <PartidasEnCurso perfil={perfil} uid={uid} />
+          {recientes.length > 0 && (
+            <section className="tarjeta recientes-salas" aria-labelledby="t-recientes">
+              <h2 id="t-recientes">{t.salasRecientes}</h2>
+              <ul>
+                {recientes.map((r) => (
+                  <li key={r.codigo}>
+                    <button className="enlace-sala" onClick={() => irA({ pantalla: "sala", codigo: r.codigo })}>
+                      <span>{r.nombre}</span>
+                      <span className="mono suave">{r.codigo}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+        <div className="inicio-lateral">
+          <div className="amigos-inicio">
+            <PanelAmigos />
+          </div>
+          <button className="tarjeta mini-perfil en-este-celular" onClick={() => irA({ pantalla: "en-este-celular" })}>
+            <span aria-hidden="true" className="carrera-icono">
+              📱
+            </span>
+            <span className="mini-perfil-texto">
+              <strong>{t.enEsteCelularTitulo}</strong>
+              <span className="suave chico-texto">{t.enEsteCelularResumen}</span>
+            </span>
+            <span className="mini-perfil-ir">→</span>
           </button>
-        </form>
-        <form className="tarjeta" onSubmit={unirse} noValidate>
-          <h2>{t.unirse}</h2>
-          <p className="suave">{t.unirseTexto}</p>
-          <label htmlFor="codigo">{t.codigoLabel}</label>
-          <input
-            id="codigo"
-            className="codigo"
-            inputMode="text"
-            autoCapitalize="characters"
-            autoComplete="off"
-            maxLength={LARGO_CODIGO + 2}
-            value={codigo}
-            placeholder="K7Q2M"
-            aria-invalid={Boolean(errorCodigo)}
-            onChange={(e) => {
-              setCodigo(normalizarCodigo(e.target.value));
-              setErrorCodigo("");
-            }}
-          />
-          {errorCodigo && <p className="error">{errorCodigo}</p>}
-          <button type="submit" className="secundario">
-            {t.entrar}
-          </button>
-        </form>
+        </div>
       </div>
+      <footer className="pie-inicio">
+        <Perfil usuario={usuario} />
+        <EnlaceReportar />
+      </footer>
     </main>
   );
 }

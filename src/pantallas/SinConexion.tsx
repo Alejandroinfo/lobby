@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { irA } from "../navegacion";
 import { presenciaAlJugar } from "../firebase/amigos";
+import { EnlaceReportar } from "./Reportar";
 import { useIdioma } from "../i18n";
 
 interface JuegoLocal {
@@ -113,6 +114,9 @@ export function SinConexion({ enLinea }: { enLinea: boolean }) {
         })}
       </div>
       <p className="suave chico-texto">{t.sinConexionNota}</p>
+      <p>
+        <EnlaceReportar />
+      </p>
       {enLinea && (
         <button className="secundario" onClick={() => irA({ pantalla: "inicio" })}>
           ← {t.volverInicio}

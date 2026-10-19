@@ -51,6 +51,8 @@ export interface Invitacion {
   avatar?: Avatar;
   sala: string;
   nombreSala: string;
+  /** Invitación a una partida concreta de la sala (se entra con ?unirse=). */
+  partida?: string;
   hora: Timestamp | null;
 }
 
@@ -175,12 +177,14 @@ export const presenciaAlJugar: { publicar: ((juego: string) => Promise<void>) | 
 
 // ── Invitaciones a sala ────────────────────────────────────────────────────────
 
-export async function invitarASala(yo: { uid: string; nombre: string; avatar?: Avatar }, amigo: string, sala: string, nombreSala: string) {
+/** Invita a un amigo a la sala; con `partida`, al aceptar entra directo a esa partida (como con el enlace). */
+export async function invitarASala(yo: { uid: string; nombre: string; avatar?: Avatar }, amigo: string, sala: string, nombreSala: string, partida?: string) {
   await setDoc(doc(db, "invitaciones", amigo, "de", yo.uid), {
     nombre: yo.nombre,
     ...(yo.avatar ? { avatar: yo.avatar } : {}),
     sala,
     nombreSala: nombreSala.slice(0, 40),
+    ...(partida ? { partida } : {}),
     hora: serverTimestamp(),
   });
   pedirAviso({ tipo: "sala", de: yo.uid, para: amigo, sala });

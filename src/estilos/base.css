@@ -113,16 +113,24 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 .codigo-sala strong { font-family: ui-monospace, monospace; letter-spacing: 0.2em; color: var(--tinta); }
 .acciones { display: flex; gap: 0.5rem; }
 
-.rejilla { display: grid; gap: 1rem; grid-template-columns: 240px minmax(0, 1fr) 320px; align-items: start; }
-@media (max-width: 1000px) {
-  .rejilla { grid-template-columns: 1fr 1fr; }
-  .catalogo { grid-column: 1 / -1; order: 3; }
+/*
+ * Sala. PC ancha: quién está y amigos | partidas y juegos | chat (fijo, a toda la altura).
+ * Mediana: partidas y juegos | chat, y quién está debajo. Celular: una columna; quién está va en la
+ * fila de avatares de la cabecera, los amigos en «Invitar» y el chat en la barra de abajo.
+ */
+.rejilla { display: grid; gap: 1rem; align-items: start; grid-template-columns: 260px minmax(0, 1fr) 340px; grid-template-areas: "izq centro chat"; }
+.col-izquierda { grid-area: izq; }
+.centro-sala { grid-area: centro; }
+.rejilla > .chat { grid-area: chat; }
+@media (max-width: 1099px) {
+  .rejilla { grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "centro chat" "izq chat"; }
+  .col-izquierda { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 }
 @media (max-width: 640px) {
-  .rejilla { grid-template-columns: 1fr; }
-  /* En el celular, primero las partidas (invitaciones, «Estoy listo», «Abrir»); quién está y los amigos, después. */
-  .centro-sala { order: 1; }
-  .col-izquierda { order: 2; }
+  .rejilla { grid-template-columns: minmax(0, 1fr); grid-template-areas: "centro"; }
+  .rejilla > .col-izquierda { display: none; }
+  .rejilla > .chat { grid-area: auto; }
+  .sala { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
 }
 
 .contador { font-family: var(--texto); font-size: 0.8rem; font-weight: 400; color: var(--tinta-suave); margin-left: 0.35rem; }
@@ -151,7 +159,7 @@ form.tarjeta button { margin-top: 1rem; align-self: flex-start; }
 .juego button { margin-top: auto; align-self: flex-start; font-size: 0.85rem; padding: 0.4rem 0.8rem; }
 
 /* Chat con globos. En computadora queda fijo a la vista mientras bajas por la sala. */
-.chat { display: flex; flex-direction: column; position: sticky; top: 1rem; height: min(calc(100vh - 2rem), 760px); min-height: 360px; }
+.chat { display: flex; flex-direction: column; position: sticky; top: 1rem; align-self: start; height: calc(100vh - 2rem); max-height: 900px; min-height: 360px; }
 .chat-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .chat-cuerpo { position: relative; flex: 1; min-height: 0; display: flex; }
 .mensajes { list-style: none; margin: 0 -0.25rem 0.6rem; padding: 0.25rem; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; overscroll-behavior: contain; }
@@ -201,8 +209,6 @@ body.sin-scroll { overflow: hidden; }
     padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
   }
   .globo { max-width: 82%; }
-  /* El botón de reportar pasa a la izquierda para dejarle la esquina al chat */
-  .boton-reportar { right: auto; left: calc(12px + env(safe-area-inset-left)); }
 }
 
 /* Paso 2: partidas e invitaciones */
@@ -530,12 +536,6 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 }
 
 /* Reportar un problema */
-.boton-reportar {
-  position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 40;
-  width: 40px; height: 40px; border-radius: 50%; padding: 0; font-size: 1.1rem; line-height: 1;
-  background: var(--superficie); border: 1px solid var(--linea); box-shadow: var(--sombra); opacity: 0.85;
-}
-.boton-reportar:hover, .boton-reportar:focus-visible { opacity: 1; }
 .dialogo-reporte { width: min(520px, calc(100% - 24px)); border: none; border-radius: var(--radio); padding: 1.25rem; background: var(--superficie); color: var(--tinta); box-shadow: var(--sombra); }
 .dialogo-reporte::backdrop { background: rgba(0, 0, 0, 0.45); }
 .form-reporte label { display: block; margin-top: 0.75rem; }
@@ -599,3 +599,152 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .aviso-enlace p { margin: 0; font-weight: 600; }
 .partida.resaltada { animation: resaltar 2.4s ease-out; }
 @keyframes resaltar { 0%, 40% { box-shadow: 0 0 0 3px var(--acento); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+
+/* ── Sala: cabecera de una línea ── */
+.cabecera-sala { margin-bottom: 1rem; }
+.cabecera-fila { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.cabecera-titulo { display: flex; align-items: center; gap: 0.6rem; min-width: 0; flex-wrap: wrap; }
+.cabecera-titulo h1 { margin: 0; font-size: clamp(1.35rem, 4vw, 2rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.chip-codigo {
+  padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--linea); background: var(--superficie);
+  color: var(--tinta); font-size: 0.85rem; letter-spacing: 0.15em; white-space: nowrap;
+}
+.cabecera-acciones { display: flex; align-items: center; gap: 0.4rem; flex: none; }
+.menu-sala { position: relative; }
+.menu-sala > summary { list-style: none; }
+.menu-sala > summary::-webkit-details-marker { display: none; }
+.boton-menu {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--linea); background: var(--superficie); font-size: 1.2rem; font-weight: 700; user-select: none;
+}
+.menu-lista {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 230px; display: grid; gap: 0.15rem; padding: 0.4rem;
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.menu-lista > button { text-align: left; background: none; border: 0; border-radius: 8px; padding: 0.6rem 0.7rem; color: var(--tinta); }
+.menu-lista > button:hover { background: var(--fondo); }
+.menu-lista > button.peligro { color: var(--error); }
+.menu-idioma { padding: 0.3rem 0.5rem 0.5rem; border-bottom: 1px solid var(--linea); margin-bottom: 0.2rem; }
+.fila-miembros {
+  display: none; align-items: center; gap: 0.6rem; margin-top: 0.6rem; padding: 0.3rem 0; background: none; border: 0; color: inherit; width: 100%; text-align: left;
+}
+.fila-miembros .avatares { display: inline-flex; }
+.fila-miembros .avatares > * + * { margin-left: -6px; }
+.fila-miembros .avatar-con-punto.ausente { opacity: 0.5; }
+.fila-miembros .avatar { box-shadow: 0 0 0 2px var(--fondo); }
+.mas-avatares { font-size: 0.75rem; color: var(--tinta-suave); margin-left: 4px !important; align-self: center; }
+.miembros-desplegados { display: none; margin-bottom: 1rem; }
+@media (max-width: 1099px) {
+  .fila-miembros { display: flex; }
+  .miembros-desplegados { display: block; }
+}
+@media (max-width: 640px) {
+  .cabecera-acciones .primario { padding: 0.6rem 0.8rem; }
+}
+
+/* ── Juegos de la sala, compactos ── */
+.catalogo .juegos { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.5rem; }
+.catalogo .juego { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.7rem; }
+.juego-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+.juego-info .juego-cabeza { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.ver-info { color: var(--acento); }
+.catalogo .juego .jugar-juego { margin: 0; align-self: center; padding: 0.5rem 1rem; font-size: 0.9rem; }
+.juego-desc { flex-basis: 100%; margin: 0.2rem 0 0; font-size: 0.88rem; color: var(--tinta-suave); }
+.catalogo .grupo h3 { font-size: 0.95rem; margin: 0.6rem 0 0.4rem; }
+
+/* ── Retos plegados ── */
+.plegable-retos > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.plegable-retos > summary::-webkit-details-marker { display: none; }
+.plegable-retos > summary::after { content: "▾"; margin-left: auto; color: var(--tinta-suave); }
+.plegable-retos[open] > summary::after { content: "▴"; }
+.plegable-retos > summary h2 { margin: 0; font-size: 1.1rem; }
+.plegable-retos .panel.retos { border: 0; box-shadow: none; padding: 0; margin-top: 0.75rem; background: none; }
+
+/* ── Celular: barra fija abajo en la sala ── */
+.barra-sala {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--superficie); border-top: 1px solid var(--linea); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom));
+}
+.barra-sala button {
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem; background: none; border: 0; padding: 0.4rem 0.2rem;
+  font-size: 0.75rem; color: var(--tinta); border-radius: 10px;
+}
+.barra-sala button > span:first-child { font-size: 1.3rem; line-height: 1.2; }
+.barra-sala button:active { background: var(--fondo); }
+.icono-con-contador { position: relative; }
+.icono-con-contador .globo-contador { top: -6px; right: -14px; min-width: 18px; height: 18px; line-height: 18px; font-size: 0.68rem; padding: 0 4px; }
+
+/* ── Hoja «Invitar» ── */
+.hoja-invitar {
+  width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; border: none; border-radius: 16px; padding: 1.1rem 1.2rem 1.3rem;
+  background: var(--superficie); color: var(--tinta); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.hoja-invitar::backdrop { background: rgba(0, 0, 0, 0.45); }
+.hoja-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.hoja-cabeza h2 { margin: 0; font-size: 1.2rem; }
+.hoja-enlace { margin: 0.8rem 0; display: grid; gap: 0.6rem; }
+.hoja-url { display: block; padding: 0.55rem 0.75rem; border-radius: 10px; background: var(--fondo); border: 1px solid var(--linea); font-size: 0.85rem; overflow-wrap: anywhere; }
+.hoja-qr { display: flex; gap: 1rem; align-items: center; padding: 0.8rem 0; border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
+.hoja-qr p { margin: 0 0 0.3rem; }
+.qr { flex: none; width: 112px; height: 112px; padding: 6px; background: #fff; border: 1px solid var(--linea); border-radius: 10px; transition: width 0.2s, height 0.2s; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.qr.grande { width: min(260px, 70vw); height: min(260px, 70vw); }
+.codigo-grande { letter-spacing: 0.2em; font-size: 1rem; }
+.hoja-amigos { margin-top: 0.8rem; }
+.hoja-amigos .lista-amigos li > button { flex: none; }
+@media (max-width: 640px) {
+  .hoja-invitar { width: 100%; max-width: none; margin: auto 0 0; border-radius: 16px 16px 0 0; padding-bottom: calc(1.3rem + env(safe-area-inset-bottom)); }
+  .hoja-qr { flex-wrap: wrap; }
+}
+.invitar-partida { margin-top: 0.6rem; }
+
+/* ── Inicio compacto ── */
+.barra-inicio { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+.barra-inicio h1 { margin: 0 auto 0 0; font-size: clamp(1.4rem, 5vw, 2rem); }
+.boton-avatar { padding: 0; border: 0; background: none; border-radius: 50%; }
+.boton-avatar:focus-visible { outline-offset: 3px; }
+.inicio .saludo { text-align: left; margin: 0 0 1rem; }
+.inicio { padding-top: 1.25rem; }
+.franja-avisos {
+  display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; padding: 0.55rem 0.75rem; border-radius: var(--radio);
+  background: var(--acento-suave); border: 1px solid var(--linea); font-size: 0.88rem;
+}
+.franja-texto { flex: 1; min-width: 0; }
+.cerrar-franja { text-decoration: none; color: var(--tinta-suave); padding: 0.2rem 0.4rem; }
+.jugar-ya { margin-bottom: 1rem; }
+.jugar-ya h2 { margin: 0; }
+.jugar-ya > .suave { margin: 0.2rem 0 0.8rem; }
+.juegos-rapidos { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.juego-rapido {
+  position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; text-align: left;
+  padding: 0.8rem 0.9rem; border-radius: 12px; background: var(--fondo); border: 1px solid var(--linea); border-left: 4px solid var(--acento); color: var(--tinta);
+}
+.juego-rapido.prueba { border-left-color: var(--prueba); }
+.juego-rapido strong { font-size: 1.02rem; }
+.juego-rapido:hover:not(:disabled) { border-color: var(--acento); box-shadow: var(--sombra); }
+.juego-rapido .insignia { margin-top: 0.2rem; }
+.tengo-codigo label { font-size: 0.9rem; }
+.tengo-codigo .fila { display: flex; gap: 0.5rem; }
+.tengo-codigo input { flex: 1; min-width: 0; }
+.sala-vacia { margin-top: 0.6rem; }
+.pie-inicio { margin-top: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; text-align: center; }
+.pie-inicio .perfil { margin: 0; }
+@media (max-width: 420px) {
+  .juegos-rapidos { grid-template-columns: 1fr 1fr; }
+}
+.catalogo .juego .juego-info { padding: 0; margin: 0; font-size: inherit; align-self: stretch; justify-content: center; }
+.catalogo .juego .juego-info strong { font-size: 1rem; }
+/* En la sala, agregar amigos por código queda en el inicio y el perfil: aquí solo la lista para invitar. */
+.col-izquierda .agregar-amigo, .col-izquierda .tu-codigo { display: none; }
+/* Inicio en PC: lo principal a la izquierda (jugar, partidas en curso, salas) y lo social a la derecha. */
+.inicio-principal, .inicio-lateral { display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.inicio-cuerpo { display: grid; gap: 1rem; }
+.inicio-cuerpo .tarjeta, .inicio-cuerpo .mini-perfil { margin: 0; }
+@media (min-width: 1000px) {
+  .inicio { max-width: 1100px; }
+  .inicio-cuerpo { grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); align-items: start; }
+}
+@media (min-width: 1000px) { .inicio-principal .juegos-rapidos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.inicio-cuerpo .amigos-inicio, .inicio-cuerpo .amigos-inicio .panel { margin: 0; }
