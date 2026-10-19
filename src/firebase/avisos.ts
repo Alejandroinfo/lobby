@@ -69,7 +69,7 @@ export async function desactivarAvisos(uid: string): Promise<EstadoAvisos> {
 }
 
 /** Pide al servidor que avise al celular de otra persona (invitación o solicitud recién hecha). */
-export function pedirAviso(datos: { tipo: "sala" | "partida" | "solicitud"; para: string; de?: string; sala?: string; partida?: string }) {
+export function pedirAviso(datos: { tipo: "sala" | "partida" | "solicitud" | "mensaje"; para: string; de?: string; sala?: string; partida?: string }) {
   fetch("/api/aviso", { method: "POST", body: JSON.stringify(datos), keepalive: true }).catch(() => {});
 }
 

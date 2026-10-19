@@ -86,6 +86,23 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // Mensajes directos: índice de la charla con cada amigo (último mensaje y hasta dónde leíste).
+      // Su dueño lo lee y lo cambia; el amigo solo pone al día el último mensaje al escribirle.
+      match /charlas/{amigo} {
+        function indiceDelAmigo() {
+          let d = request.resource.data;
+          let cambios = resource == null ? d.keys() : d.diff(resource.data).affectedKeys();
+          return request.auth.uid == amigo && sonAmigos(uid, amigo)
+            && cambios.hasOnly(['ultimo', 'de', 'hora'])
+            && d.de == amigo && d.hora == request.time
+            && d.ultimo is string && d.ultimo.size() >= 1 && d.ultimo.size() <= 80;
+        }
+        allow read, delete: if autenticado() && request.auth.uid == uid;
+        allow create, update: if autenticado()
+          && ((request.auth.uid == uid && request.resource.data.keys().hasOnly(['ultimo', 'de', 'hora', 'leido', 'avisado']))
+              || indiceDelAmigo());
+      }
+
       // Avisos al celular (Web Push): una suscripción por aparato. Solo su dueño; las lee el servidor.
       match /avisos/{id} {
         allow read, delete: if autenticado() && request.auth.uid == uid;
@@ -120,6 +137,25 @@ service cloud.firestore {
     // ── Amigos ──
     function sonAmigos(a, b) {
       return exists(/databases/$(database)/documents/jugadores/$(a)/amigos/$(b));
+    }
+
+    // Mensajes directos entre dos amigos. {par} son los dos uid ordenados, unidos por «_».
+    // Solo los leen ellos dos; los escribe cualquiera de los dos mientras sean amigos; nadie los cambia.
+    match /charlas/{par}/mensajes/{id} {
+      function soyDelPar() {
+        let p = par.split('_');
+        return p.size() == 2 && p[0] < p[1] && request.auth.uid in p;
+      }
+      allow read: if autenticado() && soyDelPar();
+      allow create: if autenticado() && soyDelPar()
+        && sonAmigos(par.split('_')[0], par.split('_')[1])
+        && request.resource.data.keys().hasOnly(['uid', 'texto', 'hora'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() >= 1
+        && request.resource.data.texto.size() <= 500
+        && request.resource.data.hora == request.time;
+      allow update, delete: if false;
     }
 
     // Código de amigo → uid. Cualquiera con sesión lo busca; solo su dueño lo crea o lo borra.
@@ -390,6 +426,23 @@ service cloud.firestore {
             && invitadoValido(despues[yo]);
         }
 
+        // Con el enlace de invitación (si quien organiza lo habilitó) cualquier miembro de la sala
+        // entra a la partida mientras se prepara: solo se agrega a sí mismo, aceptado y listo.
+        function entroPorEnlace() {
+          let yo = request.auth.uid;
+          let antes = resource.data.invitados;
+          let despues = request.resource.data.invitados;
+          return resource.data.estado == 'invitando'
+            && resource.data.get('porEnlace', false) == true
+            && !(yo in antes)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['invitados'])
+            && despues.diff(antes).affectedKeys().hasOnly([yo])
+            && despues.size() <= 12
+            && invitadoValido(despues[yo])
+            && despues[yo].respuesta == 'acepta'
+            && despues[yo].asiento == null;
+        }
+
         // Si quien organiza lleva más de 100 s sin dar señales (cerró el lobby), un jugador que
         // aceptó puede quedarse con el control. Solo cambia `anfitrion`, y solo hacia sí mismo.
         function tomoElControl() {
@@ -438,7 +491,8 @@ service cloud.firestore {
         allow create: if autenticado() && esMiembro() && salaAbierta()
           && request.resource.data.keys().hasOnly(['juego', 'variante', 'nivel', 'anfitrion', 'estado', 'invitados',
                                                    'codigoJuego', 'creada', 'iniciada', 'terminada', 'equipos',
-                                                   'revanchaDe', 'ronda'])
+                                                   'revanchaDe', 'ronda', 'porEnlace'])
+          && (!('porEnlace' in request.resource.data) || request.resource.data.porEnlace is bool)
           && (!('nivel' in request.resource.data) || request.resource.data.nivel in ['hard', 'easy'])
           && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals']
           && request.auth.uid in request.resource.data.invitados
@@ -450,7 +504,7 @@ service cloud.firestore {
                   && request.resource.data.estado == 'invitando'));
 
         allow update: if autenticado() && esMiembro()
-          && (cambioDelCreador() || miRespuesta() || tomoElControl() || terminoConResultado());
+          && (cambioDelCreador() || miRespuesta() || entroPorEnlace() || tomoElControl() || terminoConResultado());
         allow delete: if false;
 
         // Encuesta de playtest de cada persona que participó. Se escribe una vez y no se cambia.

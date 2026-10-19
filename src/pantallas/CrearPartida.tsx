@@ -103,14 +103,15 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
     setError("");
   };
 
-  const enviar = async (e: FormEvent) => {
-    e.preventDefault();
+  const enviar = async (e: FormEvent | null, conEnlace = false) => {
+    e?.preventDefault();
     const invitaciones: Invitacion[] = miembros
       .filter((m) => roles[m.id])
       .map((m) => ({ uid: m.id, nombre: m.nombre, rol: roles[m.id]! }));
     const jugadores = invitaciones.filter((i) => i.rol === "jugador").length;
     const { min, max } = juego.jugadores;
-    if (jugadores < min) {
+    // Con enlace no hace falta tener ya a todos: entran al abrirlo.
+    if (jugadores < min && !conEnlace) {
       setError(t.necesitaMin(juego.nombre, min, min - jugadores));
       return;
     }
@@ -120,8 +121,15 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
     }
     setEnviando(true);
     try {
-      await crearPartida(sala.codigo, uid, juego, variante, invitaciones);
+      const id = await crearPartida(sala.codigo, uid, juego, variante, invitaciones, undefined, conEnlace);
       alCerrar();
+      // La tarjeta de la partida trae el enlace para compartir: se lleva la vista hasta ella.
+      if (conEnlace)
+        window.setTimeout(() => {
+          const el = document.getElementById(`partida-${id}`);
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          el?.classList.add("resaltada");
+        }, 400);
     } catch (err) {
       console.error(err);
       setError(t.errorCrearPartida);
@@ -233,9 +241,17 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
         <p className="suave">{t.nadieMas}</p>
       )}
       {error && <p className="error">{error}</p>}
-      <button type="submit" className="primario" disabled={enviando}>
-        {enviando ? t.enviando : t.enviarInvitaciones}
-      </button>
+      <div className="botones crear-botones">
+        {otros.length > 0 && (
+          <button type="submit" className="primario" disabled={enviando}>
+            {enviando ? t.enviando : t.enviarInvitaciones}
+          </button>
+        )}
+        <button type="button" className={otros.length > 0 ? "secundario" : "primario"} disabled={enviando} onClick={() => enviar(null, true)}>
+          🔗 {t.crearConEnlace}
+        </button>
+      </div>
+      <p className="suave chico-texto">{t.crearConEnlaceNota}</p>
       </>
       )}
     </form>

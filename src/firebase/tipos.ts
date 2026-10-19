@@ -63,6 +63,8 @@ export interface Partida {
   /** «Jugar de nuevo» dentro del juego: la partida original y el número de esta (2, 3…). */
   revanchaDe?: string;
   ronda?: number;
+  /** Se puede entrar con el enlace de invitación (sin que te inviten uno por uno). */
+  porEnlace?: boolean;
   /** De quién es el turno (lo informa el juego a api/turno.js): asientos que tienen que jugar ahora. */
   turno?: { asientos: number[]; hora: Timestamp | null };
 }

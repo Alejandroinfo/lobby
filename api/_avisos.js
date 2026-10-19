@@ -177,6 +177,29 @@ export async function procesarAviso({ db, enviar }, d) {
     });
     return { estado: 200 };
   }
+  if (d.tipo === "mensaje") {
+    // Un aviso por tanda: si ya se avisó y todavía no lo leyó, los siguientes mensajes no suenan
+    // (salvo que pasen 10 minutos). Solo entre amigos.
+    if (!UID.test(d.de ?? "")) return { estado: 400 };
+    const ref = db.doc(`jugadores/${d.para}/charlas/${d.de}`);
+    const c = (await ref.get()).data();
+    if (!c || c.de !== d.de || !reciente(c.hora)) return { estado: 404 };
+    const ms = (v) => (v instanceof Date ? v.getTime() : v && typeof v.toMillis === "function" ? v.toMillis() : 0);
+    const leido = ms(c.leido), avisado = ms(c.avisado);
+    if (leido >= ms(c.hora)) return { estado: 404 };
+    if (avisado > leido && Date.now() - avisado < 10 * 60_000) return { estado: 200, omitido: true };
+    const amigo = (await db.doc(`jugadores/${d.para}/amigos/${d.de}`).get()).data();
+    if (!amigo) return { estado: 404 };
+    await ref.update({ avisado: new Date() });
+    await enviar(d.para, {
+      titulo: `💬 ${amigo.nombre}`,
+      cuerpo: c.ultimo,
+      en: { titulo: `💬 ${amigo.nombre}`, cuerpo: c.ultimo },
+      url: `/?charla=${d.de}`,
+      etiqueta: `charla-${d.de}`,
+    });
+    return { estado: 200 };
+  }
   return { estado: 400 };
 }
 

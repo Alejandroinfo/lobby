@@ -8,7 +8,10 @@ import {
   cancelar,
   crearPartida,
   definirEquipos,
+  enlaceInvitacion,
   enlaceJuego,
+  habilitarEnlace,
+  HORAS_ENLACE,
   jugadoresAceptados,
   lanzar,
   marcarListo,
@@ -31,7 +34,7 @@ const HORAS_INVITANDO = 2;
 const HORAS_JUGANDO = 6;
 function activa(p: Partida) {
   const ahora = Date.now();
-  if (p.estado === "invitando") return ahora - (p.creada?.toMillis() ?? ahora) < HORAS_INVITANDO * 3600_000;
+  if (p.estado === "invitando") return ahora - (p.creada?.toMillis() ?? ahora) < (p.porEnlace ? HORAS_ENLACE : HORAS_INVITANDO) * 3600_000;
   if (p.estado === "jugando") return ahora - (p.iniciada?.toMillis() ?? ahora) < HORAS_JUGANDO * 3600_000;
   return false;
 }
@@ -141,7 +144,7 @@ export function ListaPartidas({ sala, uid, partidas }: { sala: Sala; uid: string
     <section className="panel partidas" aria-labelledby="t-partidas">
       <h2 id="t-partidas">{t.partidas}</h2>
       {enCurso.map((p) => (
-        <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} />
+        <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} nombreSala={sala.nombre} />
       ))}
       {recientes.length > 0 && (
         <div className="recientes">
@@ -208,9 +211,10 @@ interface PropsTarjeta {
   uid: string;
   p: Partida;
   conectado: (uid: string) => boolean;
+  nombreSala: string;
 }
 
-function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
+function TarjetaPartida({ sala, uid, p, conectado, nombreSala }: PropsTarjeta) {
   const { t, idioma } = useIdioma();
   const juego = juegoPorId(p.juego);
   const yo = p.invitados[uid];
@@ -229,7 +233,7 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
     .sort(([, a], [, b]) => (a.asiento ?? 99) - (b.asiento ?? 99) || a.nombre.localeCompare(b.nombre));
 
   return (
-    <article className={`partida ${jugando ? "en-juego" : ""}`}>
+    <article id={`partida-${p.id}`} className={`partida ${jugando ? "en-juego" : ""}`}>
       <header>
         <div>
           <strong>{juego?.nombre ?? p.juego}</strong>
@@ -288,6 +292,10 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         </div>
       )}
 
+      {!jugando && juego && (soyCreador || (p.porEnlace && yo?.respuesta === "acepta")) && (
+        <EnlacePartida sala={sala} p={p} juego={juego.nombre} quien={creador} nombreSala={nombreSala} soyCreador={soyCreador} />
+      )}
+
       {!jugando && conEquipos && <Equipos sala={sala} p={p} editable={soyCreador} />}
 
       {!jugando && soyCreador && juego && (
@@ -341,6 +349,76 @@ function TarjetaPartida({ sala, uid, p, conectado }: PropsTarjeta) {
         </div>
       )}
     </article>
+  );
+}
+
+/** Compartir un enlace (hoja de compartir del celular o copiar). Devuelve si se copió. */
+export async function compartirEnlace(url: string, titulo: string, texto: string): Promise<"compartido" | "copiado" | "nada"> {
+  try {
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      await navigator.share({ title: titulo, text: texto, url });
+      return "compartido";
+    }
+    await navigator.clipboard.writeText(url);
+    return "copiado";
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") return "nada";
+    window.prompt(texto, url);
+    return "nada";
+  }
+}
+
+/**
+ * Invitar con enlace: quien lo abre entra a la sala y a esta partida, ya listo. Quien organiza lo
+ * habilita; después cualquiera que ya está en la partida puede compartirlo.
+ */
+export function EnlacePartida(props: { sala: string; p: Partida; juego: string; quien: string; nombreSala: string; soyCreador: boolean }) {
+  const { sala, p, juego, quien, nombreSala, soyCreador } = props;
+  const { t } = useIdioma();
+  const [copiado, setCopiado] = useState(false);
+  const [error, setError] = useState(false);
+  const url = enlaceInvitacion(sala, p.id);
+  const texto = t.textoEnlacePartida(quien, juego);
+
+  const compartir = async () => {
+    setError(false);
+    try {
+      if (!p.porEnlace) await habilitarEnlace(sala, p.id);
+    } catch (e) {
+      console.warn(e);
+      setError(true);
+      return;
+    }
+    if ((await compartirEnlace(url, `${juego} · ${nombreSala}`, texto)) === "copiado") {
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 2500);
+    }
+  };
+
+  // Para quien ya está dentro (no organiza), solo un botón discreto.
+  if (!soyCreador)
+    return (
+      <div className="botones">
+        <button className="secundario chico" onClick={compartir}>
+          🔗 {copiado ? t.enlaceCopiado : t.compartirEnlacePartida}
+        </button>
+      </div>
+    );
+  return (
+    <div className={`enlace-partida ${p.porEnlace ? "activo" : ""}`}>
+      <div className="botones">
+        <button className={p.porEnlace ? "primario" : "secundario"} onClick={compartir}>
+          🔗 {copiado ? t.enlaceCopiado : p.porEnlace ? t.compartirEnlacePartida : t.invitarConEnlace}
+        </button>
+        {p.porEnlace && (
+          <a className="boton-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(`${texto} ${url}`)}`} target="_blank" rel="noopener noreferrer">
+            WhatsApp
+          </a>
+        )}
+      </div>
+      <p className="suave chico-texto">{t.enlacePartidaExplica}</p>
+      {error && <p className="error">{t.errCuenta}</p>}
+    </div>
   );
 }
 

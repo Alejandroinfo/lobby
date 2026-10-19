@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { irA } from "../navegacion";
+import { presenciaAlJugar } from "../firebase/amigos";
 import { useIdioma } from "../i18n";
 
 interface JuegoLocal {
@@ -95,7 +96,15 @@ export function SinConexion({ enLinea }: { enLinea: boolean }) {
               {falta ? (
                 <p className="chico-texto aviso-invitado">{t.juegoLocalFalta}</p>
               ) : (
-                <button className="primario" onClick={() => window.location.assign(`${j.url}?${parametros(idioma)}`)}>
+                <button
+                  className="primario"
+                  onClick={async () => {
+                    // Con conexión, tus amigos te ven «jugando …» (se espera un momento: al cambiar de página se pierde).
+                    const aviso = enLinea ? presenciaAlJugar.publicar?.(j.nombre).catch(() => {}) : null;
+                    if (aviso) await Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]);
+                    window.location.assign(`${j.url}?${parametros(idioma)}`);
+                  }}
+                >
                   {t.jugar}
                 </button>
               )}

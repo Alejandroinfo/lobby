@@ -16,7 +16,6 @@ import {
   obtenerCodigoAmigo,
   pedirAmistad,
   publicarPresencia,
-  quitarAmigo,
   rechazarSolicitud,
   solicitudEnviada,
   uidDeCodigo,
@@ -28,6 +27,8 @@ import {
   type Solicitud,
 } from "../firebase/amigos";
 import { avatarPorDefecto } from "../firebase/perfil";
+import { sinLeer, useCharlas, type IndiceCharla } from "../firebase/charlas";
+import { ChatDirecto } from "./ChatDirecto";
 import type { Avatar, Perfil } from "../firebase/tipos";
 import { useEsCelular } from "../hooks/useEsCelular";
 import { useIdioma } from "../i18n";
@@ -45,6 +46,10 @@ interface Social {
   setSalaActual: (s: { codigo: string; nombre: string } | null) => void;
   /** El juego que estás jugando desde esa sala (también se comparte). */
   setJugando: (juego: string | null) => void;
+  /** Mensajes directos: tus charlas (para los no leídos) y abrir una con un amigo. */
+  charlas: Record<string, IndiceCharla>;
+  charlaAbierta: string | null;
+  abrirCharla: (amigo: string | null) => void;
 }
 const Contexto = createContext<Social | null>(null);
 export const useSocial = () => useContext(Contexto);
@@ -54,6 +59,16 @@ export function SocialProvider({ uid, nombre, perfil, children }: { uid: string;
   const solicitudes = useSolicitudes(uid);
   const [salaActual, setSalaActual] = useState<{ codigo: string; nombre: string } | null>(null);
   const [jugando, setJugando] = useState<string | null>(null);
+  const charlas = useCharlas(uid);
+  // Un aviso al celular de un mensaje abre la app con ?charla=<amigo>.
+  const [charlaAbierta, abrirCharla] = useState<string | null>(() => {
+    const p = new URLSearchParams(window.location.search);
+    const de = p.get("charla");
+    if (!de) return null;
+    p.delete("charla");
+    window.history.replaceState(null, "", window.location.pathname + (p.size ? `?${p}` : "") + window.location.hash);
+    return de;
+  });
   const avatar = perfil?.avatar ?? avatarPorDefecto(uid);
   const yo = { uid, nombre, avatar };
 
@@ -85,9 +100,12 @@ export function SocialProvider({ uid, nombre, perfil, children }: { uid: string;
   }, [uid, clave]);
 
   return (
-    <Contexto.Provider value={{ uid, yo, codigo: perfil?.codigoAmigo, amigos, solicitudes, setSalaActual, setJugando }}>
+    <Contexto.Provider value={{ uid, yo, codigo: perfil?.codigoAmigo, amigos, solicitudes, setSalaActual, setJugando, charlas, charlaAbierta, abrirCharla }}>
       {children}
       <AvisosSociales />
+      {charlaAbierta && amigos?.some((a) => a.uid === charlaAbierta) && (
+        <ChatDirecto amigo={amigos.find((a) => a.uid === charlaAbierta)!} alCerrar={() => abrirCharla(null)} />
+      )}
     </Contexto.Provider>
   );
 }
@@ -129,12 +147,17 @@ function AvisosSociales() {
   const enEstaSala = window.location.pathname.toUpperCase().replace(/\/$/, "");
   const mostrar = vigentes.filter((i) => !enEstaSala.endsWith(`/S/${i.sala}`));
   const solicitudes = (s.solicitudes ?? []).filter((x) => !ocultas.has(x.uid));
+  // Mensajes directos sin leer (salvo la charla abierta), con el nombre que tiene en tu lista.
+  const nombreDe = (u: string) => s.amigos?.find((a) => a.uid === u)?.nombre;
+  const mensajes = Object.values(s.charlas).filter(
+    (c) => sinLeer(c) && c.uid !== s.charlaAbierta && nombreDe(c.uid) && !ocultas.has(`m:${c.uid}:${c.hora?.toMillis()}`),
+  );
 
   // Sonido al llegar una invitación o solicitud nueva (no por las que ya estaban al abrir).
-  const cargado = invitaciones !== null && s.solicitudes !== null;
+  const cargado = invitaciones !== null && s.solicitudes !== null && s.amigos !== null;
   useEffect(() => {
     if (!cargado) return;
-    const claves = [...mostrar.map((i) => `i:${i.uid}:${i.hora?.toMillis() ?? 0}`), ...solicitudes.map((x) => `s:${x.uid}`)];
+    const claves = [...mostrar.map((i) => `i:${i.uid}:${i.hora?.toMillis() ?? 0}`), ...solicitudes.map((x) => `s:${x.uid}`), ...mensajes.map((c) => `m:${c.uid}:${c.hora?.toMillis()}`)];
     if (vistas.current === null) {
       vistas.current = new Set(claves);
       return;
@@ -144,7 +167,7 @@ function AvisosSociales() {
     if (nuevas.length) sonarAviso();
   });
 
-  if (!mostrar.length && !solicitudes.length) return null;
+  if (!mostrar.length && !solicitudes.length && !mensajes.length) return null;
   return (
     <div className="avisos-sociales" role="region" aria-live="polite" aria-label={t.avisosAmigos}>
       {mostrar.map((i) => (
@@ -161,6 +184,22 @@ function AvisosSociales() {
             {t.ir}
           </button>
           <button className="secundario" onClick={() => descartarInvitacion(s.uid, i.uid).catch(() => {})} aria-label={t.ahoraNo}>✕</button>
+        </div>
+      ))}
+      {mensajes.map((c) => (
+        <div key={`m-${c.uid}`} className="aviso-social">
+          <AvatarCirculo avatar={s.amigos?.find((a) => a.uid === c.uid)?.avatar ?? avatarPorDefecto(c.uid)} tam="sm" />
+          <span className="aviso-mensaje">
+            <strong>{nombreDe(c.uid)}:</strong> {c.ultimo}
+          </span>
+          <button className="primario" onClick={() => s.abrirCharla(c.uid)}>{t.responder}</button>
+          <button
+            className="secundario"
+            onClick={() => setOcultas((o) => new Set(o).add(`m:${c.uid}:${c.hora?.toMillis()}`))}
+            aria-label={t.ahoraNo}
+          >
+            ✕
+          </button>
         </div>
       ))}
       {solicitudes.map((x) => (
@@ -248,11 +287,13 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
     return Number(presente(pb)) - Number(presente(pa)) || a.nombre.localeCompare(b.nombre);
   });
   const conectados = amigos.filter((a) => presente(presencias[a.uid])).length;
+  const porLeer = amigos.filter((a) => sinLeer(s.charlas[a.uid])).length;
 
   const cabeza = (
     <h2 id="t-amigos">
       {t.amigos} {amigos.length > 0 && <span className="contador">{t.conectados(conectados)}</span>}
       {(s.solicitudes ?? []).length > 0 && <span className="insignia te-toca">{(s.solicitudes ?? []).length}</span>}
+      {porLeer > 0 && <span className="insignia te-toca" title={t.mensajesSinLeer(porLeer)}>💬 {porLeer}</span>}
     </h2>
   );
   const cuerpo = (
@@ -319,12 +360,12 @@ export function PanelAmigos({ sala }: { sala?: { codigo: string; nombre: string;
                   <button className="secundario chico" onClick={() => irA({ pantalla: "sala", codigo: suSala.sala! })}>{t.unirme}</button>
                 )}
                 <button
-                  className="enlace quitar-amigo"
-                  aria-label={t.quitarAmigoDe(nombre)}
-                  title={t.quitarAmigoDe(nombre)}
-                  onClick={() => window.confirm(t.confirmarQuitarAmigo(nombre)) && quitarAmigo(s.uid, a.uid).catch(() => {})}
+                  className={`boton-mensaje ${sinLeer(s.charlas[a.uid]) ? "nuevo" : ""}`}
+                  aria-label={sinLeer(s.charlas[a.uid]) ? t.mensajeNuevoDe(nombre) : t.mensajeA(nombre)}
+                  title={t.mensajeA(nombre)}
+                  onClick={() => s.abrirCharla(a.uid)}
                 >
-                  ✕
+                  💬
                 </button>
               </li>
             );

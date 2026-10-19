@@ -236,7 +236,7 @@ export function usePresencias(uids: string[], activo: boolean) {
 export async function borrarDatosSociales(uid: string, codigo: string | undefined) {
   const amigos = await getDocs(collection(db, "jugadores", uid, "amigos")).catch(() => null);
   await Promise.all((amigos?.docs ?? []).map((d) => quitarAmigo(uid, d.id).catch(() => {})));
-  for (const ruta of [["solicitudes", uid, "de"], ["invitaciones", uid, "de"]]) {
+  for (const ruta of [["solicitudes", uid, "de"], ["invitaciones", uid, "de"], ["jugadores", uid, "charlas"]]) {
     const s = await getDocs(collection(db, ruta[0], ...ruta.slice(1))).catch(() => null);
     await Promise.all((s?.docs ?? []).map((d) => deleteDoc(d.ref).catch(() => {})));
   }

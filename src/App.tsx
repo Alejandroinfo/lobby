@@ -73,6 +73,14 @@ export function App() {
   // (con conexión espera a tu usuario, para que el reporte quede a tu nombre)
   if (ruta.pantalla === "reportar" && (uid || !enLinea || error)) return <PaginaReportar uid={uid} nombre={nombre} />;
   // Sin internet no hay salas ni perfil: lo que se puede jugar en este celular.
+  // Con conexión y tu usuario, tus amigos te ven «jugando …» también en lo que juegas aquí.
+  if (enLinea && ruta.pantalla === "en-este-celular" && uid && !error)
+    return (
+      <SocialProvider uid={uid} nombre={nombre} perfil={perfil}>
+        <SinConexion enLinea={enLinea} />
+        <Reportes uid={uid} nombre={nombre} />
+      </SocialProvider>
+    );
   if (!enLinea || ruta.pantalla === "en-este-celular")
     return (
       <>

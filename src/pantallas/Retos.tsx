@@ -8,7 +8,7 @@
 import { abrirJuego } from "../pwa";
 import { conLlave } from "../firebase/llaveJuego";
 import { useEffect, useState } from "react";
-import { JUEGOS, type Juego } from "../datos/catalogo";
+import { JUEGOS, juegoPorId, type Juego } from "../datos/catalogo";
 import { claveDia, diasAntes, enlaceReto, fechaDeClave, fechaHoy, guardarReto, nuevoReto, ponerAlDiaMarcaDiaria, retoDiario } from "../firebase/retos";
 import type { FilaRanking, Reto } from "../firebase/tipos";
 import { useHistorialRetos, useMarcas, useRankingDelDia, useRetos, type DiaHistorial } from "../hooks/useRetos";
@@ -23,7 +23,7 @@ type Ambito = "sala" | "global";
 function abrir(url: string, juego: string) {
   // Pestaña nueva (o la misma ventana en la app instalada): el puntaje vuelve a la sala al terminar.
   // Con la llave del juego, el reto se retoma desde cualquier aparato de tu cuenta.
-  abrirJuego(conLlave(juego, url));
+  abrirJuego(conLlave(juego, url), "_blank", juegoPorId(juego)?.nombre);
 }
 
 interface Props {

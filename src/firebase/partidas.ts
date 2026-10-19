@@ -1,6 +1,6 @@
 /** Partidas dentro de una sala: invitar, responder, prepararse, lanzar y terminar. */
 import { addDoc, collection, deleteField, doc, getDoc, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
-import type { Juego } from "../datos/catalogo";
+import { juegoPorId, type Juego } from "../datos/catalogo";
 import { db } from "./config";
 import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
@@ -22,6 +22,7 @@ export async function crearPartida(
   variante: string | null,
   invitaciones: Invitacion[],
   nivel?: "hard" | "easy",
+  porEnlace = false,
 ): Promise<string> {
   const invitados: Record<string, Record<string, unknown>> = {};
   for (const inv of invitaciones) {
@@ -39,6 +40,7 @@ export async function crearPartida(
     juego: juego.id,
     variante,
     ...(nivel ? { nivel } : {}),
+    ...(porEnlace ? { porEnlace: true } : {}),
     anfitrion: creador,
     estado: "invitando",
     invitados,
@@ -119,6 +121,61 @@ export async function asegurarRonda(sala: string, base: string, ronda: number, c
     tx.set(ref, nueva);
     return { id: ref.id, ...(nueva as unknown as Omit<Partida, "id">) };
   });
+}
+
+// ── Invitar con enlace ─────────────────────────────────────────────────────────
+
+/** Una partida con enlace espera más que una invitación en vivo: el enlace se manda por WhatsApp, etc. */
+export const HORAS_ENLACE = 72;
+
+/** Enlace que entra a la sala y a la partida, ya listo para jugar. */
+export function enlaceInvitacion(sala: string, id: string): string {
+  return `${window.location.origin}/s/${sala}?unirse=${encodeURIComponent(id)}`;
+}
+
+/** Quien organiza habilita entrar con el enlace (las partidas creadas antes no lo tenían). */
+export async function habilitarEnlace(sala: string, id: string) {
+  await updateDoc(refPartida(sala, id), { porEnlace: true });
+}
+
+export type ResultadoEnlace = "dentro" | "espectador" | "ya-estabas" | "llena" | "empezo" | "no-existe";
+
+/**
+ * Entrar a una partida con su enlace: como jugador (o espectador si ya está completa y el juego lo
+ * permite), aceptada y lista. Si ya estabas invitado, cuenta como aceptar.
+ */
+export async function unirmePorEnlace(sala: string, id: string, uid: string, nombre: string): Promise<{ r: ResultadoEnlace; p?: Partida }> {
+  const snap = await getDoc(refPartida(sala, id)).catch(() => null);
+  if (!snap?.exists()) return { r: "no-existe" };
+  const p = { id, ...(snap.data() as Omit<Partida, "id">) };
+  const juego = juegoPorId(p.juego);
+  const res = await entrar(sala, p, uid, nombre, juego);
+  return { r: res, p };
+}
+async function entrar(sala: string, p: Partida, uid: string, nombre: string, juego: Juego | undefined): Promise<ResultadoEnlace> {
+  const id = p.id;
+  if (!juego) return "no-existe";
+  const yo = p.invitados[uid];
+  if (p.estado !== "invitando") return yo?.respuesta === "acepta" ? "ya-estabas" : p.estado === "jugando" ? "empezo" : "no-existe";
+  if (yo) {
+    if (yo.respuesta === "acepta" && yo.listo) return "ya-estabas";
+    await updateDoc(refPartida(sala, id), {
+      [`invitados.${uid}.respuesta`]: "acepta",
+      [`invitados.${uid}.listo`]: true,
+      [`invitados.${uid}.respondio`]: serverTimestamp(),
+    });
+    latido(sala, uid).catch(() => {});
+    return yo.rol === "espectador" ? "espectador" : "dentro";
+  }
+  if (!p.porEnlace) return "no-existe";
+  const hay = jugadoresAceptados(p).length;
+  const rol: Rol | null = hay < juego.jugadores.max ? "jugador" : juego.espectadores ? "espectador" : null;
+  if (!rol) return "llena";
+  await updateDoc(refPartida(sala, id), {
+    [`invitados.${uid}`]: { nombre, rol, respuesta: "acepta", listo: true, respondio: serverTimestamp(), asiento: null },
+  });
+  latido(sala, uid).catch(() => {});
+  return rol === "jugador" ? "dentro" : "espectador";
 }
 
 /** El invitado acepta (como jugador o espectador) o rechaza. */

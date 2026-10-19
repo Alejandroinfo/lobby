@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
-import { SelectorIdioma, textosJuego, useIdioma, type Textos } from "../i18n";
+import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { actualizarAvatarEnSala, cerrarSala, DIAS_INACTIVIDAD, enviarMensaje, guardarPerfil, LARGO_MENSAJE, motivoCierre, salirDeSala, unirseASala } from "../firebase/salas";
 import { avatarPorDefecto } from "../firebase/perfil";
 import { AvatarCirculo } from "./PaginaPerfil";
@@ -12,6 +12,8 @@ import { DESCONECTADO_MS, useAhora, useMensajes, useSala } from "../hooks/useSal
 import { enlaceSala, irA } from "../navegacion";
 import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
+import { unirmePorEnlace } from "../firebase/partidas";
+import { filasDeGlobos } from "./Globos";
 import { EncuestaPendiente } from "./Encuesta";
 import { Invitaciones, ListaPartidas } from "./Partidas";
 import { Retos } from "./Retos";
@@ -34,6 +36,8 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
   const { sala, estado, soyMiembro, confirmado } = useSala(codigo, uid);
   const [errorUnirse, setErrorUnirse] = useState("");
   const intentado = useRef(false);
+  // Enlace de invitación a una partida (/s/CODIGO?unirse=ID): al entrar, directo a la partida y listo.
+  const [unirse] = useState(() => new URLSearchParams(window.location.search).get("unirse"));
 
   const cierre = sala ? motivoCierre(sala) : null;
 
@@ -94,11 +98,11 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
       <main className="inicio">
         <header className="portada">
           <h1>{sala?.nombre ?? t.nombreApp}</h1>
-          <p>{t.invitadoTexto}</p>
+          <p>{unirse ? t.invitadoAPartida(sala?.nombre ?? "") : t.invitadoTexto}</p>
         </header>
         <FormNombre
           inicial=""
-          boton={t.entrarSala}
+          boton={unirse ? t.entrarYJugar : t.entrarSala}
           alGuardar={(n) => {
             setNombre(n);
             guardarPerfil(uid, n).catch(() => {});
@@ -115,11 +119,64 @@ export function Sala({ codigo, uid, nombre, setNombre, perfil }: Props) {
     );
   }
 
-  return <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} avatar={avatar ?? avatarPorDefecto(uid)} perfil={perfil} />;
+  return (
+    <VistaSala sala={sala} uid={uid} nombre={nombre} confirmado={confirmado} avatar={avatar ?? avatarPorDefecto(uid)} perfil={perfil} unirse={unirse} />
+  );
 }
 
-function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado: boolean; avatar: Avatar; perfil: TPerfil | null | undefined }) {
-  const { sala, uid, nombre, confirmado, avatar, perfil } = props;
+/** Entra a la partida del enlace (una vez confirmada la entrada a la sala) y avisa cómo quedó. */
+function useUnirsePorEnlace(sala: TSala, uid: string, nombre: string, confirmado: boolean, unirse: string | null) {
+  const { t } = useIdioma();
+  const [aviso, setAviso] = useState<{ texto: string; ok: boolean } | null>(unirse ? { texto: t.uniendoPartida, ok: true } : null);
+  const hecho = useRef(false);
+  useEffect(() => {
+    if (!unirse || !confirmado || hecho.current) return;
+    hecho.current = true;
+    // El enlace ya se usó: fuera de la dirección (al recargar no se repite).
+    const q = new URLSearchParams(window.location.search);
+    q.delete("unirse");
+    window.history.replaceState(null, "", window.location.pathname + (q.size ? `?${q}` : ""));
+    unirmePorEnlace(sala.codigo, unirse, uid, nombre)
+      .then(({ r, p }) => {
+        const juego = (p && juegoPorId(p.juego)?.nombre) ?? "";
+        const quien = (p && p.invitados[p.anfitrion]?.nombre) ?? t.alguien;
+        const texto =
+          r === "dentro" || r === "ya-estabas"
+            ? t.unidoPorEnlace(juego, quien)
+            : r === "espectador"
+              ? t.unidoEspectador(juego)
+              : r === "llena"
+                ? t.enlaceLlena(juego)
+                : r === "empezo"
+                  ? t.enlaceEmpezo(juego)
+                  : t.enlaceNoExiste;
+        setAviso({ texto, ok: r === "dentro" || r === "ya-estabas" || r === "espectador" });
+        if (p)
+          window.setTimeout(() => {
+            const el = document.getElementById(`partida-${p.id}`);
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            el?.classList.add("resaltada");
+          }, 500);
+      })
+      .catch((e) => {
+        console.warn(e);
+        setAviso({ texto: t.enlaceNoExiste, ok: false });
+      });
+  }, [unirse, confirmado, sala.codigo, uid, nombre, t]);
+  return [aviso, () => setAviso(null)] as const;
+}
+
+function VistaSala(props: {
+  sala: TSala;
+  uid: string;
+  nombre: string;
+  confirmado: boolean;
+  avatar: Avatar;
+  perfil: TPerfil | null | undefined;
+  unirse: string | null;
+}) {
+  const { sala, uid, nombre, confirmado, avatar, perfil, unirse } = props;
+  const [avisoEnlace, cerrarAvisoEnlace] = useUnirsePorEnlace(sala, uid, nombre, confirmado, unirse);
   useSalaActual(sala.codigo, confirmado ? sala.nombre : undefined);
   const { t } = useIdioma();
   // Si cambiaste de avatar (o la sala aún no lo tiene), se actualiza tu entrada.
@@ -203,6 +260,14 @@ function VistaSala(props: { sala: TSala; uid: string; nombre: string; confirmado
         </div>
       </header>
 
+      {avisoEnlace && (
+        <div className={`aviso-enlace ${avisoEnlace.ok ? "ok" : ""}`} role="status">
+          <p>{avisoEnlace.texto}</p>
+          <button className="secundario chico" onClick={cerrarAvisoEnlace} aria-label={t.cerrar}>
+            ✕
+          </button>
+        </div>
+      )}
       <Invitaciones sala={sala.codigo} uid={uid} partidas={partidas} />
       <EncuestaPendiente sala={sala.codigo} uid={uid} partidas={partidas} />
 
@@ -326,18 +391,6 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   );
 }
 
-/** «Hoy», «Ayer» o la fecha, para separar los mensajes por día. */
-function etiquetaDia(fecha: Date, t: Textos, idioma: string): string {
-  const hoy = new Date();
-  const ayer = new Date(hoy);
-  ayer.setDate(hoy.getDate() - 1);
-  if (fecha.toDateString() === hoy.toDateString()) return t.hoy;
-  if (fecha.toDateString() === ayer.toDateString()) return t.ayer;
-  return fecha.toLocaleDateString(idioma, { weekday: "long", day: "numeric", month: "long" });
-}
-
-const AGRUPAR_MS = 5 * 60_000; // mensajes seguidos de la misma persona: un solo bloque
-
 /**
  * Chat de la sala con globos (los tuyos a la derecha). En computadora queda fijo a la vista; en el
  * celular es un botón 💬 con los no leídos que lo abre a pantalla completa.
@@ -410,36 +463,7 @@ function Chat({ codigo, uid, nombre, mensajes, miembros }: { codigo: string; uid
     }
   };
 
-  const filas: ReactNode[] = [];
-  mensajes.forEach((m, i) => {
-    const antes = mensajes[i - 1];
-    const fecha = m.hora?.toDate() ?? new Date();
-    const fechaAntes = antes?.hora?.toDate();
-    const nuevoDia = !antes || !fechaAntes || fechaAntes.toDateString() !== fecha.toDateString();
-    if (nuevoDia) filas.push(<li key={`dia-${m.id}`} className="dia-chat"><span>{etiquetaDia(fecha, t, idioma)}</span></li>);
-    const mio = m.uid === uid;
-    const primero = nuevoDia || antes.uid !== m.uid || fecha.getTime() - (fechaAntes?.getTime() ?? 0) > AGRUPAR_MS;
-    const siguiente = mensajes[i + 1];
-    const ultimoDelGrupo = !siguiente || siguiente.uid !== m.uid || (siguiente.hora?.toMillis() ?? Date.now()) - fecha.getTime() > AGRUPAR_MS;
-    filas.push(
-      <li key={m.id} className={`globo-fila ${mio ? "mio" : "otro"} ${primero ? "primero" : ""} ${ultimoDelGrupo ? "ultimo" : ""}`}>
-        {!mio && (
-          <span className="globo-avatar" aria-hidden="true">
-            {ultimoDelGrupo && <AvatarCirculo avatar={miembros[m.uid]?.avatar ?? avatarPorDefecto(m.uid)} tam="xs" />}
-          </span>
-        )}
-        <div className="globo">
-          {!mio && primero && <span className="globo-autor">{m.nombre}</span>}
-          <span className="globo-texto">{m.texto}</span>
-          {m.hora && (
-            <time className="globo-hora" dateTime={fecha.toISOString()}>
-              {fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </time>
-          )}
-        </div>
-      </li>,
-    );
-  });
+  const filas = filasDeGlobos(mensajes, uid, (u) => miembros[u]?.avatar ?? avatarPorDefecto(u), true, t, idioma);
 
   return (
     <>
