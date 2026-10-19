@@ -109,6 +109,8 @@ export type Experiencia = "casual" | "frecuente" | "muy-frecuente" | "no-dice";
 /** Documento `jugadores/{uid}`: el nombre y, si la persona quiso contestarlo, su perfil anónimo. */
 export interface Perfil {
   nombre: string;
+  /** Preferencias que se pasan a los juegos (ver src/preferencias.ts). */
+  preferencias?: { letraGrande?: boolean };
   pais?: string | null;
   rangoEdad?: RangoEdad;
   comoLlego?: ComoLlego;

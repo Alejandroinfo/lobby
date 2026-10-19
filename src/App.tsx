@@ -7,6 +7,7 @@ import { Panel } from "./pantallas/Panel";
 import { PaginaPerfil } from "./pantallas/PaginaPerfil";
 import { SocialProvider } from "./pantallas/Amigos";
 import { publicarFicha, usePerfil } from "./firebase/perfil";
+import { aplicarPreferencias } from "./preferencias";
 import { useEffect, useState } from "react";
 import { subirResultadosLocales } from "./firebase/resultadosLocales";
 import { enviarPendientes } from "./firebase/reportes";
@@ -62,6 +63,9 @@ export function App() {
   useEffect(() => {
     if (uid && perfil) publicarFicha(uid, perfil, nombre).catch(() => {});
   }, [uid, perfil, nombre]);
+
+  // Preferencias de tu perfil (letra grande…): se pasan a los juegos al abrirlos.
+  useEffect(() => aplicarPreferencias(perfil), [perfil]);
 
   // El nombre guardado en el perfil manda: al entrar con tu cuenta en otro dispositivo, se recupera.
   useEffect(() => {

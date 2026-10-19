@@ -14,6 +14,7 @@ import { irA } from "../navegacion";
 import { Carrera } from "./Carrera";
 import { CompletarEnlace, Cuenta } from "./Perfil";
 import { Privacidad } from "./Privacidad";
+import { Preferencias } from "./Preferencias";
 import { TarjetaAvisos } from "./EnCurso";
 import { EnlaceReportar } from "./Reportar";
 
@@ -114,6 +115,7 @@ export function PaginaPerfil({ usuario, nombre, perfil }: Props) {
         <div className="col-perfil">
           <Cuenta usuario={usuario} />
           <Carrera uid={usuario.uid} carreraEnVivo={perfil?.carrera} />
+          <Preferencias uid={usuario.uid} perfil={perfil} />
           <Privacidad uid={usuario.uid} perfil={perfil} />
           <TarjetaAvisos uid={usuario.uid} enPerfil />
           <p>

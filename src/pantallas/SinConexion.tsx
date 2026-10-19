@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { irA } from "../navegacion";
 import { presenciaAlJugar } from "../firebase/amigos";
 import { EnlaceReportar } from "./Reportar";
+import { parametrosPreferencias } from "../preferencias";
 import { useIdioma } from "../i18n";
 
 interface JuegoLocal {
@@ -76,7 +77,7 @@ function parametros(idioma: string) {
   } catch {
     /* sin almacenamiento */
   }
-  return new URLSearchParams({ desde: "lobby", idioma, ...(nombre ? { nombre: nombre.slice(0, 20) } : {}) }).toString();
+  return new URLSearchParams({ desde: "lobby", idioma, ...(nombre ? { nombre: nombre.slice(0, 20) } : {}), ...parametrosPreferencias() }).toString();
 }
 
 export function SinConexion({ enLinea }: { enLinea: boolean }) {

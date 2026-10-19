@@ -9,6 +9,7 @@
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import type { Juego } from "../datos/catalogo";
 import { db } from "./config";
+import { parametrosPreferencias } from "../preferencias";
 import { enviarMensaje, generarCodigo } from "./salas";
 import type { FilaRanking, Marca, ResultadoJuego, ResumenDia, Reto } from "./tipos";
 
@@ -123,6 +124,7 @@ export function enlaceReto(juego: Juego, sala: string, r: Reto, nombre: string, 
     volver: `${window.location.origin}/s/${sala}`,
     reto: "1",
     semilla: r.semilla,
+    ...parametrosPreferencias(),
     dificultad: r.dificultad,
   });
   return `${juego.url}${juego.url.includes("?") ? "&" : "?"}${q}`;

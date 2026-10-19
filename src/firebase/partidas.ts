@@ -5,6 +5,7 @@ import { db } from "./config";
 import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
 import { avisarFinDePartida, pedirAviso } from "./avisos";
+import { parametrosPreferencias } from "../preferencias";
 
 const refPartida = (sala: string, id: string) => doc(db, "salas", sala, "partidas", id);
 
@@ -352,6 +353,7 @@ export function enlaceJuego(juego: Juego, sala: string, p: Partida, uid: string,
     ...(p.ronda && p.ronda > 1 ? { ronda: String(p.ronda) } : {}),
     volver: `${window.location.origin}/s/${sala}`,
     ...(p.nivel ? { dificultad: p.nivel, solo: "1" } : {}),
+    ...parametrosPreferencias(),
   });
   return `${juego.url}${juego.url.includes("?") ? "&" : "?"}${q}`;
 }
