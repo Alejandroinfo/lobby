@@ -93,9 +93,10 @@ service cloud.firestore {
       match /charlas/{amigo} {
         function indiceDelAmigo() {
           let d = request.resource.data;
-          let cambios = resource == null ? d.keys() : d.diff(resource.data).affectedKeys();
+          // Si el índice no existía, solo esos campos; si ya existía, solo cambian esos (no su `leido`).
           return request.auth.uid == amigo && sonAmigos(uid, amigo)
-            && cambios.hasOnly(['ultimo', 'de', 'hora'])
+            && ((resource == null && d.keys().hasOnly(['ultimo', 'de', 'hora']))
+                || (resource != null && d.diff(resource.data).affectedKeys().hasOnly(['ultimo', 'de', 'hora'])))
             && d.de == amigo && d.hora == request.time
             && d.ultimo is string && d.ultimo.size() >= 1 && d.ultimo.size() <= 80;
         }
