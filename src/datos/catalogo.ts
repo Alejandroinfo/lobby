@@ -161,7 +161,7 @@ export const JUEGOS: Juego[] = [
     id: "double-cross",
     nombre: "Split Loyalty: Double Cross",
     descripcion: "Recluta agentes con dados, archívalos en tu dossier y cobra objetivos antes que las demás agencias.",
-    categoria: "prueba",
+    categoria: "listo",
     jugadores: { min: 2, max: 4 },
     duracion: "Por medir",
     espectadores: false,
