@@ -16,7 +16,8 @@ const BASICOS = ["/", "/manifest.webmanifest", "/icono.svg", "/icono-192.png"];
  * sin lista, se guardan la página y lo que ella carga del mismo sitio (Split Loyalty).
  */
 const SIN_CONEXION = [
-  { base: "/juegos/split-loyalty/", entrada: "index.html" },
+  // `extra`: archivos que la página no nombra en su HTML (el video instructivo está dentro de engine.js).
+  { base: "/juegos/split-loyalty/", entrada: "index.html", extra: ["tutorial.mp4"] },
   { base: "/juegos/astrolabe/offline/", entrada: "index.html", lista: "archivos.json" },
   // Double Cross se pide como carpeta («/»): su sitio redirige /index.html a / (cleanUrls).
   { base: "/juegos/double-cross/", entrada: "", lista: "archivos.json" },
@@ -50,6 +51,7 @@ async function precargarJuegos() {
       } else {
         archivos = referenciasLocales(await entrada.clone().text());
       }
+      archivos = [...archivos, ...(juego.extra ?? [])];
       // La página se guarda como …/index.html (así la busca el fetch de abajo para «…/»).
       const clave = new URL(juego.base + (juego.entrada || "index.html"), self.location.origin).href;
       const nuevos = new Set([clave, ...archivos.map((f) => new URL(juego.base + f, self.location.origin).href)]);
