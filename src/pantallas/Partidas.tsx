@@ -26,6 +26,7 @@ import {
 import type { Invitado, Partida, Sala } from "../firebase/tipos";
 import type { PartidaAInvitar } from "./HojaInvitar";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
+import { abrirAlEmpezar } from "../preferencias";
 
 /**
  * En curso = invitando o jugando, salvo que lleve demasiado tiempo así (nadie la terminó):
@@ -125,6 +126,67 @@ export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: strin
         );
       })}
     </section>
+  );
+}
+
+/**
+ * Cuando quien organiza lanza una partida en la que estás, el juego se abre solo (tras una cuenta
+ * atrás corta que se puede detener). Solo al verla pasar de «preparando» a «en juego» mientras la
+ * sala está abierta: volver a la sala más tarde no te saca de ella.
+ */
+export function AbrirAlEmpezar({ sala, uid, partidas }: { sala: string; uid: string; partidas: Partida[] }) {
+  const { t, idioma } = useIdioma();
+  const vistos = useRef<Map<string, string> | null>(null);
+  const [lista, setLista] = useState<{ p: Partida; enlace: string; juego: string; idJuego: string } | null>(null);
+  const [quedan, setQuedan] = useState(3);
+
+  useEffect(() => {
+    const ahora = new Map(partidas.map((p) => [p.id, p.estado]));
+    const antes = vistos.current;
+    vistos.current = ahora;
+    if (antes === null || !abrirAlEmpezar()) return;
+    for (const p of partidas) {
+      if (p.estado !== "jugando" || antes.get(p.id) !== "invitando" || p.nivel) continue;
+      const juego = juegoPorId(p.juego);
+      const enlace = juego ? enlaceJuego(juego, sala, p, uid, idioma) : null;
+      if (!juego || !enlace || p.invitados[uid]?.respuesta !== "acepta") continue;
+      setQuedan(3);
+      setLista({ p, enlace, juego: juego.nombre, idJuego: juego.id });
+      sonarAviso();
+      break;
+    }
+  }, [partidas, sala, uid, idioma]);
+
+  useEffect(() => {
+    if (!lista) return;
+    if (quedan <= 0) {
+      abrirJuego(conLlave(lista.idJuego, lista.enlace), `juego-${lista.p.id}`, lista.juego, true);
+      return;
+    }
+    const id = window.setTimeout(() => setQuedan((n) => n - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [lista, quedan]);
+
+  if (!lista) return null;
+  const abriendo = quedan <= 0;
+  return (
+    <div className="abrir-al-empezar" role="alertdialog" aria-live="assertive" aria-label={t.empiezaJuego(lista.juego)}>
+      <p>
+        <strong>{t.empiezaJuego(lista.juego)}</strong>
+        <br />
+        <span className="suave">{abriendo ? t.abriendoJuego : t.abriendoEn(quedan)}</span>
+      </p>
+      {!abriendo && (
+        <div className="botones">
+          <button className="primario" onClick={() => setQuedan(0)}>
+            {t.abrirYa}
+          </button>
+          <button className="secundario" onClick={() => setLista(null)}>
+            {t.quedarmeEnSala}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

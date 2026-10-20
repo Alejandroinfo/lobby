@@ -2,12 +2,13 @@
 import { useState } from "react";
 import type { Perfil } from "../firebase/tipos";
 import { useIdioma } from "../i18n";
-import { guardarPreferencias, preferencias } from "../preferencias";
+import { abrirAlEmpezar, guardarAbrirAlEmpezar, guardarPreferencias, preferencias } from "../preferencias";
 
 export function Preferencias({ uid, perfil }: { uid: string; perfil: Perfil | null | undefined }) {
   const { t } = useIdioma();
   const [letraGrande, setLetraGrande] = useState(perfil?.preferencias?.letraGrande ?? preferencias.letraGrande);
   const [error, setError] = useState("");
+  const [abrir, setAbrir] = useState(abrirAlEmpezar);
 
   const cambiar = async (si: boolean) => {
     setLetraGrande(si);
@@ -29,6 +30,21 @@ export function Preferencias({ uid, perfil }: { uid: string; perfil: Perfil | nu
           <strong>{t.letraGrande}</strong>
           <br />
           <span className="suave chico-texto">{t.letraGrandeTexto}</span>
+        </span>
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={abrir}
+          onChange={(e) => {
+            setAbrir(e.target.checked);
+            guardarAbrirAlEmpezar(e.target.checked);
+          }}
+        />
+        <span>
+          <strong>{t.abrirAlEmpezarTitulo}</strong>
+          <br />
+          <span className="suave chico-texto">{t.abrirAlEmpezarTexto}</span>
         </span>
       </label>
       {error && <p className="error">{error}</p>}

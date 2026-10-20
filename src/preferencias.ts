@@ -41,6 +41,26 @@ export async function guardarPreferencias(uid: string, cambios: { letraGrande: b
   await setDoc(doc(db, "jugadores", uid), { preferencias: { letraGrande: cambios.letraGrande } }, { merge: true });
 }
 
+/**
+ * Abrir el juego solo cuando quien organiza lanza la partida (en este aparato; por defecto sí).
+ * Solo en este navegador: en la app instalada y en la computadora se puede querer distinto.
+ */
+const CLAVE_ABRIR = "lobby_abrir_al_empezar";
+export function abrirAlEmpezar(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_ABRIR) !== "0";
+  } catch {
+    return true;
+  }
+}
+export function guardarAbrirAlEmpezar(si: boolean) {
+  try {
+    localStorage.setItem(CLAVE_ABRIR, si ? "1" : "0");
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
 /** Parámetros que se suman al enlace de cada juego. */
 export function parametrosPreferencias(): Record<string, string> {
   return { letra: preferencias.letraGrande ? "grande" : "normal" };

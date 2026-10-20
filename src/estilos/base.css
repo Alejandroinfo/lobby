@@ -748,3 +748,11 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 }
 @media (min-width: 1000px) { .inicio-principal .juegos-rapidos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .inicio-cuerpo .amigos-inicio, .inicio-cuerpo .amigos-inicio .panel { margin: 0; }
+
+/* El juego se abre solo al empezar la partida */
+.abrir-al-empezar {
+  position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 80;
+  width: min(440px, calc(100% - 24px)); display: grid; gap: 0.6rem; padding: 0.9rem 1rem; border-radius: 14px;
+  background: var(--superficie); border: 2px solid var(--acento); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+}
+.abrir-al-empezar p { margin: 0; }

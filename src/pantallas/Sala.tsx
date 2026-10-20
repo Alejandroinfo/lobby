@@ -17,7 +17,7 @@ import { pedirReporte } from "./Reportar";
 import { unirmePorEnlace } from "../firebase/partidas";
 import { filasDeGlobos } from "./Globos";
 import { EncuestaPendiente } from "./Encuesta";
-import { Invitaciones, ListaPartidas } from "./Partidas";
+import { AbrirAlEmpezar, Invitaciones, ListaPartidas } from "./Partidas";
 import { Retos } from "./Retos";
 import { FichaJugador } from "./Ficha";
 import { PanelAmigos, useJugandoEnPresencia, useSalaActual } from "./Amigos";
@@ -281,6 +281,7 @@ function VistaSala(props: {
         </div>
       )}
       <Invitaciones sala={sala.codigo} uid={uid} partidas={partidas} />
+      <AbrirAlEmpezar sala={sala.codigo} uid={uid} partidas={partidas} />
       <EncuestaPendiente sala={sala.codigo} uid={uid} partidas={partidas} />
 
       <div className="rejilla">
