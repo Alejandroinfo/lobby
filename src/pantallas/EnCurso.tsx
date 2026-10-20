@@ -2,6 +2,7 @@
  * Inicio: «Tus partidas en curso» (de todas tus salas, primero las que te toca jugar) y la tarjeta
  * para activar los avisos en este celular.
  */
+import { IconoJuego } from "../datos/iconos";
 import { useEffect, useState } from "react";
 import { juegoPorId } from "../datos/catalogo";
 import { activarAvisos, desactivarAvisos, estadoAvisos, type EstadoAvisos } from "../firebase/avisos";
@@ -30,6 +31,7 @@ export function PartidasEnCurso({ perfil, uid }: { perfil: Perfil | null | undef
       <ul className="lista-en-curso">
         {lista.map(([id, e]) => (
           <li key={id} className={e.miTurno ? "mi-turno" : ""}>
+            <IconoJuego id={e.juego} tam={36} />
             <div className="en-curso-info">
               <strong>{juegoPorId(e.juego)?.nombre ?? e.juego}</strong>{" "}
               <button className="enlace suave" onClick={() => irA({ pantalla: "sala", codigo: e.sala })}>

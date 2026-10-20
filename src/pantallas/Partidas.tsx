@@ -1,8 +1,9 @@
+import { IconoJuego, colorDe } from "../datos/iconos";
 import { abrirJuego, esApp } from "../pwa";
 import { conLlave } from "../firebase/llaveJuego";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { abrirPartidaSolo } from "./CrearPartida";
-import { juegoPorId } from "../datos/catalogo";
+import { JUEGOS, juegoPorId } from "../datos/catalogo";
 import { textosJuego, useIdioma, type Textos } from "../i18n";
 import {
   cancelar,
@@ -70,22 +71,27 @@ function nombreVariante(p: Partida, idioma: "es" | "en") {
 
 function textoMotivo(m: Motivo, t: Textos): string {
   switch (m.tipo) {
-    case "faltan": return t.motivoFaltan(m.n, m.min);
-    case "sobran": return t.motivoSobran(m.n, m.max);
-    case "desconectados": return t.motivoDesconectados(m.nombres);
-    case "esperando": return t.motivoEsperando(m.nombres);
-    case "equipos": return t.motivoEquipos(m.mitad);
-    case "listos": return t.motivoListos;
-    default: return t.motivoDesconocido;
+    case "faltan":
+      return t.motivoFaltan(m.n, m.min);
+    case "sobran":
+      return t.motivoSobran(m.n, m.max);
+    case "desconectados":
+      return t.motivoDesconectados(m.nombres);
+    case "esperando":
+      return t.motivoEsperando(m.nombres);
+    case "equipos":
+      return t.motivoEquipos(m.mitad);
+    case "listos":
+      return t.motivoListos;
+    default:
+      return t.motivoDesconocido;
   }
 }
 
 /** Avisos de invitación para mí, arriba de todo. */
 export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: string; partidas: Partida[] }) {
   const { t, idioma } = useIdioma();
-  const pendientes = partidas.filter(
-    (p) => p.estado === "invitando" && p.invitados[uid]?.respuesta === "pendiente",
-  );
+  const pendientes = partidas.filter((p) => p.estado === "invitando" && p.invitados[uid]?.respuesta === "pendiente");
 
   const antes = useRef(0);
   useEffect(() => {
@@ -103,7 +109,8 @@ export function Invitaciones({ sala, uid, partidas }: { sala: string; uid: strin
         const quien = p.invitados[p.anfitrion]?.nombre ?? t.alguien;
         const variante = nombreVariante(p, idioma);
         return (
-          <div key={p.id} className="invitacion" role="alert">
+          <div key={p.id} className="invitacion" role="alert" style={{ "--juego": colorDe(p.juego) } as CSSProperties}>
+            <IconoJuego id={p.juego} tam={44} />
             <p>
               <strong>{quien}</strong> {t.teInvitaA} {yo.rol === "jugador" ? t.verboJugar : t.verboMirar}{" "}
               <strong>{juego?.nombre ?? p.juego}</strong>
@@ -171,6 +178,7 @@ export function AbrirAlEmpezar({ sala, uid, partidas }: { sala: string; uid: str
   const abriendo = quedan <= 0;
   return (
     <div className="abrir-al-empezar" role="alertdialog" aria-live="assertive" aria-label={t.empiezaJuego(lista.juego)}>
+      <IconoJuego id={lista.idJuego} tam={52} className={abriendo ? "" : "latido"} />
       <p>
         <strong>{t.empiezaJuego(lista.juego)}</strong>
         <br />
@@ -191,12 +199,43 @@ export function AbrirAlEmpezar({ sala, uid, partidas }: { sala: string; uid: str
 }
 
 /** Partidas en curso de la sala y las últimas terminadas. */
-export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; uid: string; partidas: Partida[]; alInvitar: (x: PartidaAInvitar) => void }) {
+export function ListaPartidas({
+  sala,
+  uid,
+  partidas,
+  alInvitar,
+}: {
+  sala: Sala;
+  uid: string;
+  partidas: Partida[];
+  alInvitar: (x: PartidaAInvitar) => void;
+}) {
   const { t } = useIdioma();
   const ahora = useAhora();
   const enCurso = partidas.filter(activa);
   const recientes = partidas.filter((p) => p.estado === "terminada").slice(0, 3);
-  if (!enCurso.length && !recientes.length) return null;
+  // Sala sin partidas: una invitación a empezar, con los juegos a la vista.
+  if (!enCurso.length && !recientes.length)
+    return (
+      <section className="panel partidas vacia" aria-labelledby="t-partidas">
+        <h2 id="t-partidas">{t.partidas}</h2>
+        <div className="sin-partidas">
+          <span className="iconos-apilados" aria-hidden="true">
+            {JUEGOS.filter((j) => j.url && j.categoria === "listo").slice(0, 3).map((j) => (
+              <IconoJuego key={j.id} id={j.id} tam={38} />
+            ))}
+          </span>
+          <p>
+            <strong>{t.nadieJuegaTodavia}</strong>
+            <br />
+            <span className="suave chico-texto">{t.eligeUnJuego}</span>
+          </p>
+          <button className="secundario chico" onClick={() => document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            {t.verJuegos} ↓
+          </button>
+        </div>
+      </section>
+    );
 
   const conectado = (id: string) => {
     const m = sala.miembros?.[id];
@@ -207,7 +246,15 @@ export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; 
     <section className="panel partidas" aria-labelledby="t-partidas">
       <h2 id="t-partidas">{t.partidas}</h2>
       {enCurso.map((p) => (
-        <TarjetaPartida key={p.id} sala={sala.codigo} uid={uid} p={p} conectado={conectado} nombreMio={sala.miembros?.[uid]?.nombre ?? ""} alInvitar={alInvitar} />
+        <TarjetaPartida
+          key={p.id}
+          sala={sala.codigo}
+          uid={uid}
+          p={p}
+          conectado={conectado}
+          nombreMio={sala.miembros?.[uid]?.nombre ?? ""}
+          alInvitar={alInvitar}
+        />
       ))}
       {recientes.length > 0 && (
         <div className="recientes">
@@ -215,7 +262,7 @@ export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; 
           <ul>
             {recientes.map((p) => (
               <li key={p.id}>
-                {juegoPorId(p.juego)?.nombre ?? p.juego}
+                <IconoJuego id={p.juego} tam={20} /> {juegoPorId(p.juego)?.nombre ?? p.juego}
                 {p.ronda && p.ronda > 1 && <span className="suave"> ({t.partidaNumero(p.ronda)})</span>} ·{" "}
                 {jugadoresAceptados(p)
                   .map(([, i]) => i.nombre)
@@ -223,10 +270,7 @@ export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; 
                 {resumenResultado(p, t) && <strong> · {resumenResultado(p, t)}</strong>}
                 {p.invitados[uid]?.respuesta === "acepta" && <BotonRevancha sala={sala.codigo} uid={uid} p={p} />}
                 {p.terminada && (
-                  <span className="suave">
-                    {" "}
-                    · {p.terminada.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
+                  <span className="suave"> · {p.terminada.toDate().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                 )}
               </li>
             ))}
@@ -237,11 +281,14 @@ export function ListaPartidas({ sala, uid, partidas, alInvitar }: { sala: Sala; 
   );
 }
 
-
 /** "Ganó Ana" / "Ganaron Ana y Bea" / "Empate", a partir de los asientos ganadores. */
 function resumenResultado(p: Partida, t: Textos): string | null {
   if (!p.resultado) return null;
-  const porAsiento = new Map(Object.values(p.invitados).filter((i) => i.asiento !== null).map((i) => [i.asiento!, i.nombre]));
+  const porAsiento = new Map(
+    Object.values(p.invitados)
+      .filter((i) => i.asiento !== null)
+      .map((i) => [i.asiento!, i.nombre]),
+  );
   // En solitario: el puntaje (si el juego tiene) o quién ganó, tú o la máquina.
   if (p.nivel) {
     const yo = porAsiento.get(0) ?? "";
@@ -297,13 +344,20 @@ function TarjetaPartida({ sala, uid, p, conectado, nombreMio, alInvitar }: Props
     .sort(([, a], [, b]) => (a.asiento ?? 99) - (b.asiento ?? 99) || a.nombre.localeCompare(b.nombre));
 
   return (
-    <article id={`partida-${p.id}`} className={`partida ${jugando ? "en-juego" : ""}`}>
+    <article
+      id={`partida-${p.id}`}
+      className={`partida ${jugando ? "en-juego" : ""}`}
+      style={{ "--juego": colorDe(p.juego) } as CSSProperties}
+    >
       <header>
-        <div>
-          <strong>{juego?.nombre ?? p.juego}</strong>
-          {variante && <span className="suave"> · {variante}</span>}
-          {p.ronda && p.ronda > 1 && <span className="suave"> · {t.partidaNumero(p.ronda)}</span>}
-          {conEquipos && <span className="suave"> · {t.porEquipos}</span>}
+        <div className="partida-titulo">
+          <IconoJuego id={p.juego} tam={34} />
+          <span>
+            <strong>{juego?.nombre ?? p.juego}</strong>
+            {variante && <span className="suave"> · {variante}</span>}
+            {p.ronda && p.ronda > 1 && <span className="suave"> · {t.partidaNumero(p.ronda)}</span>}
+            {conEquipos && <span className="suave"> · {t.porEquipos}</span>}
+          </span>
         </div>
         <span className={`estado-partida ${p.estado}`}>{jugando ? t.enJuego : t.preparando}</span>
       </header>
@@ -350,10 +404,7 @@ function TarjetaPartida({ sala, uid, p, conectado, nombreMio, alInvitar }: Props
 
       {!jugando && yo?.respuesta === "acepta" && (
         <div className="botones">
-          <button
-            className={yo.listo ? "secundario" : "primario"}
-            onClick={() => marcarListo(sala, p.id, uid, !yo.listo)}
-          >
+          <button className={yo.listo ? "secundario" : "primario"} onClick={() => marcarListo(sala, p.id, uid, !yo.listo)}>
             {yo.listo ? t.yaNoListo : t.estoyListo}
           </button>
           {!soyCreador && (
@@ -388,7 +439,9 @@ function TarjetaPartida({ sala, uid, p, conectado, nombreMio, alInvitar }: Props
         <div className="lanzar">
           {yo?.respuesta === "acepta" && (
             <>
-              {yo.rol === "jugador" && yo.asiento !== null && p.turno?.asientos.includes(yo.asiento) && <p className="te-toca-texto">{t.teToca}</p>}
+              {yo.rol === "jugador" && yo.asiento !== null && p.turno?.asientos.includes(yo.asiento) && (
+                <p className="te-toca-texto">{t.teToca}</p>
+              )}
               <p>
                 {yo.rol === "jugador"
                   ? t.juegasAsiento((yo.asiento ?? 0) + 1, yo.equipo !== undefined ? t.equipos[yo.equipo] : null)
@@ -444,7 +497,14 @@ export async function compartirEnlace(url: string, titulo: string, texto: string
  * Invitar a esta partida: abre la hoja «Invitar» (enlace, WhatsApp, QR, amigos). Quien organiza
  * habilita el enlace al abrirla por primera vez; después cualquiera que ya está dentro puede usarla.
  */
-function EnlacePartida(props: { sala: string; p: Partida; juego: string; quien: string; soyCreador: boolean; alInvitar: (x: PartidaAInvitar) => void }) {
+function EnlacePartida(props: {
+  sala: string;
+  p: Partida;
+  juego: string;
+  quien: string;
+  soyCreador: boolean;
+  alInvitar: (x: PartidaAInvitar) => void;
+}) {
   const { sala, p, juego, quien, soyCreador, alInvitar } = props;
   const { t } = useIdioma();
   const [error, setError] = useState(false);

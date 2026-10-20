@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { IconoJuego, colorDe } from "../datos/iconos";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
 import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { actualizarAvatarEnSala, cerrarSala, DIAS_INACTIVIDAD, enviarMensaje, guardarPerfil, LARGO_MENSAJE, motivoCierre, salirDeSala, unirseASala } from "../firebase/salas";
@@ -461,7 +462,8 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
           </h3>
           <ul className="juegos">
             {JUEGOS.filter((j) => j.categoria === cat).map((j) => (
-              <li key={j.id} className="juego">
+              <li key={j.id} className="juego" style={{ "--juego": colorDe(j.id) } as CSSProperties}>
+                <IconoJuego id={j.id} tam={40} />
                 <button className="juego-info" onClick={() => setInfo((x) => (x === j.id ? null : j.id))} aria-expanded={info === j.id}>
                   <span className="juego-cabeza">
                     <strong>{j.nombre}</strong>
@@ -614,6 +616,21 @@ function Chat(props: { codigo: string; uid: string; nombre: string; mensajes: Me
             </button>
           )}
         </div>
+        {!texto && (
+          <div className="respuestas-rapidas" aria-label={t.respuestasRapidas}>
+            {t.rapidas.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() =>
+                  enviarMensaje(codigo, uid, nombre, r).catch(() => setError(t.errorEnviar))
+                }
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
         <form className="escribir" onSubmit={enviar} noValidate>
           <label htmlFor="mensaje" className="sr-only">
             {t.mensaje}

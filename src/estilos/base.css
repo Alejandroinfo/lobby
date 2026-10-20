@@ -756,3 +756,63 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
   background: var(--superficie); border: 2px solid var(--acento); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
 }
 .abrir-al-empezar p { margin: 0; }
+
+/* ── Juegos con icono y color propio (--juego) ── */
+.icono-juego { flex: none; display: block; }
+.juego-rapido { border-left-color: var(--juego, var(--acento)); }
+.juego-rapido .icono-juego { margin-bottom: 0.3rem; transition: transform 0.2s ease; }
+.juego-rapido:hover:not(:disabled) .icono-juego { transform: rotate(-6deg) scale(1.08); }
+.juego-rapido.creando .icono-juego { animation: girar 1s linear infinite; }
+.juego-rapido:hover:not(:disabled) { border-color: var(--juego, var(--acento)); }
+.catalogo .juego { border-left-color: var(--juego, var(--acento)) !important; }
+.catalogo .juego > .icono-juego { align-self: center; }
+.partida { border-top: 4px solid var(--juego, var(--linea)); }
+.partida-titulo { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.partida-titulo > span { min-width: 0; }
+.invitacion { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; border-left: 5px solid var(--juego, var(--acento)); }
+.invitacion > p { flex: 1 1 200px; margin: 0; }
+.invitacion > .botones { flex-basis: 100%; }
+.invitacion > .icono-juego { animation: saludo 1.2s ease-in-out 2; }
+.recientes li .icono-juego { display: inline-block; vertical-align: -4px; }
+.lista-en-curso li > .icono-juego { align-self: center; }
+.abrir-al-empezar { grid-template-columns: auto 1fr; align-items: center; column-gap: 0.9rem; }
+.abrir-al-empezar > .botones { grid-column: 1 / -1; }
+
+/* Sala sin partidas */
+.sin-partidas { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 0.4rem 0; }
+.sin-partidas p { flex: 1 1 220px; margin: 0; }
+.iconos-apilados { display: inline-flex; }
+.iconos-apilados .icono-juego { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18)); }
+.iconos-apilados .icono-juego + .icono-juego { margin-left: -10px; }
+.iconos-apilados .icono-juego:nth-child(1) { transform: rotate(-8deg); }
+.iconos-apilados .icono-juego:nth-child(3) { transform: rotate(8deg); }
+
+/* Chat: respuestas rápidas */
+.respuestas-rapidas { display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 0.45rem; scrollbar-width: none; }
+.respuestas-rapidas::-webkit-scrollbar { display: none; }
+.respuestas-rapidas button {
+  flex: none; font-size: 0.82rem; padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid var(--linea);
+  background: var(--fondo); color: var(--tinta);
+}
+.respuestas-rapidas button:hover { border-color: var(--acento); }
+
+/* Un poco de movimiento (nada si la persona lo pidió así en su sistema) */
+@media (prefers-reduced-motion: no-preference) {
+  .partida, .invitacion, .juego-rapido, .catalogo .juego { animation: aparecer 0.35s ease-out both; }
+  .juego-rapido, .catalogo .juego { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+  .juego-rapido:hover:not(:disabled), .catalogo .juego:hover { transform: translateY(-2px); box-shadow: var(--sombra); }
+  .juego-rapido:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+  .punto.on { animation: pulso 2.4s ease-in-out infinite; }
+  .lista-en-curso li.mi-turno, .partida .te-toca-texto { animation: brillo 2s ease-in-out infinite; }
+  .icono-juego.latido { animation: latido 1s ease-in-out infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .juego-rapido.creando .icono-juego, .invitacion > .icono-juego { animation: none; }
+}
+@keyframes aparecer { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes saludo { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+@keyframes pulso { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--on) 25%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--on) 5%, transparent); } }
+@keyframes brillo { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 30%, transparent); } }
+@keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.juego-rapido.prueba, .juego-rapido.listo { border-left-color: var(--juego, var(--acento)); }

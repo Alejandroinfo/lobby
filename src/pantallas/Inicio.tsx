@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { IconoJuego, colorDe } from "../datos/iconos";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { codigoValido, crearSala, guardarPerfil, LARGO_CODIGO, normalizarCodigo } from "../firebase/salas";
 import { crearPartida } from "../firebase/partidas";
 import { JUEGOS, type Juego } from "../datos/catalogo";
@@ -119,7 +120,13 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
             <ul className="juegos-rapidos">
               {JUEGOS.filter((j) => j.url).map((j) => (
                 <li key={j.id}>
-                  <button className={`juego-rapido ${j.categoria}`} disabled={creando !== null} onClick={() => rapida(j)}>
+                  <button
+                    className={`juego-rapido ${j.categoria} ${creando === j.id ? "creando" : ""}`}
+                    style={{ "--juego": colorDe(j.id) } as CSSProperties}
+                    disabled={creando !== null}
+                    onClick={() => rapida(j)}
+                  >
+                    <IconoJuego id={j.id} tam={40} />
                     <strong>{j.nombre}</strong>
                     <span className="suave chico-texto">
                       {creando === j.id
