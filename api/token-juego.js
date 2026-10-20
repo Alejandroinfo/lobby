@@ -6,10 +6,14 @@
  * Variables en Vercel: FIREBASE_SERVICE_ACCOUNT (proyecto del lobby, para verificar la sesión) y
  * FIREBASE_SERVICE_ACCOUNT_ASTROLABE (proyecto de Astrolabe, para firmar la llave).
  * POST con «Authorization: Bearer <token de sesión del lobby>» y { juego: "astrolabe" }.
+ *
+ * { juego: "lobby-chat" }: llave para el propio lobby, con tu mismo uid. La usa el chat de la sala que
+ * se ve dentro de los juegos (public/chat-juego.js): el juego entra al lobby como tú solo para leer y
+ * escribir en el chat de tu sala (las reglas de Firestore no le dejan hacer nada más que a ti).
  */
 import { leerCuerpo } from "./_avisos.js";
 
-const PROYECTOS = { astrolabe: "FIREBASE_SERVICE_ACCOUNT_ASTROLABE" };
+const PROYECTOS = { astrolabe: "FIREBASE_SERVICE_ACCOUNT_ASTROLABE", "lobby-chat": "FIREBASE_SERVICE_ACCOUNT" };
 const apps = {};
 
 async function app(nombre, variable) {
@@ -31,7 +35,10 @@ export async function POST(request) {
   try {
     const { getAuth } = await import("firebase-admin/auth");
     const { uid } = await getAuth(await app("lobby", "FIREBASE_SERVICE_ACCOUNT")).verifyIdToken(sesion);
-    const token = await getAuth(await app(d.juego, variable)).createCustomToken(`lobby-${uid}`.slice(0, 128));
+    const token =
+      d.juego === "lobby-chat"
+        ? await getAuth(await app("lobby", "FIREBASE_SERVICE_ACCOUNT")).createCustomToken(uid)
+        : await getAuth(await app(d.juego, variable)).createCustomToken(`lobby-${uid}`.slice(0, 128));
     return Response.json({ token }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.warn("token-juego", e?.code ?? e);

@@ -26,9 +26,23 @@ async function llave(juego: string): Promise<string | null> {
   return token;
 }
 
-/** El enlace del juego con la llave (o tal cual, si el juego no la usa o no se pudo obtener). */
+const conTiempo = (p: Promise<string | null>) =>
+  Promise.race([p.catch(() => null), new Promise<null>((ok) => setTimeout(() => ok(null), 4000))]);
+
+/**
+ * El enlace del juego con sus llaves (o tal cual, si no se pudieron obtener):
+ *  - `lt`: la del juego (Astrolabe), para ser la misma persona en cualquier aparato;
+ *  - `lc`: la del chat de la sala, para ver y contestar los mensajes sin salir del juego
+ *    (public/chat-juego.js). Solo si la partida es de una sala.
+ */
 export async function conLlave(juego: string, url: string): Promise<string> {
-  if (!JUEGOS_CON_LLAVE.has(juego)) return url;
-  const token = await Promise.race([llave(juego).catch(() => null), new Promise<null>((ok) => setTimeout(() => ok(null), 4000))]);
-  return token ? `${url}#lt=${encodeURIComponent(token)}` : url;
+  const deSala = /[?&]lsala=[A-Z0-9]/.test(url);
+  const [lt, lc] = await Promise.all([
+    JUEGOS_CON_LLAVE.has(juego) ? conTiempo(llave(juego)) : Promise.resolve(null),
+    deSala ? conTiempo(llave("lobby-chat")) : Promise.resolve(null),
+  ]);
+  const hash = new URLSearchParams();
+  if (lt) hash.set("lt", lt);
+  if (lc) hash.set("lc", lc);
+  return hash.size ? `${url}#${hash}` : url;
 }
