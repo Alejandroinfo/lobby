@@ -1,5 +1,5 @@
 import { IconoJuego, colorDe } from "../datos/iconos";
-import { useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { codigoValido, crearSala, guardarPerfil, LARGO_CODIGO, normalizarCodigo } from "../firebase/salas";
 import { crearPartida } from "../firebase/partidas";
 import { JUEGOS, type Juego } from "../datos/catalogo";
@@ -34,6 +34,19 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
   const [errorCrear, setErrorCrear] = useState("");
   const [creando, setCreando] = useState<string | null>(null);
   const [recientes] = useState(leerRecientes);
+
+  // Atajo de la app instalada (mantener pulsado el icono → «Jugar Split Loyalty»): /?jugar=<juego>
+  // hace la partida rápida en cuanto hay nombre.
+  const atajo = useRef(new URLSearchParams(window.location.search).get("jugar"));
+  useEffect(() => {
+    const id = atajo.current;
+    if (!id || !nombre || editando) return;
+    atajo.current = null;
+    window.history.replaceState(null, "", "/");
+    const juego = JUEGOS.find((j) => j.id === id && j.url);
+    if (juego) rapida(juego);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nombre, editando]);
 
   if (!nombre || editando) {
     return (

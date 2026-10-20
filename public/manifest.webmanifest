@@ -10,10 +10,69 @@
   "display": "standalone",
   "background_color": "#f5f0e6",
   "theme_color": "#f5f0e6",
-  "categories": ["games", "entertainment"],
+  "categories": [
+    "games",
+    "entertainment"
+  ],
   "icons": [
-    { "src": "/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icono-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Jugar Split Loyalty",
+      "short_name": "Split Loyalty",
+      "description": "Crea una partida de Split Loyalty y te da el enlace para invitar",
+      "url": "/?jugar=split-loyalty",
+      "icons": [
+        {
+          "src": "/iconos-juegos/split-loyalty-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Jugar Astrolabe",
+      "short_name": "Astrolabe",
+      "description": "Crea una partida de Astrolabe y te da el enlace para invitar",
+      "url": "/?jugar=astrolabe",
+      "icons": [
+        {
+          "src": "/iconos-juegos/astrolabe-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Jugar Double Cross",
+      "short_name": "Double Cross",
+      "description": "Crea una partida de Double Cross y te da el enlace para invitar",
+      "url": "/?jugar=double-cross",
+      "icons": [
+        {
+          "src": "/iconos-juegos/double-cross-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
