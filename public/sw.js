@@ -147,7 +147,11 @@ self.addEventListener("fetch", (e) => {
 
   if (url.pathname.startsWith("/juegos/")) {
     const ruta = url.pathname.endsWith("/") ? url.pathname + "index.html" : url.pathname;
-    e.respondWith(redOCache(pedido, () => caches.match(url.origin + ruta, { cacheName: JUEGOS })));
+    const guardado = () => caches.match(url.origin + ruta, { cacheName: JUEGOS });
+    // Si la red responde con un error (p. ej. «página no encontrada»), mejor la copia guardada.
+    e.respondWith(
+      redOCache(pedido, guardado).then(async (resp) => (resp && !resp.ok && (await guardado())) || resp),
+    );
     return;
   }
 

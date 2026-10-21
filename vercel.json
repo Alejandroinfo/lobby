@@ -13,6 +13,14 @@
       "destination": "https://astrolabebg.vercel.app/:ruta*"
     },
     {
+      "source": "/juegos/double-cross/",
+      "destination": "https://split-loyalty-double-cross.vercel.app/"
+    },
+    {
+      "source": "/juegos/double-cross",
+      "destination": "https://split-loyalty-double-cross.vercel.app/"
+    },
+    {
       "source": "/juegos/double-cross/:ruta*",
       "destination": "https://split-loyalty-double-cross.vercel.app/:ruta*"
     },
