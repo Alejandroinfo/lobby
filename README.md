@@ -1,63 +1,66 @@
-# Lobby de juegos
+# Game Lobby
 
-Una sala web donde un grupo de amigos se reúne, conversa y elige a cuál de los juegos jugar.
-Diseño completo: documento "Lobby central: diseño técnico (fase 1)".
+**▶ Live demo: [lobby-navy.vercel.app](https://lobby-navy.vercel.app)**
 
-**Estado:** pasos 1 y 2 del plan — entrar con nombre, crear sala, unirse por enlace (`/s/CODIGO`),
-ver quién está conectado, chatear, y crear partidas: elegir juego y modo, invitar a toda la sala
-o a algunas personas como jugador o espectador, marcar "listo" y lanzar. Con los juegos
-conectados (Astrolabe y Split Loyalty), "Abrir juego" entra directo a la partida en su asiento y
-el resultado vuelve solo al lobby.
+A web lobby where a group of friends meets, chats, and picks which of my original board games to play online. I design these games as tabletop games and build digital versions to playtest them, with the goal of eventually producing them as physical games.
 
-## Stack
+*Versión en español: [README.es.md](README.es.md)*
 
-- React 19 + TypeScript + Vite (igual que Astrolabe).
-- Firebase, proyecto `lobby-games`: Authentication anónima + Firestore.
-- Vercel para publicar, con Web Analytics (sin cookies).
+## Try it in 2 minutes
 
-## Puesta en marcha (una sola vez)
+1. Open the [live demo](https://lobby-navy.vercel.app) and enter any name (no account needed).
+2. Create a room.
+3. **To play alone:** create a match of *Astrolabe*, *Split Loyalty*, or *Split Loyalty: Double Cross* and choose to play against the computer.
+4. **To try multiplayer:** copy the room link and open it in a second browser tab (or send it to a friend). Each tab joins as a different player.
 
-1. **Vercel:** Add New → Project → importar este repo → Deploy (detecta Vite solo).
-   Luego, en el proyecto: pestaña **Analytics → Enable**.
-2. **Firebase → Authentication → Configuración → Dominios autorizados:** agregar el dominio
-   de Vercel (por ejemplo `lobby-xxxx.vercel.app`).
-3. **Firebase → Firestore Database → Reglas:** pegar el contenido de `firestore.rules` y **Publicar**.
-   Repetir cada vez que cambie ese archivo.
+The interface is available in English and Spanish.
 
-## Juegos conectados
+## The games
 
-La dirección de cada juego está en `src/datos/catalogo.ts` y se puede cambiar sin tocar código con
-variables de entorno (Vercel → Settings → Environment Variables, o `.env.local`):
+| Game | Players | Description | Play directly |
+|---|---|---|---|
+| Split Loyalty | 2–4 | Recruit agents and decide whether each one serves their nation or their rank. | [Open](https://split-loyalty.vercel.app/app/online.html) |
+| Split Loyalty: Double Cross | 2–4 | Recruit agents with dice, file them in your dossier, and claim objectives before the other agencies. | [Open](https://split-loyalty-double-cross.vercel.app/) |
+| Astrolabe | 2–4 | Deduce your home's secret orbit among the stars. With 4 players, in teams of two. | [Open](https://astrolabebg.vercel.app/) |
+| Blindspot | 3–6 | Everyone sees your personality except you. Figure it out before the Soulmate. | [Open](https://matchmaking-one-gamma.vercel.app/) |
+| BST Animals | 2–5 | Build trees in silence, without saying which cards you hold. | [Open](https://bst-firebase.vercel.app/) |
 
-| Variable | Juego |
-| --- | --- |
-| `VITE_URL_ASTROLABE` | Astrolabe (por defecto `https://astrolabebg.vercel.app/`) |
-| `VITE_URL_SPLIT_LOYALTY` | Split Loyalty (por defecto `https://split-loyalty.vercel.app/app/online.html`) |
-| `VITE_URL_BLINDSPOT` | Blindspot, la página de inicio (sin valor = no conectado) |
-| `VITE_URL_BST_ANIMALS` | BST Animals, la página de inicio (sin valor = no conectado) |
+## Features
 
-Cada juego conectado incluye un "puente" (`src/lobby/puente.ts` en Astrolabe, `app/lobby-puente.js`
-en Split Loyalty) que lee los parámetros `?lobby=1&codigo=…&asiento=…&rol=…` y, al terminar, avisa el
-resultado a la pestaña del lobby o vuelve a la sala con `?resultado=…`.
+- **Rooms and matches:** join by link, see who is online, chat, create matches, invite players or spectators, mark "ready", and launch. The game opens directly in each player's seat and reports the result back to the lobby.
+- **Social layer:** friend codes, friend requests, direct messages, online presence, and room invitations between friends.
+- **Engagement features:** daily challenges with a shared leaderboard, player profiles with stats and achievements, and push notifications on mobile.
+- **Playtesting tools:** after each match, players can rate fun and clarity (1–5), say whether the game felt too short or too long, and answer game-specific questions. A private admin panel aggregates match results, surveys, and bug reports.
+- **Bug reporting** from inside the lobby and the games.
+- **Installable** as a progressive web app (PWA).
 
-## Datos en Firestore
+## Measurement
 
-| Ruta | Qué guarda |
-| --- | --- |
-| `jugadores/{uid}` | `nombre`, `ultimaVez` |
-| `salas/{codigo}` | `nombre`, `anfitrion`, `miembros: {uid: {nombre, entrada, ultimaVez}}`, `creada` |
-| `salas/{codigo}/mensajes/{id}` | `uid`, `nombre`, `texto`, `hora` |
-| `salas/{codigo}/partidas/{id}/resultados/{uid}` | `asiento`, `ganadores`, `puntajes`, `duracionSeg`, `version`, `detalleJson`, `recibido` |
-| `salas/{codigo}/partidas/{id}` | `juego`, `variante`, `anfitrion`, `estado` (invitando → jugando → terminada / cancelada), `invitados: {uid: {nombre, rol, respuesta, listo, respondio, asiento}}`, `codigoJuego`, `creada`, `iniciada`, `terminada` |
+Because the lobby exists to playtest games, it records what is needed to evaluate them:
 
-Cada miembro solo puede modificar su propia entrada en `miembros`; el chat y las partidas solo
-los ven los miembros. Quien crea una partida la controla; cada invitado solo cambia su respuesta. Detalle en `firestore.rules`.
+- **Match outcomes:** winners, scores, and duration for each match.
+- **Playtest surveys:** fun, clarity, perceived length, and open feedback per game.
+- **Optional audience data**, in ranges only: country, age range, how the player found the lobby, and gaming experience.
+- **Traffic:** Vercel Web Analytics (cookie-free).
 
-## Desarrollo
+Security rules ensure each player can only read and change their own data, and only room members can see a room's chat and matches. See [`firestore.rules`](firestore.rules).
+
+## Tech stack
+
+- React 19 + TypeScript + Vite
+- Firebase: anonymous Authentication + Firestore (real-time data)
+- Vercel: hosting, serverless functions (`api/`), and Web Analytics
+- Web Push for mobile notifications
+
+## Development
 
 ```bash
 npm install
-npm run dev        # contra el Firebase real
-npm run dev:local  # sin Firebase: todo en el navegador, cada pestaña es un jugador
-npm run build      # revisa tipos y genera dist/
+npm run dev        # against the real Firebase project
+npm run dev:local  # no Firebase: everything runs in the browser, each tab is a player
+npm run build      # type-checks and builds dist/
 ```
+
+Deployment and configuration steps (Vercel, Firebase authorized domains, and publishing the Firestore rules) are described in the [Spanish README](README.es.md#puesta-en-marcha-una-sola-vez).
+
+Code comments and identifiers are mostly in Spanish.
