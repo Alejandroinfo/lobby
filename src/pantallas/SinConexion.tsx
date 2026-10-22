@@ -70,6 +70,16 @@ export function precargarJuegos() {
 }
 
 /** Lo que el juego necesita saber: que viene del lobby, el idioma y tu nombre (para no volver a pedirlo). */
+/** Abre un juego en este celular (sin sala): partida local, contra bots o pasándose el celular. */
+export async function abrirEnEsteCelular(id: string, idioma: string) {
+  const j = JUEGOS_LOCALES.find((x) => x.id === id);
+  if (!j) return;
+  // Con conexión, tus amigos te ven «jugando …» (se espera un momento: al cambiar de página se pierde).
+  const aviso = navigator.onLine ? presenciaAlJugar.publicar?.(j.nombre).catch(() => {}) : null;
+  if (aviso) await Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]);
+  window.location.assign(`${j.url}?${parametros(idioma)}`);
+}
+
 function parametros(idioma: string) {
   let nombre = "";
   try {
@@ -102,12 +112,7 @@ export function SinConexion({ enLinea }: { enLinea: boolean }) {
               ) : (
                 <button
                   className="primario"
-                  onClick={async () => {
-                    // Con conexión, tus amigos te ven «jugando …» (se espera un momento: al cambiar de página se pierde).
-                    const aviso = enLinea ? presenciaAlJugar.publicar?.(j.nombre).catch(() => {}) : null;
-                    if (aviso) await Promise.race([aviso, new Promise((ok) => setTimeout(ok, 800))]);
-                    window.location.assign(`${j.url}?${parametros(idioma)}`);
-                  }}
+                  onClick={() => abrirEnEsteCelular(j.id, idioma)}
                 >
                   {t.jugar}
                 </button>

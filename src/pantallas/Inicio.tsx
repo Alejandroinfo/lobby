@@ -4,6 +4,8 @@ import { codigoValido, crearSala, guardarPerfil, LARGO_CODIGO, normalizarCodigo 
 import { crearPartida } from "../firebase/partidas";
 import { JUEGOS, type Juego } from "../datos/catalogo";
 import { EnlaceReportar } from "./Reportar";
+import { abrirPartidaSolo } from "./CrearPartida";
+import { abrirEnEsteCelular, JUEGOS_LOCALES } from "./SinConexion";
 import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
 import { FormNombre } from "./FormNombre";
@@ -33,6 +35,8 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
   const [errorCodigo, setErrorCodigo] = useState("");
   const [errorCrear, setErrorCrear] = useState("");
   const [creando, setCreando] = useState<string | null>(null);
+  // Juego elegido en «¿A qué jugamos?»: antes de crear nada, ¿con otras personas, solo o en este celular?
+  const [eligiendo, setEligiendo] = useState<Juego | null>(null);
   const [recientes] = useState(leerRecientes);
 
   // Atajo de la app instalada (mantener pulsado el icono → «Jugar Split Loyalty»): /?jugar=<juego>
@@ -78,8 +82,25 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
     }
   };
 
+  // Partida rápida en solitario: sala nueva + partida contra la máquina; el juego se abre ya.
+  const rapidaSolo = async (juego: Juego) => {
+    setErrorCrear("");
+    setCreando(juego.id);
+    setEligiendo(null);
+    const sala = crearSala(uid, nombre, t.salaDe(nombre));
+    try {
+      await abrirPartidaSolo(sala, { uid, nombre }, juego, juego.variantes[0]?.id ?? null, juego.solo?.niveles[0]?.id ?? "hard", idioma);
+      irA({ pantalla: "sala", codigo: await sala });
+    } catch (err) {
+      setErrorCrear(t.errorCrearSala);
+      console.error(err);
+      setCreando(null);
+    }
+  };
+
   // Partida rápida: sala + partida con enlace en un toque; la sala abre la hoja «Invitar».
   const rapida = async (juego: Juego) => {
+    setEligiendo(null);
     setErrorCrear("");
     setCreando(juego.id);
     try {
@@ -137,7 +158,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
                     className={`juego-rapido ${j.categoria} ${creando === j.id ? "creando" : ""}`}
                     style={{ "--juego": colorDe(j.id) } as CSSProperties}
                     disabled={creando !== null}
-                    onClick={() => rapida(j)}
+                    onClick={() => setEligiendo(j)}
                   >
                     <IconoJuego id={j.id} tam={40} />
                     <strong>{j.nombre}</strong>
@@ -214,11 +235,79 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
           </button>
         </div>
       </div>
+      {eligiendo && (
+        <ElegirModo
+          juego={eligiendo}
+          alCerrar={() => setEligiendo(null)}
+          conOtros={() => rapida(eligiendo)}
+          solo={eligiendo.solo ? () => rapidaSolo(eligiendo) : null}
+          local={JUEGOS_LOCALES.some((l) => l.id === eligiendo.id) ? () => abrirEnEsteCelular(eligiendo.id, idioma) : null}
+        />
+      )}
       <footer className="pie-inicio">
         <Perfil usuario={usuario} />
         <EnlaceReportar />
       </footer>
     </main>
+  );
+}
+
+/** ¿Cómo quieres jugar? Con otras personas (enlace), solo contra la máquina o en este celular. */
+function ElegirModo(props: { juego: Juego; alCerrar: () => void; conOtros: () => void; solo: (() => void) | null; local: (() => void) | null }) {
+  const { juego, alCerrar, conOtros, solo, local } = props;
+  const { t, idioma } = useIdioma();
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+  const rival = juego.solo ? (idioma === "en" ? juego.solo.niveles[0].en : juego.solo.niveles[0].es) : "";
+  return (
+    <dialog
+      ref={ref}
+      className="hoja-invitar elegir-modo"
+      onClose={alCerrar}
+      onClick={(e) => e.target === ref.current && ref.current?.close()}
+      aria-labelledby="t-modo"
+      style={{ "--juego": colorDe(juego.id) } as CSSProperties}
+    >
+      <div className="hoja-cabeza">
+        <div className="partida-titulo">
+          <IconoJuego id={juego.id} tam={40} />
+          <h2 id="t-modo">{juego.nombre}</h2>
+        </div>
+        <button className="secundario chico" onClick={() => ref.current?.close()} aria-label={t.cerrar}>
+          ✕
+        </button>
+      </div>
+      <p className="suave chico-texto">{t.comoQuieresJugar}</p>
+      <div className="modos">
+        <button className="modo" onClick={conOtros}>
+          <span aria-hidden="true">👥</span>
+          <span>
+            <strong>{t.modoConOtros}</strong>
+            <small>{t.modoConOtrosTexto(juego.jugadores.min, juego.jugadores.max)}</small>
+          </span>
+        </button>
+        {solo && (
+          <button className="modo" onClick={solo}>
+            <span aria-hidden="true">🤖</span>
+            <span>
+              <strong>{t.modoSolo}</strong>
+              <small>{t.modoSoloTexto(rival)}</small>
+            </span>
+          </button>
+        )}
+        {local && (
+          <button className="modo" onClick={local}>
+            <span aria-hidden="true">📱</span>
+            <span>
+              <strong>{t.modoLocal}</strong>
+              <small>{t.modoLocalTexto}</small>
+            </span>
+          </button>
+        )}
+      </div>
+    </dialog>
   );
 }
 

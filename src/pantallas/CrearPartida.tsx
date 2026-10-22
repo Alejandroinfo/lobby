@@ -20,7 +20,7 @@ interface Props {
  * mismo clic (si no, el navegador la bloquea) y después recibe la dirección.
  */
 export async function abrirPartidaSolo(
-  sala: string,
+  salaOPromesa: string | Promise<string>,
   yo: { uid: string; nombre: string },
   juego: Juego,
   variante: string | null,
@@ -30,6 +30,8 @@ export async function abrirPartidaSolo(
   // En la app instalada el juego se abre en la misma ventana (ver abrirJuego).
   const pestana = esApp() ? null : window.open("", "_blank");
   try {
+    // La sala puede estar creándose todavía (partida rápida desde el inicio): la pestaña ya se abrió.
+    const sala = await salaOPromesa;
     const { id, codigoJuego } = await crearPartidaSolo(sala, yo, juego, variante, nivel);
     const p = {
       id,
@@ -64,7 +66,8 @@ export function CrearPartida({ juego, sala, uid, alCerrar }: Props) {
   const [roles, setRoles] = useState<Record<string, Rol | null>>({ [uid]: "jugador" });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [solo, setSolo] = useState(false);
+  // Si no hay nadie más en la sala y el juego se puede jugar solo, se empieza por ahí.
+  const [solo, setSolo] = useState(() => Boolean(juego.solo) && Object.keys(sala.miembros ?? {}).filter((u) => u !== uid).length === 0);
   const [nivel, setNivel] = useState<"hard" | "easy">(juego.solo?.niveles[0]?.id ?? "hard");
   const yo = (sala.miembros ?? {})[uid];
 
