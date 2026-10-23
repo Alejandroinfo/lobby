@@ -15,6 +15,7 @@ import { CrearPartida } from "./CrearPartida";
 import { FormNombre } from "./FormNombre";
 import { HojaInvitar, type PartidaAInvitar } from "./HojaInvitar";
 import { pedirReporte } from "./Reportar";
+import { AvisoProximamente } from "./Proximamente";
 import { unirmePorEnlace } from "../firebase/partidas";
 import { filasDeGlobos } from "./Globos";
 import { EncuestaPendiente } from "./Encuesta";
@@ -440,8 +441,9 @@ function Miembros({ sala, uid, rivales, partidas }: { sala: TSala; uid: string; 
 
 function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
   const { t, idioma } = useIdioma();
-  const grupos: Categoria[] = ["listo", "prueba"];
+  const grupos = (["listo", "prueba", "pronto"] as Categoria[]).filter((c) => JUEGOS.some((j) => j.categoria === c));
   const [elegido, setElegido] = useState<Juego | null>(null);
+  const [pronto, setPronto] = useState<Juego | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   if (elegido) {
@@ -474,9 +476,15 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
                     <span className="ver-info" aria-hidden="true"> ⓘ</span>
                   </span>
                 </button>
-                <button className="primario jugar-juego" onClick={() => setElegido(j)}>
-                  {t.jugar}
-                </button>
+                {cat === "pronto" ? (
+                  <button className="secundario jugar-juego" onClick={() => setPronto(j)}>
+                    {t.pronto}
+                  </button>
+                ) : (
+                  <button className="primario jugar-juego" onClick={() => setElegido(j)}>
+                    {t.jugar}
+                  </button>
+                )}
                 {info === j.id && (
                   <p className="juego-desc">
                     {textosJuego(j, idioma).descripcion}
@@ -488,6 +496,7 @@ function Catalogo({ sala, uid }: { sala: TSala; uid: string }) {
           </ul>
         </div>
       ))}
+      {pronto && <AvisoProximamente juego={pronto} alCerrar={() => setPronto(null)} />}
     </section>
   );
 }

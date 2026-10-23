@@ -5,6 +5,7 @@ import { crearPartida } from "../firebase/partidas";
 import { JUEGOS, type Juego } from "../datos/catalogo";
 import { EnlaceReportar } from "./Reportar";
 import { abrirPartidaSolo } from "./CrearPartida";
+import { AvisoProximamente } from "./Proximamente";
 import { abrirEnEsteCelular, JUEGOS_LOCALES } from "./SinConexion";
 import { irA } from "../navegacion";
 import { leerRecientes } from "../datos/recientes";
@@ -37,6 +38,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
   const [creando, setCreando] = useState<string | null>(null);
   // Juego elegido en «¿A qué jugamos?»: antes de crear nada, ¿con otras personas, solo o en este celular?
   const [eligiendo, setEligiendo] = useState<Juego | null>(null);
+  const [pronto, setPronto] = useState<Juego | null>(null);
   const [recientes] = useState(leerRecientes);
 
   // Atajo de la app instalada (mantener pulsado el icono → «Jugar Split Loyalty»): /?jugar=<juego>
@@ -47,7 +49,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
     if (!id || !nombre || editando) return;
     atajo.current = null;
     window.history.replaceState(null, "", "/");
-    const juego = JUEGOS.find((j) => j.id === id && j.url);
+    const juego = JUEGOS.find((j) => j.id === id && j.url && j.categoria !== "pronto");
     if (juego) rapida(juego);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nombre, editando]);
@@ -152,7 +154,7 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
             <h2 id="t-jugar-ya">{t.aQueJugamos}</h2>
             <p className="suave chico-texto">{t.aQueJugamosNota}</p>
             <ul className="juegos-rapidos">
-              {JUEGOS.filter((j) => j.url).map((j) => (
+              {JUEGOS.filter((j) => j.url && j.categoria !== "pronto").map((j) => (
                 <li key={j.id}>
                   <button
                     className={`juego-rapido ${j.categoria} ${creando === j.id ? "creando" : ""}`}
@@ -172,6 +174,22 @@ export function Inicio({ uid, usuario, nombre, setNombre, perfil }: Props) {
                 </li>
               ))}
             </ul>
+            {JUEGOS.some((j) => j.categoria === "pronto") && (
+              <div className="proximamente">
+                <p className="rotulo">{t.proximamente}</p>
+                <ul>
+                  {JUEGOS.filter((j) => j.categoria === "pronto").map((j) => (
+                    <li key={j.id}>
+                      <button className="juego-pronto" style={{ "--juego": colorDe(j.id) } as CSSProperties} onClick={() => setPronto(j)}>
+                        <IconoJuego id={j.id} tam={28} />
+                        <span>{j.nombre}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {pronto && <AvisoProximamente juego={pronto} alCerrar={() => setPronto(null)} />}
             {errorCrear && <p className="error">{errorCrear}</p>}
             <form className="tengo-codigo" onSubmit={unirse} noValidate>
               <label htmlFor="codigo">{t.tengoCodigo}</label>
