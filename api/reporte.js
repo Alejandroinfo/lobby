@@ -11,7 +11,7 @@ import { conectar } from "./_avisos.js";
 
 const PARA = process.env.REPORTES_CORREO || "alejandro.armasb@gmail.com";
 const TIPOS = { trabado: "Se trabó", reglas: "Reglas", visual: "Se ve mal", otro: "Otro" };
-const JUEGOS = { "split-loyalty": "Split Loyalty", astrolabe: "Astrolabe" };
+const JUEGOS = { "split-loyalty": "Split Loyalty", astrolabe: "Home Sweet Orbit", "double-cross": "Double Cross" };
 const base64 = (texto) => Buffer.from(texto, "utf8").toString("base64");
 const pares = (o) =>
   Object.entries(o ?? {})

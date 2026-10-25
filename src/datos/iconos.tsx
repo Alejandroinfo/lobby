@@ -30,7 +30,7 @@ const DIBUJOS: Record<string, ReactNode> = {
       <circle cx="33" cy="33" r="3.4" fill="#fff8ea" />
     </>
   ),
-  // La estrella-brújula de Astrolabe sobre el cielo.
+  // Home Sweet Orbit (antes Astrolabe): su estrella-brújula sobre el cielo, la de su favicon.
   astrolabe: (
     <>
       <circle cx="24" cy="24" r="21" fill="#1f2e4a" />

@@ -49,9 +49,9 @@
       ]
     },
     {
-      "name": "Jugar Astrolabe",
-      "short_name": "Astrolabe",
-      "description": "Crea una partida de Astrolabe y te da el enlace para invitar",
+      "name": "Jugar Home Sweet Orbit",
+      "short_name": "Home Sweet Orbit",
+      "description": "Crea una partida de Home Sweet Orbit y te da el enlace para invitar",
       "url": "/?jugar=astrolabe",
       "icons": [
         {

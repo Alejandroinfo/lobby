@@ -109,24 +109,25 @@ export const JUEGOS: Juego[] = [
   },
   {
     id: "astrolabe",
-    nombre: "Astrolabe",
-    descripcion: "Deduce la órbita secreta de tu casa entre las estrellas. Con 4, en equipos de dos.",
+    // Antes «Astrolabe» (el id se queda igual: lo usan las partidas, el historial y los récords).
+    nombre: "Home Sweet Orbit",
+    descripcion: "Tu casa se fue flotando entre las estrellas: deduce su órbita y lanza el ancla antes que tu vecino. Con 4, en equipos de dos.",
     categoria: "listo",
     jugadores: { min: 2, max: 4 },
     duracion: "Por medir",
     espectadores: true,
-    // Los modos que Astrolabe ofrece ahora (MODOS_DISPONIBLES en src/game/orbitas.ts de Astrolabe):
+    // Los modos que el juego ofrece ahora (MODOS_DISPONIBLES en src/game/orbitas.ts del repositorio Astrolabe):
     // normal y extendido quedaron ocultos mientras se prueba el mazo nuevo.
-    variantes: [{ id: "corto", nombre: "Corto (3 estrellas)" }, { id: "tutorial", nombre: "Tutorial" }],
+    variantes: [{ id: "corto", nombre: "Corto (3 paradas)" }, { id: "tutorial", nombre: "Tutorial (1 parada)" }],
     equiposCon: [4],
     preguntas: [
       { id: "bitacora-clara", texto: "¿Se entendió bien la bitácora por paradas?", tipo: "si-no" },
       { id: "momento-deduccion", texto: "¿Hubo un momento de «¡ya lo vi!»? ¿Cuál?", tipo: "texto" },
     ],
     en: {
-      descripcion: "Deduce your home's secret orbit among the stars. With 4, in teams of two.",
+      descripcion: "Your house floated off among the stars: deduce its orbit and drop the anchor before your neighbor. With 4, in teams of two.",
       duracion: "Not measured yet",
-      variantes: { normal: "Normal (4 stars)", corto: "Short (3 stars)", extendido: "Extended (5 stars)", tutorial: "Tutorial" },
+      variantes: { corto: "Short (3 stops)", tutorial: "Tutorial (1 stop)" },
       preguntas: {
         "bitacora-clara": "Was the logbook by stops easy to understand?",
         "momento-deduccion": "Was there an \"I see it!\" moment? Which one?",
@@ -143,20 +144,20 @@ export const JUEGOS: Juego[] = [
       variante: "corto",
       dificultad: "hard",
       puntaje: {
-        es: "Contra el ordenador, viaje corto: mismo mapa, mismo viaje de tu familia y mismas paradas para todos. 100 puntos si la encuentras en tu primer turno y 5 menos por cada turno más (mínimo 10); 0 si el ordenador encuentra a la suya antes.",
-        en: "Against the computer, short trip: same map, same family trip and same stops for everyone. 100 points if you find your family on your first turn, 5 fewer for each extra turn (minimum 10); 0 if the computer finds its family first.",
+        es: "Contra el ordenador, viaje corto: mismo mapa, misma casa a la deriva y mismas paradas para todos. 100 puntos si la encuentras en tu primer turno y 5 menos por cada turno más (mínimo 10); 0 si el ordenador encuentra a la suya antes.",
+        en: "Against the computer, short trip: same map, same drifting house and same stops for everyone. 100 points if you find your house on your first turn, 5 fewer for each extra turn (minimum 10); 0 if the computer finds its house first.",
       },
     },
     logros: {
-      reencuentro: { icono: "🏠", es: "Reencuentro", en: "Reunion" },
-      tocToc: { icono: "🚪", es: "Al primer toc, toc", en: "First knock" },
+      reencuentro: { icono: "⚓", es: "¡Anclada!", en: "Anchored!" },
+      tocToc: { icono: "🚪", es: "A la primera", en: "First try" },
       pocasPalabras: { icono: "🎯", es: "Pocas palabras", en: "Few words" },
-      cazador: { icono: "🚀", es: "Cazador de naves", en: "Ship hunter" },
-      superviviente: { icono: "☀️", es: "Superviviente", en: "Survivor" },
-      astronomo: { icono: "🔭", es: "Astrónomo", en: "Astronomer" },
+      cazador: { icono: "👁", es: "Ojo de halcón", en: "Hawk eye" },
+      superviviente: { icono: "🌑", es: "Contra el eclipse", en: "Through the eclipse" },
+      astronomo: { icono: "🔭", es: "Buen olfato", en: "Good nose" },
       colaDeCometa: { icono: "☄️", es: "Cola de cometa", en: "Comet tail" },
       maquina: { icono: "🤖", es: "Más listo que la máquina", en: "Smarter than the machine" },
-      tripulacion: { icono: "👨‍👩‍👧‍👦", es: "Gran tripulación", en: "Big crew" },
+      tripulacion: { icono: "🏘️", es: "Barrio completo", en: "Whole street" },
     },
   },
   {

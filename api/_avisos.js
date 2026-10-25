@@ -8,7 +8,7 @@
  */
 
 export const VAPID_PUBLICA = "BORxHxET5grSLZGCuMd2BTxslI8p1ZkInmcBwOTp0IKKMAG8_EPsXeMcDlLMaXS6M1bBtiWDz-fveO9k21feEcM";
-const JUEGOS = { "split-loyalty": "Split Loyalty", astrolabe: "Astrolabe", "double-cross": "Double Cross", blindspot: "Blindspot", "bst-animals": "BST Animals" };
+const JUEGOS = { "split-loyalty": "Split Loyalty", astrolabe: "Home Sweet Orbit", "double-cross": "Double Cross", blindspot: "Blindspot", "bst-animals": "BST Animals" };
 const nombreJuego = (id) => JUEGOS[id] ?? id;
 const CODIGO = /^[A-Z0-9]{4,8}$/;
 const ID = /^[A-Za-z0-9-]{6,48}$/;

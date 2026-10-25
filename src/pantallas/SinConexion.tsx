@@ -19,7 +19,7 @@ interface JuegoLocal {
 /** Vercel los sirve desde el sitio del lobby (ver vercel.json); el service worker los guarda. */
 export const JUEGOS_LOCALES: JuegoLocal[] = [
   { id: "split-loyalty", nombre: "Split Loyalty", url: "/juegos/split-loyalty/index.html" },
-  { id: "astrolabe", nombre: "Astrolabe", url: "/juegos/astrolabe/offline/index.html" },
+  { id: "astrolabe", nombre: "Home Sweet Orbit", url: "/juegos/astrolabe/offline/index.html" },
   // Como carpeta: su sitio redirige /index.html a / (cleanUrls de Vercel).
   { id: "double-cross", nombre: "Split Loyalty: Double Cross", url: "/juegos/double-cross/" },
 ];
