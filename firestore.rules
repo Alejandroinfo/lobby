@@ -365,7 +365,7 @@ service cloud.firestore {
       }
 
       allow update: if autenticado() && (soloMiEntrada() || soyAnfitrion() || reabre());
-      // Nadie la borra a mano: si nadie la abre en 90 días, Firestore la borra sola (campo `expira`).
+      // Las salas no se borran nunca (sirven para contar cuántas se crearon).
       allow delete: if false;
 
       // Chat de la sala: solo los miembros leen y escriben; nadie edita ni borra (se borra solo a

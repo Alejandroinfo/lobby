@@ -10,7 +10,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { DIAS_MENSAJE, DIAS_SALA, campoExpira, conCaducidad } from "./caducidad";
+import { DIAS_MENSAJE, campoExpira, conCaducidad } from "./caducidad";
 import { db } from "./config";
 import type { Avatar, Sala } from "./tipos";
 
@@ -52,7 +52,7 @@ export async function guardarPerfil(uid: string, nombre: string) {
 export async function crearSala(uid: string, nombre: string, nombreSala: string): Promise<string> {
   for (let intento = 0; intento < 5; intento++) {
     const codigo = generarCodigo();
-    const creada = await conCaducidad((conExpira) => runTransaction(db, async (tx) => {
+    const creada = await runTransaction(db, async (tx) => {
       const actual = await tx.get(refSala(codigo));
       if (actual.exists()) return false;
       tx.set(refSala(codigo), {
@@ -63,10 +63,9 @@ export async function crearSala(uid: string, nombre: string, nombreSala: string)
           [uid]: { nombre, entrada: serverTimestamp(), ultimaVez: serverTimestamp() },
         },
         creada: serverTimestamp(),
-        ...campoExpira(conExpira, DIAS_SALA),
       });
       return true;
-    }));
+    });
     if (creada) return codigo;
   }
   throw new Error("No se pudo generar un código libre. Intenta de nuevo.");
@@ -80,15 +79,12 @@ export async function unirseASala(codigo: string, uid: string, nombre: string, a
   if (!sala.exists()) throw new SalaNoExiste(codigo);
   const yaEstaba = Boolean(sala.data().miembros?.[uid]);
   reloj.enviado = Date.now();
-  await conCaducidad((conExpira) =>
-    updateDoc(refSala(codigo), {
-      [`miembros.${uid}.nombre`]: nombre,
-      [`miembros.${uid}.ultimaVez`]: serverTimestamp(),
-      ...campoExpira(conExpira, DIAS_SALA),
-      ...(avatar ? { [`miembros.${uid}.avatar`]: avatar } : {}),
-      ...(yaEstaba ? {} : { [`miembros.${uid}.entrada`]: serverTimestamp() }),
-    }),
-  );
+  await updateDoc(refSala(codigo), {
+    [`miembros.${uid}.nombre`]: nombre,
+    [`miembros.${uid}.ultimaVez`]: serverTimestamp(),
+    ...(avatar ? { [`miembros.${uid}.avatar`]: avatar } : {}),
+    ...(yaEstaba ? {} : { [`miembros.${uid}.entrada`]: serverTimestamp() }),
+  });
 }
 
 /** Actualiza cómo se te ve en una sala donde ya estás (al cambiar de avatar). */
@@ -106,10 +102,7 @@ export const reloj = { enviado: 0, desfase: 0 };
 /** Marca al jugador como conectado. Se llama al entrar, al volver a la pestaña y periódicamente. */
 export async function latido(codigo: string, uid: string) {
   reloj.enviado = Date.now();
-  // Cada visita corre la fecha en que la sala se borraría por abandono.
-  await conCaducidad((conExpira) =>
-    updateDoc(refSala(codigo), { [`miembros.${uid}.ultimaVez`]: serverTimestamp(), ...campoExpira(conExpira, DIAS_SALA) }),
-  );
+  await updateDoc(refSala(codigo), { [`miembros.${uid}.ultimaVez`]: serverTimestamp() });
 }
 
 export async function salirDeSala(codigo: string, uid: string) {
