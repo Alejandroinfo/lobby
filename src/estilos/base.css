@@ -237,6 +237,52 @@ select:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
 .partida > header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 .estado-partida { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--prueba-suave); color: var(--prueba); }
 .estado-partida.jugando { background: var(--acento-suave); color: var(--acento); }
+/* Mesa de la partida: un asiento por jugador; los libres, punteados (tocarlos invita) */
+.mesa {
+  list-style: none; margin: 0.2rem 0 0.7rem; padding: 0.85rem 0.3rem 0.7rem;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.7rem 0.2rem;
+  background: color-mix(in srgb, var(--juego, var(--acento)) 9%, var(--superficie));
+  border: 2px solid color-mix(in srgb, var(--juego, var(--acento)) 30%, transparent);
+  border-radius: 28px;
+}
+.asiento { position: relative; width: 4.05rem; display: flex; flex-direction: column; align-items: center; gap: 0.12rem; text-align: center; font-size: 0.8rem; line-height: 1.2; }
+.asiento-avatar { position: relative; display: inline-flex; margin-bottom: 0.15rem; }
+.asiento-nombre { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asiento-estado { font-size: 0.68rem; color: var(--tinta-suave); max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }
+.asiento.mio .avatar { box-shadow: 0 0 0 2px var(--superficie), 0 0 0 4px var(--juego, var(--acento)); }
+.asiento-marca {
+  position: absolute; right: -5px; bottom: -4px; min-width: 1.25rem; height: 1.25rem; padding: 0 0.2rem;
+  display: grid; place-items: center; border-radius: 999px; border: 2px solid var(--superficie);
+  font-size: 0.68rem; font-weight: 700; background: var(--linea); color: var(--tinta);
+}
+.asiento.listo .asiento-marca { background: var(--acento); color: var(--acento-texto); }
+.asiento.listo .asiento-estado { color: var(--acento); font-weight: 600; }
+.asiento.preparando .asiento-marca { background: var(--prueba-suave); color: var(--prueba); }
+.asiento.fuera .asiento-marca { background: var(--error); color: #fff; }
+.asiento.fuera .asiento-estado { color: var(--error); }
+.asiento.pendiente .avatar { opacity: 0.6; }
+.asiento.jugando .asiento-marca, .asiento.turno .asiento-marca { background: var(--juego, var(--acento)); color: #fff; }
+.asiento.turno .avatar { box-shadow: 0 0 0 3px var(--acento); }
+.asiento.turno .asiento-estado { color: var(--acento); font-weight: 700; }
+.asiento-organiza {
+  position: absolute; left: -5px; top: -5px; width: 1.15rem; height: 1.15rem; display: grid; place-items: center;
+  border-radius: 50%; background: var(--superficie); color: #c8961d; font-size: 0.72rem; line-height: 1;
+}
+.mesa .asiento-quitar {
+  position: absolute; top: -6px; right: 0.35rem; width: 1.35rem; height: 1.35rem; padding: 0; display: grid; place-items: center;
+  border-radius: 50%; font-size: 0.62rem; line-height: 1; background: var(--superficie); border: 1px solid var(--linea); color: var(--tinta-suave);
+}
+.mesa .asiento-quitar:hover { color: var(--error); border-color: var(--error); }
+.asiento-vacio { background: transparent; border: 2px dashed var(--tinta-suave); color: var(--tinta-suave); font-size: 1.4rem; font-weight: 300; box-shadow: none; }
+.asiento.libre .asiento-nombre { font-weight: 500; color: var(--tinta-suave); }
+.asiento.libre.falta .asiento-vacio { border-color: var(--juego, var(--acento)); color: var(--juego, var(--acento)); }
+.asiento.libre.opcional { opacity: 0.7; }
+.mesa .asiento-boton {
+  width: 100%; padding: 0.1rem 0 0; background: none; border: 0; border-radius: 10px; color: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: 0.12rem;
+}
+.mesa .asiento-boton:hover .asiento-vacio { background: color-mix(in srgb, var(--juego, var(--acento)) 14%, transparent); }
+.mesa .asiento-boton:hover .asiento-nombre { color: var(--tinta); }
 .invitados { list-style: none; margin: 0 0 0.6rem; padding: 0; }
 .invitados li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; flex-wrap: wrap; }
 .invitados li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -805,6 +851,8 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
   .punto.on { animation: pulso 2.4s ease-in-out infinite; }
   .lista-en-curso li.mi-turno, .partida .te-toca-texto { animation: brillo 2s ease-in-out infinite; }
   .icono-juego.latido { animation: latido 1s ease-in-out infinite; }
+  .asiento.turno .avatar { animation: brillo 2s ease-in-out infinite; }
+  .asiento.libre.falta .asiento-vacio { transition: background 0.15s ease; }
 }
 @media (prefers-reduced-motion: reduce) {
   .juego-rapido.creando .icono-juego, .invitacion > .icono-juego { animation: none; }
