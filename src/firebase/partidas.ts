@@ -1,7 +1,7 @@
 /** Partidas dentro de una sala: invitar, responder, prepararse, lanzar y terminar. */
 import { addDoc, collection, deleteField, doc, getDoc, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { juegoPorId, type Juego } from "../datos/catalogo";
-import { DIAS_PARTIDA_SIN_JUGAR, expiraEn } from "./caducidad";
+import { DIAS_PARTIDA_SIN_JUGAR, campoExpira, conCaducidad } from "./caducidad";
 import { db } from "./config";
 import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
@@ -38,7 +38,7 @@ export async function crearPartida(
       asiento: null,
     };
   }
-  const ref = await addDoc(collection(db, "salas", sala, "partidas"), {
+  const ref = await conCaducidad((conExpira) => addDoc(collection(db, "salas", sala, "partidas"), {
     juego: juego.id,
     variante,
     ...(nivel ? { nivel } : {}),
@@ -51,8 +51,8 @@ export async function crearPartida(
     iniciada: null,
     terminada: null,
     // Si nunca se juega, se borra sola; al lanzarla se quita (ver caducidad.ts).
-    expira: expiraEn(DIAS_PARTIDA_SIN_JUGAR),
-  });
+    ...campoExpira(conExpira, DIAS_PARTIDA_SIN_JUGAR),
+  }));
   // Aviso al celular de cada invitado (si los activó).
   for (const inv of invitaciones) if (inv.uid !== creador) pedirAviso({ tipo: "partida", sala, partida: ref.id, para: inv.uid });
   return ref.id;
