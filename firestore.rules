@@ -28,6 +28,21 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    // Fecha de borrado automático (campo `expira`, política TTL de Firestore): una fecha futura y
+    // no más allá de `dias` días. Opcional: sin el campo, el documento no se borra solo.
+    function expiraValida(d, dias) {
+      return !('expira' in d) || d.expira == null
+        || (d.expira is timestamp && d.expira > request.time
+            && d.expira <= request.time + duration.value(dias + 1, 'd'));
+    }
+
+    // Al cambiar un documento: solo se valida `expira` si se toca (así una fecha ya vencida, en las
+    // horas antes de que Firestore lo borre, no bloquea los demás cambios).
+    function cambioDeExpiraValido(dias) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['expira'])
+        || expiraValida(request.resource.data, dias);
+    }
+
     // Panel de playtest: lectura de todas las partidas, resultados y encuestas (consultas de grupo).
     match /{ruta=**}/partidas/{id} {
       allow read: if esAdmin();
@@ -302,7 +317,8 @@ service cloud.firestore {
         let yo = request.auth.uid;
         let cambios = request.resource.data.diff(resource.data).affectedKeys();
         let entradas = request.resource.data.miembros.diff(resource.data.miembros).affectedKeys();
-        return cambios.hasOnly(['miembros'])
+        return cambios.hasOnly(['miembros', 'expira'])
+          && cambioDeExpiraValido(90)
           && entradas.hasOnly([yo])
           // En una sala cerrada ya no entra nadie nuevo (quien estaba puede salir).
           && (yo in resource.data.miembros || !('cerrada' in resource.data) || resource.data.cerrada == null)
@@ -313,7 +329,8 @@ service cloud.firestore {
         return request.auth.uid == resource.data.anfitrion
           && request.resource.data.anfitrion == resource.data.anfitrion
           && request.resource.data.codigo == resource.data.codigo
-          && request.resource.data.creada == resource.data.creada;
+          && request.resource.data.creada == resource.data.creada
+          && cambioDeExpiraValido(90);
       }
 
       function esMiembro() {
@@ -331,7 +348,8 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && codigo.matches('^[A-HJ-NP-Z2-9]{5}$')
-        && request.resource.data.keys().hasOnly(['codigo', 'nombre', 'anfitrion', 'miembros', 'creada'])
+        && request.resource.data.keys().hasOnly(['codigo', 'nombre', 'anfitrion', 'miembros', 'creada', 'expira'])
+        && expiraValida(request.resource.data, 90)
         && request.resource.data.codigo == codigo
         && request.resource.data.anfitrion == request.auth.uid
         && request.resource.data.nombre is string
@@ -347,13 +365,16 @@ service cloud.firestore {
       }
 
       allow update: if autenticado() && (soloMiEntrada() || soyAnfitrion() || reabre());
+      // Nadie la borra a mano: si nadie la abre en 90 días, Firestore la borra sola (campo `expira`).
       allow delete: if false;
 
-      // Chat de la sala: solo los miembros leen y escriben; nadie edita ni borra.
+      // Chat de la sala: solo los miembros leen y escriben; nadie edita ni borra (se borra solo a
+      // los 30 días, por su campo `expira`).
       match /mensajes/{id} {
         allow read: if autenticado() && esMiembro();
         allow create: if autenticado() && esMiembro() && salaAbierta()
-          && request.resource.data.keys().hasOnly(['uid', 'nombre', 'texto', 'hora'])
+          && request.resource.data.keys().hasOnly(['uid', 'nombre', 'texto', 'hora', 'expira'])
+          && expiraValida(request.resource.data, 30)
           && request.resource.data.uid == request.auth.uid
           && nombreValido(request.resource.data.nombre)
           && request.resource.data.texto is string
@@ -414,7 +435,8 @@ service cloud.firestore {
             && request.resource.data.anfitrion == resource.data.anfitrion
             && request.resource.data.juego == resource.data.juego
             && request.resource.data.creada == resource.data.creada
-            && request.resource.data.estado in ['invitando', 'jugando', 'terminada', 'cancelada'];
+            && request.resource.data.estado in ['invitando', 'jugando', 'terminada', 'cancelada']
+            && cambioDeExpiraValido(30);
         }
 
         function miRespuesta() {
@@ -495,7 +517,8 @@ service cloud.firestore {
         allow create: if autenticado() && esMiembro() && salaAbierta()
           && request.resource.data.keys().hasOnly(['juego', 'variante', 'nivel', 'anfitrion', 'estado', 'invitados',
                                                    'codigoJuego', 'creada', 'iniciada', 'terminada', 'equipos',
-                                                   'revanchaDe', 'ronda', 'porEnlace'])
+                                                   'revanchaDe', 'ronda', 'porEnlace', 'expira'])
+          && expiraValida(request.resource.data, 30)
           && (!('porEnlace' in request.resource.data) || request.resource.data.porEnlace is bool)
           && (!('nivel' in request.resource.data) || request.resource.data.nivel in ['hard', 'easy'])
           && request.resource.data.juego in ['split-loyalty', 'astrolabe', 'blindspot', 'bst-animals', 'double-cross']

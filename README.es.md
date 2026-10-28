@@ -47,13 +47,27 @@ resultado a la pestaña del lobby o vuelve a la sala con `?resultado=…`.
 | Ruta | Qué guarda |
 | --- | --- |
 | `jugadores/{uid}` | `nombre`, `ultimaVez` |
-| `salas/{codigo}` | `nombre`, `anfitrion`, `miembros: {uid: {nombre, entrada, ultimaVez}}`, `creada` |
-| `salas/{codigo}/mensajes/{id}` | `uid`, `nombre`, `texto`, `hora` |
+| `salas/{codigo}` | `nombre`, `anfitrion`, `miembros: {uid: {nombre, entrada, ultimaVez}}`, `creada`, `expira` |
+| `salas/{codigo}/mensajes/{id}` | `uid`, `nombre`, `texto`, `hora`, `expira` |
 | `salas/{codigo}/partidas/{id}/resultados/{uid}` | `asiento`, `ganadores`, `puntajes`, `duracionSeg`, `version`, `detalleJson`, `recibido` |
 | `salas/{codigo}/partidas/{id}` | `juego`, `variante`, `anfitrion`, `estado` (invitando → jugando → terminada / cancelada), `invitados: {uid: {nombre, rol, respuesta, listo, respondio, asiento}}`, `codigoJuego`, `creada`, `iniciada`, `terminada` |
 
 Cada miembro solo puede modificar su propia entrada en `miembros`; el chat y las partidas solo
 los ven los miembros. Quien crea una partida la controla; cada invitado solo cambia su respuesta. Detalle en `firestore.rules`.
+
+### Borrado automático (campo `expira`)
+
+Firestore borra solo los documentos cuya fecha `expira` ya pasó (ver `src/firebase/caducidad.ts`):
+
+- **Mensajes del chat de la sala:** 30 días después de enviados.
+- **Salas:** 90 días después de la última visita (a los 60 ya se ven «cerradas»). Cada visita corre la fecha.
+- **Partidas que nunca se jugaron:** 30 días después de crearse. Al lanzarlas se les quita `expira`,
+  así que las partidas jugadas, sus resultados y encuestas se conservan. El historial y los
+  récords de cada persona viven en `jugadores/{uid}` y no se tocan.
+
+Se activa una vez a mano: Firebase → lobby-games → Firestore Database → pestaña **Tiempo de vida
+(TTL)** → **Crear política**, con grupo de colecciones `salas` y campo `expira`; lo mismo para
+`mensajes` y `partidas`. Los mensajes directos (`charlas/…/mensajes`) no llevan `expira` y no se borran.
 
 ## Desarrollo
 

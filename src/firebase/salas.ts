@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import { DIAS_MENSAJE, DIAS_SALA, expiraEn } from "./caducidad";
 import { db } from "./config";
 import type { Avatar, Sala } from "./tipos";
 
@@ -62,6 +63,7 @@ export async function crearSala(uid: string, nombre: string, nombreSala: string)
           [uid]: { nombre, entrada: serverTimestamp(), ultimaVez: serverTimestamp() },
         },
         creada: serverTimestamp(),
+        expira: expiraEn(DIAS_SALA),
       });
       return true;
     });
@@ -81,6 +83,7 @@ export async function unirseASala(codigo: string, uid: string, nombre: string, a
   await updateDoc(refSala(codigo), {
     [`miembros.${uid}.nombre`]: nombre,
     [`miembros.${uid}.ultimaVez`]: serverTimestamp(),
+    expira: expiraEn(DIAS_SALA),
     ...(avatar ? { [`miembros.${uid}.avatar`]: avatar } : {}),
     ...(yaEstaba ? {} : { [`miembros.${uid}.entrada`]: serverTimestamp() }),
   });
@@ -101,7 +104,8 @@ export const reloj = { enviado: 0, desfase: 0 };
 /** Marca al jugador como conectado. Se llama al entrar, al volver a la pestaña y periódicamente. */
 export async function latido(codigo: string, uid: string) {
   reloj.enviado = Date.now();
-  await updateDoc(refSala(codigo), { [`miembros.${uid}.ultimaVez`]: serverTimestamp() });
+  // Cada visita corre la fecha en que la sala se borraría por abandono.
+  await updateDoc(refSala(codigo), { [`miembros.${uid}.ultimaVez`]: serverTimestamp(), expira: expiraEn(DIAS_SALA) });
 }
 
 export async function salirDeSala(codigo: string, uid: string) {
@@ -114,6 +118,7 @@ export async function enviarMensaje(codigo: string, uid: string, nombre: string,
     nombre,
     texto: texto.slice(0, LARGO_MENSAJE),
     hora: serverTimestamp(),
+    expira: expiraEn(DIAS_MENSAJE),
   });
 }
 

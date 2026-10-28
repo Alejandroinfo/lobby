@@ -1,6 +1,7 @@
 /** Partidas dentro de una sala: invitar, responder, prepararse, lanzar y terminar. */
 import { addDoc, collection, deleteField, doc, getDoc, runTransaction, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { juegoPorId, type Juego } from "../datos/catalogo";
+import { DIAS_PARTIDA_SIN_JUGAR, expiraEn } from "./caducidad";
 import { db } from "./config";
 import { generarCodigo, latido } from "./salas";
 import type { Invitado, Partida, ResultadoJuego, Rol } from "./tipos";
@@ -49,6 +50,8 @@ export async function crearPartida(
     creada: serverTimestamp(),
     iniciada: null,
     terminada: null,
+    // Si nunca se juega, se borra sola; al lanzarla se quita (ver caducidad.ts).
+    expira: expiraEn(DIAS_PARTIDA_SIN_JUGAR),
   });
   // Aviso al celular de cada invitado (si los activó).
   for (const inv of invitaciones) if (inv.uid !== creador) pedirAviso({ tipo: "partida", sala, partida: ref.id, para: inv.uid });
@@ -66,6 +69,7 @@ export async function crearPartidaSolo(sala: string, yo: { uid: string; nombre: 
     estado: "jugando",
     iniciada: serverTimestamp(),
     codigoJuego,
+    expira: deleteField(),
     [`invitados.${yo.uid}.asiento`]: 0,
   });
   return { id, codigoJuego };
@@ -308,6 +312,7 @@ export async function lanzar(sala: string, p: Partida, juego: Juego) {
     estado: "jugando",
     iniciada: serverTimestamp(),
     codigoJuego: generarCodigo(),
+    expira: deleteField(), // jugada: ya no se borra sola
   };
   ordenDeAsientos(p, juego).forEach(({ uid, equipo }, asiento) => {
     cambios[`invitados.${uid}.asiento`] = asiento;

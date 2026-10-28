@@ -11,7 +11,9 @@ type Incremento = { __incremento: number };
 
 export class Timestamp {
   static now() { return new Timestamp(Date.now()); }
+  static fromMillis(ms: number) { return new Timestamp(ms); }
   constructor(private ms: number) {}
+  toJSON() { return { __ms: this.ms }; }
   toMillis() { return this.ms; }
   toDate() { return new Date(this.ms); }
 }
@@ -30,6 +32,7 @@ function revivir(v: any): any {
 }
 function resolver(v: any): any {
   if (v === SERVER || v?.__servidor) return { __ms: Date.now() };
+  if (v instanceof Timestamp) return { __ms: v.toMillis() };
   if (v && typeof v === "object" && !Array.isArray(v)) {
     const o: any = {};
     for (const k of Object.keys(v)) if (!(v[k] === BORRAR || v[k]?.__borrar)) o[k] = resolver(v[k]);
@@ -78,7 +81,7 @@ export const getDoc = async (r: Ref) => snap(r);
 // Mezcla profunda como `setDoc(..., { merge: true })`, con soporte de increment().
 function mezclar(actual: any, nuevo: any): any {
   if (nuevo && typeof nuevo === "object" && "__incremento" in nuevo) return (typeof actual === "number" ? actual : 0) + nuevo.__incremento;
-  if (nuevo === SERVER || nuevo?.__servidor || nuevo === BORRAR || nuevo?.__borrar || Array.isArray(nuevo)) return nuevo;
+  if (nuevo === SERVER || nuevo?.__servidor || nuevo === BORRAR || nuevo?.__borrar || Array.isArray(nuevo) || nuevo instanceof Timestamp) return nuevo;
   if (nuevo && typeof nuevo === "object") {
     const o: any = actual && typeof actual === "object" && !Array.isArray(actual) && !("__ms" in actual) ? { ...actual } : {};
     for (const k of Object.keys(nuevo)) o[k] = mezclar(o[k], nuevo[k]);
