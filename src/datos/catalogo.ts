@@ -197,6 +197,14 @@ export const JUEGOS: Juego[] = [
     url: env.VITE_URL_DOUBLE_CROSS ?? "https://split-loyalty-double-cross.vercel.app/",
     // En solitario: tú contra un bot (el juego no tiene niveles; «hard» es solo el identificador).
     solo: { niveles: [{ id: "hard", es: "Un bot", en: "One bot" }] },
+    // Los calcula el juego (logrosPartida en js/engine.js del repositorio split-loyalty-double-cross).
+    logros: {
+      "red-quemada": { icono: "🔥", es: "Red quemada", en: "Burned network" },
+      "doble-agente": { icono: "🎭", es: "Doble agente", en: "Double agent" },
+      "operacion-especial": { icono: "🎖️", es: "Operación especial", en: "Special operation" },
+      "sin-red": { icono: "🧊", es: "Sin red", en: "No net" },
+      "seis-de-seis": { icono: "🎲", es: "Seis de seis", en: "Six of six" },
+    },
   },
   {
     id: "blindspot",
