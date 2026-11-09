@@ -30,7 +30,7 @@ import { AvatarCirculo } from "./PaginaPerfil";
 import type { PartidaAInvitar } from "./HojaInvitar";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 import { abrirAlEmpezar } from "../preferencias";
-import { sonarAviso } from "../sonido";
+import { sonar, sonarAviso } from "../sonido";
 
 /**
  * En curso = invitando o jugando, salvo que lleve demasiado tiempo así (nadie la terminó):
@@ -140,13 +140,17 @@ export function AbrirAlEmpezar({ sala, uid, partidas }: { sala: string; uid: str
       if (!juego || !enlace || p.invitados[uid]?.respuesta !== "acepta") continue;
       setQuedan(3);
       setLista({ p, enlace, juego: juego.nombre, idJuego: juego.id });
-      sonarAviso();
+      sonar("cuenta3");
       break;
     }
   }, [partidas, sala, uid, idioma]);
 
   useEffect(() => {
     if (!lista) return;
+    // 3-2-1: una nota por segundo, cada una más aguda (la del 3 suena al aparecer). Al abrir no suena
+    // nada más: el juego se abre en esta misma ventana y cortaría el sonido.
+    if (quedan === 2) sonar("cuenta2");
+    if (quedan === 1) sonar("cuenta1");
     if (quedan <= 0) {
       abrirJuego(conLlave(lista.idJuego, lista.enlace), `juego-${lista.p.id}`, lista.juego, true);
       return;

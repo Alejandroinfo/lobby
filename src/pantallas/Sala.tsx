@@ -1,5 +1,6 @@
 import { IconoJuego, colorDe } from "../datos/iconos";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { sonar } from "../sonido";
 import { JUEGOS, juegoPorId, type Categoria, type Juego } from "../datos/catalogo";
 import { SelectorIdioma, textosJuego, useIdioma } from "../i18n";
 import { actualizarAvatarEnSala, cerrarSala, DIAS_INACTIVIDAD, enviarMensaje, guardarPerfil, LARGO_MENSAJE, motivoCierre, salirDeSala, unirseASala } from "../firebase/salas";
@@ -266,7 +267,7 @@ function VistaSala(props: {
             <MenuSala esAnfitrion={sala.anfitrion === uid} alCerrar={cerrar} alSalir={salir} />
           </div>
         </div>
-        <FilaMiembros sala={sala} partidas={partidas} abierta={verMiembros} alTocar={() => setVerMiembros((v) => !v)} />
+        <FilaMiembros sala={sala} uid={uid} partidas={partidas} abierta={verMiembros} alTocar={() => setVerMiembros((v) => !v)} />
       </header>
       {verMiembros && (
         <div className="miembros-desplegados">
@@ -350,7 +351,11 @@ function MenuSala({ esAnfitrion, alCerrar, alSalir }: { esAnfitrion: boolean; al
 }
 
 /** Quién está en la sala, en una fila de avatares (en el celular reemplaza la lista). */
-function FilaMiembros({ sala, partidas, abierta, alTocar }: { sala: TSala; partidas: Partida[]; abierta: boolean; alTocar: () => void }) {
+/** Para no anunciar a quien solo tuvo un corte breve: solo cuenta si llevaba este rato sin verse. */
+const AUSENTE_PARA_ANUNCIAR_MS = 2 * 60_000;
+
+function FilaMiembros(props: { sala: TSala; uid: string; partidas: Partida[]; abierta: boolean; alTocar: () => void }) {
+  const { sala, uid, partidas, abierta, alTocar } = props;
   const { t } = useIdioma();
   const ahora = useAhora();
   const enJuego = jugandoAhora(partidas, ahora);
@@ -362,19 +367,60 @@ function FilaMiembros({ sala, partidas, abierta, alTocar }: { sala: TSala; parti
     .sort((a, b) => Number(b.conectado) - Number(a.conectado) || a.nombre.localeCompare(b.nombre));
   const conectados = lista.filter((m) => m.conectado).length;
   const MAX = 7;
+
+  // Cuando alguien llega a la sala: dos notas suaves y «👋 Lucía llegó» unos segundos.
+  const vistos = useRef<Map<string, number> | null>(null);
+  const [llego, setLlego] = useState<{ id: string; nombre: string } | null>(null);
+  const claveConectados = lista
+    .filter((m) => m.conectado)
+    .map((m) => m.id)
+    .sort()
+    .join(",");
+  useEffect(() => {
+    const ahoraMs = Date.now();
+    const antes = vistos.current;
+    const ids = claveConectados ? claveConectados.split(",") : [];
+    if (!antes) {
+      vistos.current = new Map(ids.map((id) => [id, ahoraMs]));
+      return;
+    }
+    let nuevo: string | null = null;
+    for (const id of ids) {
+      const visto = antes.get(id);
+      if (id !== uid && (visto === undefined || ahoraMs - visto > AUSENTE_PARA_ANUNCIAR_MS)) nuevo = id;
+      antes.set(id, ahoraMs);
+    }
+    if (nuevo) {
+      sonar("llega");
+      setLlego({ id: nuevo, nombre: sala.miembros?.[nuevo]?.nombre ?? "" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveConectados, uid]);
+  // Quien sigue conectado se marca como visto en cada vuelta (así un corte corto no cuenta como llegada).
+  useEffect(() => {
+    const m = vistos.current;
+    if (!m) return;
+    for (const id of claveConectados ? claveConectados.split(",") : []) m.set(id, ahora);
+  }, [ahora, claveConectados]);
+  useEffect(() => {
+    if (!llego) return;
+    const id = window.setTimeout(() => setLlego(null), 4500);
+    return () => window.clearTimeout(id);
+  }, [llego]);
   return (
     <button className="fila-miembros" onClick={alTocar} aria-expanded={abierta}>
       <span className="avatares">
         {lista.slice(0, MAX).map((m) => (
-          <span key={m.id} className={`avatar-con-punto ${m.conectado ? "" : "ausente"}`} title={m.nombre}>
+          <span key={m.id} className={`avatar-con-punto ${m.conectado ? "" : "ausente"} ${llego?.id === m.id ? "llega" : ""}`} title={m.nombre}>
             <AvatarCirculo avatar={m.avatar ?? avatarPorDefecto(m.id)} tam="xs" />
             <span className={`punto ${m.juega ? "juega" : m.conectado ? "on" : "off"}`} aria-hidden="true" />
           </span>
         ))}
         {lista.length > MAX && <span className="mas-avatares">+{lista.length - MAX}</span>}
       </span>
-      <span className="suave chico-texto">
-        {t.enLaSalaN(lista.length)} · {t.conectados(conectados)} {abierta ? "▴" : "▾"}
+      <span className="suave chico-texto" aria-live="polite">
+        {llego ? <strong className="llego">{t.llegoALaSala(llego.nombre)}</strong> : <>{t.enLaSalaN(lista.length)} · {t.conectados(conectados)}</>}{" "}
+        {abierta ? "▴" : "▾"}
       </span>
     </button>
   );
@@ -528,6 +574,14 @@ function Chat(props: { codigo: string; uid: string; nombre: string; mensajes: Me
   const ultimo = mensajes.at(-1);
   const ultimaHora = ultimo?.hora?.toMillis() ?? 0;
   const noLeidos = mensajes.filter((m) => m.uid !== uid && (m.hora?.toMillis() ?? 0) > leido).length;
+
+  // Un plop cuando escribe otra persona (no con tus mensajes ni con los que ya había al entrar).
+  const ultimaOida = useRef(Date.now());
+  useEffect(() => {
+    if (ultimaHora <= ultimaOida.current) return;
+    ultimaOida.current = ultimaHora;
+    if (ultimo && ultimo.uid !== uid) sonar("mensaje");
+  }, [ultimaHora, ultimo, uid]);
 
   // Lo que está a la vista cuenta como leído.
   useEffect(() => {

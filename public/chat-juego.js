@@ -44,6 +44,7 @@
   var claveLeido = "lobby_chat_juego_leido:" + SALA;
   var silencio = guardado("lobby_chat_juego_silencio", "0") === "1";
   var leido = Number(guardado(claveLeido, "0")) || 0;
+  var conExpira = true;
 
   // ── Interfaz ───────────────────────────────────────────────────────────────
   var anfitrion = document.createElement("div");
@@ -142,6 +143,46 @@
   $(".silencio").addEventListener("click", function () { silencio = !silencio; guardar("lobby_chat_juego_silencio", silencio ? "1" : "0"); textoSilencio(); if (silencio) avisos.textContent = ""; });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && abierto()) abrir(false); });
 
+  // Un «plop» corto cuando escribe otra persona. Calla si silencias los avisos del chat o el sonido
+  // del juego (su botón, o «Sonidos» del lobby, que llega como ?sonido=no). Un solo AudioContext,
+  // creado con el primer toque (los celulares no dejan sonar uno creado sin tocar la pantalla).
+  var ctxAudio = null;
+  function audio() {
+    try {
+      if (!ctxAudio) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctxAudio = new C(); }
+      if (ctxAudio.state === "suspended") ctxAudio.resume();
+      return ctxAudio;
+    } catch (e) { return null; }
+  }
+  function desbloquear() { audio(); window.removeEventListener("pointerdown", desbloquear, true); }
+  window.addEventListener("pointerdown", desbloquear, true);
+  function juegoEnSilencio() {
+    try {
+      var p = new URLSearchParams(location.search).get("sonido");
+      if (p === "no") return true;
+      if (p === "si") return false;
+      return ["splitLoyaltyMuted", "dc-mute", "hso-silencio", "lobby_sonido"].some(function (k) {
+        var v = localStorage.getItem(k); return k === "lobby_sonido" ? v === "0" : v === "1";
+      });
+    } catch (e) { return false; }
+  }
+  function plop() {
+    if (silencio || juegoEnSilencio()) return;
+    var c = audio(); if (!c) return;
+    try {
+      var t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(700 * (0.95 + Math.random() * 0.1), t);
+      o.frequency.exponentialRampToValueAtTime(380, t + 0.12);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + 0.17);
+      o.onended = function () { o.disconnect(); g.disconnect(); };
+    } catch (e) {}
+  }
+
   // Un mensaje nuevo asoma unos segundos (como mucho 2 a la vez) y se va solo.
   function asomar(m) {
     if (silencio || abierto()) return;
@@ -183,7 +224,17 @@
           // Lo que se escribió antes de abrir el juego ya se vio en la sala: solo cuenta lo nuevo.
           if (leido < inicio - 5000) leido = inicio - 5000;
           enviarFn = function (texto) {
-            return F.addDoc(F.collection(db, "salas", SALA, "mensajes"), { uid: yo, nombre: NOMBRE, texto: texto, hora: F.serverTimestamp() });
+            // Como en el lobby: el mensaje se borra solo a los 30 días (campo expira). Si las reglas
+            // publicadas aún no lo aceptan, se manda sin él (y ya no se vuelve a intentar).
+            var col = F.collection(db, "salas", SALA, "mensajes");
+            var base = { uid: yo, nombre: NOMBRE, texto: texto, hora: F.serverTimestamp() };
+            if (!conExpira) return F.addDoc(col, base);
+            var datos = Object.assign({ expira: F.Timestamp.fromMillis(Date.now() + 30 * 86400000) }, base);
+            return F.addDoc(col, datos).catch(function (e) {
+              if (!e || e.code !== "permission-denied") throw e;
+              conExpira = false;
+              return F.addDoc(col, base);
+            });
           };
           var q = F.query(F.collection(db, "salas", SALA, "mensajes"), F.orderBy("hora"), F.limitToLast(40));
           F.onSnapshot(q, function (snap) {
@@ -193,7 +244,9 @@
               var x = d.data();
               return { id: d.id, uid: x.uid, nombre: x.nombre || "?", texto: x.texto || "", ms: x.hora && x.hora.toMillis ? x.hora.toMillis() : Date.now() };
             });
-            mensajes.forEach(function (m) { if (!antes[m.id] && m.uid !== yo && m.ms >= inicio - 5000) asomar(m); });
+            var nuevos = mensajes.filter(function (m) { return !antes[m.id] && m.uid !== yo && m.ms >= inicio - 5000; });
+            nuevos.forEach(asomar);
+            if (nuevos.length) plop();
             if (abierto()) { marcarLeidos(); pintarLista(); }
             pintarInsignia();
             if (!anfitrion.isConnected) document.body.appendChild(anfitrion); // aparece cuando ya hay conexión

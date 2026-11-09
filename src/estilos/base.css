@@ -897,3 +897,11 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
 .pronto-cuerpo { display: grid; justify-items: center; text-align: center; gap: 0.6rem; padding: 0.5rem 0.2rem; }
 .pronto-cuerpo h2 { margin: 0; }
 .pronto-cuerpo p { margin: 0; }
+
+/* Alguien acaba de llegar a la sala: su avatar late un momento y se nombra en la fila. */
+.fila-miembros .llego { color: var(--acento); font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .avatar-con-punto.llega { animation: llega 0.9s ease-out 2; }
+  @keyframes llega { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 100% { transform: scale(1); } }
+}
+.avatar-con-punto.llega .avatar { box-shadow: 0 0 0 2px var(--acento); }
