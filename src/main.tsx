@@ -5,13 +5,16 @@ import { App } from "./App";
 import { IdiomaProvider } from "./i18n";
 import "./estilos/base.css";
 import { registrarServiceWorker } from "./pwa";
+import { RedDeSeguridad } from "./pantallas/RedDeSeguridad";
 
 registrarServiceWorker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <IdiomaProvider>
-      <App />
+      <RedDeSeguridad>
+        <App />
+      </RedDeSeguridad>
     </IdiomaProvider>
     {/* Visitas anónimas y sin cookies (Vercel Web Analytics). */}
     <Analytics />

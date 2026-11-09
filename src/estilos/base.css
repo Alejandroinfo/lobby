@@ -905,3 +905,8 @@ button.chico { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
   @keyframes llega { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 100% { transform: scale(1); } }
 }
 .avatar-con-punto.llega .avatar { box-shadow: 0 0 0 2px var(--acento); }
+
+/* Red de seguridad: una pantalla falló al dibujarse. */
+.red-de-seguridad { max-width: 440px; text-align: center; }
+.red-de-seguridad__icono { font-size: 2.6rem; margin: 0; }
+.red-de-seguridad .botones { justify-content: center; }

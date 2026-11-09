@@ -3,6 +3,14 @@
  * de verdad se ofrece reportarlo (una vez por visita). Se ignora el ruido conocido.
  */
 const ULTIMOS: string[] = [];
+// El error que tumbó una pantalla (ver RedDeSeguridad) sobrevive a la recarga para ir en el reporte.
+const CLAVE_PANTALLA = "lobby_error_pantalla";
+try {
+  const previo = sessionStorage.getItem(CLAVE_PANTALLA);
+  if (previo) ULTIMOS.push(previo);
+} catch {
+  /* sin almacenamiento */
+}
 const oyentes = new Set<(mensaje: string) => void>();
 let avisado = false;
 
@@ -31,6 +39,21 @@ if (typeof window !== "undefined") {
 }
 
 export const erroresRecientes = () => [...ULTIMOS];
+
+/** Un error que React atrapó al dibujar una pantalla (no pasa por window.onerror). */
+export function anotarErrorDePantalla(error: unknown, componentes?: string) {
+  const e = error instanceof Error ? error : new Error(String(error));
+  const pila = e.stack ? `\n${e.stack.split("\n").slice(0, 4).join("\n")}` : "";
+  const donde = componentes ? `\nEn: ${componentes.trim().split("\n").slice(0, 3).join(" ← ")}` : "";
+  const texto = `${new Date().toISOString()} Pantalla caída: ${e.message}${pila}${donde}`.slice(0, 1200);
+  ULTIMOS.push(texto);
+  if (ULTIMOS.length > 10) ULTIMOS.shift();
+  try {
+    sessionStorage.setItem(CLAVE_PANTALLA, texto);
+  } catch {
+    /* sin almacenamiento */
+  }
+}
 
 /** Avisa (una vez por visita) cuando la página tiene un error técnico. */
 export function alFallar(f: (mensaje: string) => void): () => void {
