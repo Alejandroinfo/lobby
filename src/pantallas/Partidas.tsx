@@ -30,6 +30,7 @@ import { AvatarCirculo } from "./PaginaPerfil";
 import type { PartidaAInvitar } from "./HojaInvitar";
 import { DESCONECTADO_MS, useAhora } from "../hooks/useSala";
 import { abrirAlEmpezar } from "../preferencias";
+import { sonarAviso } from "../sonido";
 
 /**
  * En curso = invitando o jugando, salvo que lleve demasiado tiempo así (nadie la terminó):
@@ -42,28 +43,6 @@ function activa(p: Partida) {
   if (p.estado === "invitando") return ahora - (p.creada?.toMillis() ?? ahora) < (p.porEnlace ? HORAS_ENLACE : HORAS_INVITANDO) * 3600_000;
   if (p.estado === "jugando") return ahora - (p.iniciada?.toMillis() ?? ahora) < HORAS_JUGANDO * 3600_000;
   return false;
-}
-
-/** Un "ding" corto sin archivos de audio (si el navegador lo permite). */
-export function sonarAviso() {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    o.connect(g).connect(ctx.destination);
-    o.start();
-    o.stop(ctx.currentTime + 0.42);
-    o.onended = () => ctx.close();
-  } catch {
-    /* sin audio */
-  }
 }
 
 function nombreVariante(p: Partida, idioma: "es" | "en") {

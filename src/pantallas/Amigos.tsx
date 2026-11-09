@@ -34,7 +34,7 @@ import { useEsCelular } from "../hooks/useEsCelular";
 import { useIdioma } from "../i18n";
 import { irA } from "../navegacion";
 import { AvatarCirculo } from "./PaginaPerfil";
-import { sonarAviso } from "./Partidas";
+import { sonarAviso } from "../sonido";
 
 interface Social {
   uid: string;
