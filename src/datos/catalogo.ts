@@ -195,8 +195,14 @@ export const JUEGOS: Juego[] = [
       },
     },
     url: env.VITE_URL_DOUBLE_CROSS ?? "https://split-loyalty-double-cross.vercel.app/",
-    // En solitario: tú contra un bot (el juego no tiene niveles; «hard» es solo el identificador).
-    solo: { niveles: [{ id: "hard", es: "Un bot", en: "One bot" }] },
+    // En solitario: tú contra un bot. El juego tiene fácil, normal y difícil; el lobby ofrece fácil y
+    // difícil porque las reglas de Firestore aceptan dos niveles («easy» y «hard»).
+    solo: {
+      niveles: [
+        { id: "hard", es: "Bot difícil", en: "Hard bot" },
+        { id: "easy", es: "Bot fácil", en: "Easy bot" },
+      ],
+    },
     // Los calcula el juego (logrosPartida en js/engine.js del repositorio split-loyalty-double-cross).
     logros: {
       "red-quemada": { icono: "🔥", es: "Red quemada", en: "Burned network" },
