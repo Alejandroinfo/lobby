@@ -2,13 +2,15 @@
 import { useState } from "react";
 import type { Perfil } from "../firebase/tipos";
 import { useIdioma } from "../i18n";
-import { abrirAlEmpezar, guardarAbrirAlEmpezar, guardarPreferencias, preferencias } from "../preferencias";
+import { abrirAlEmpezar, guardarAbrirAlEmpezar, guardarPreferencias, guardarSonido, preferencias, sonidoActivo } from "../preferencias";
+import { sonarAviso } from "../sonido";
 
 export function Preferencias({ uid, perfil }: { uid: string; perfil: Perfil | null | undefined }) {
   const { t } = useIdioma();
   const [letraGrande, setLetraGrande] = useState(perfil?.preferencias?.letraGrande ?? preferencias.letraGrande);
   const [error, setError] = useState("");
   const [abrir, setAbrir] = useState(abrirAlEmpezar);
+  const [sonido, setSonido] = useState(sonidoActivo);
 
   const cambiar = async (si: boolean) => {
     setLetraGrande(si);
@@ -45,6 +47,22 @@ export function Preferencias({ uid, perfil }: { uid: string; perfil: Perfil | nu
           <strong>{t.abrirAlEmpezarTitulo}</strong>
           <br />
           <span className="suave chico-texto">{t.abrirAlEmpezarTexto}</span>
+        </span>
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={sonido}
+          onChange={(e) => {
+            setSonido(e.target.checked);
+            guardarSonido(e.target.checked);
+            if (e.target.checked) sonarAviso(); // para oír cómo suena
+          }}
+        />
+        <span>
+          <strong>{t.sonidosTitulo}</strong>
+          <br />
+          <span className="suave chico-texto">{t.sonidosTexto}</span>
         </span>
       </label>
       {error && <p className="error">{error}</p>}

@@ -6,6 +6,8 @@
  * crearlo en ese momento lo deja mudo. Por eso se crea y se «desbloquea» con el primer toque o
  * tecla, y después todos los sonidos usan ese mismo.
  */
+import { sonidoActivo } from "./preferencias";
+
 type ConWebkit = { webkitAudioContext?: typeof AudioContext };
 
 let ctx: AudioContext | null = null;
@@ -38,6 +40,7 @@ if (typeof window !== "undefined") desbloquearAlTocar();
 
 /** Un «ding» corto sin archivos de audio (si el navegador lo permite). */
 export function sonarAviso() {
+  if (!sonidoActivo()) return;
   const c = contexto();
   if (!c) return;
   try {

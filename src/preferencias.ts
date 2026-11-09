@@ -1,5 +1,5 @@
 /**
- * Preferencias que el lobby pasa a los juegos al abrirlos (por ahora, la letra grande). Se guardan
+ * Preferencias que el lobby pasa a los juegos al abrirlos (la letra grande y los sonidos). La letra se guarda
  * en tu perfil (te siguen a otro aparato) y en este navegador (para abrir juegos sin internet).
  * Cada juego decide qué hacer con ellas; hoy la usa Split Loyalty (`?letra=grande`).
  */
@@ -61,7 +61,32 @@ export function guardarAbrirAlEmpezar(si: boolean) {
   }
 }
 
+/**
+ * Sonidos sí/no: en el lobby (aviso de invitaciones) y en los juegos que abras desde aquí
+ * (`?sonido=si|no`; el juego lo toma al empezar y su propio botón lo sigue cambiando). Solo en
+ * este aparato, sin pasar por tu perfil: en el celular se puede querer distinto que en la computadora.
+ */
+const CLAVE_SONIDO = "lobby_sonido";
+export function sonidoActivo(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_SONIDO) !== "0";
+  } catch {
+    return true;
+  }
+}
+export function guardarSonido(si: boolean) {
+  try {
+    localStorage.setItem(CLAVE_SONIDO, si ? "1" : "0");
+    // Los juegos servidos desde el lobby (sin internet) comparten este navegador: se deja también su clave.
+    localStorage.setItem("splitLoyaltyMuted", si ? "0" : "1");
+    localStorage.setItem("dc-mute", si ? "0" : "1");
+    localStorage.setItem("hso-silencio", si ? "0" : "1");
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
 /** Parámetros que se suman al enlace de cada juego. */
 export function parametrosPreferencias(): Record<string, string> {
-  return { letra: preferencias.letraGrande ? "grande" : "normal" };
+  return { letra: preferencias.letraGrande ? "grande" : "normal", sonido: sonidoActivo() ? "si" : "no" };
 }
