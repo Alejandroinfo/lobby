@@ -166,7 +166,7 @@ export const JUEGOS: Juego[] = [
     descripcion: "Recluta agentes con dados, archívalos en tu dossier y cobra objetivos antes que las demás agencias.",
     categoria: "listo",
     jugadores: { min: 2, max: 4 },
-    duracion: "Por medir",
+    duracion: "25–45 min",
     espectadores: false,
     variantes: [
       { id: "1", nombre: "Dossier 1 · Corredor (primera partida)" },
@@ -181,7 +181,7 @@ export const JUEGOS: Juego[] = [
     ],
     en: {
       descripcion: "Recruit agents with dice, file them in your dossier and claim objectives before the other agencies.",
-      duracion: "Not measured yet",
+      duracion: "25–45 min",
       variantes: {
         "1": "Dossier 1 · Corridor (first game)",
         "2": "Dossier 2 · Mirror (for teaching)",
